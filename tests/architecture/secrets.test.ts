@@ -64,7 +64,8 @@ describe('secret scanning', () => {
         .forEach((line, index) => {
           if (ALLOWED.some((rule) => rule.test(line))) return;
           for (const rule of RULES) {
-            if (rule.pattern.test(line)) findings.push(`${file}:${index + 1} looks like a ${rule.name}`);
+            if (rule.pattern.test(line))
+              findings.push(`${file}:${index + 1} looks like a ${rule.name}`);
           }
         });
     }

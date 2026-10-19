@@ -21,11 +21,15 @@ import { fileURLToPath } from 'node:url';
 export const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 export function trackedFiles(): string[] {
-  const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  const listed = execFileSync(
+    'git',
+    ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
   return [...new Set(listed.split('\0').filter(Boolean))].sort();
 }
 

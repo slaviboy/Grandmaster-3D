@@ -1,0 +1,9 @@
+dist/
+coverage/
+public/
+test-results/
+playwright-report/
+blender/
+docs/reference/
+package-lock.json
+*.md
