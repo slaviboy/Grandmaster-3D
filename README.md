@@ -2,7 +2,7 @@
 
 A 3D chess game for the browser in the style of the classic early-2000s desktop chess games. It has
 a wooden board on a blue cloth, Staunton pieces turned in Blender, teal panels, and Stockfish as
-your opponent at six difficulty levels.
+your opponent at six difficulty levels or any rating you choose.
 
 ![The game](docs/screenshots/game.jpg)
 
@@ -11,11 +11,15 @@ your opponent at six difficulty levels.
 - **A real 3D board.** Drag a corner of the board to rotate and tilt it, drag an edge to pan, and
   use the wheel or PgUp/PgDn to zoom. The arrow keys also rotate and tilt, as in the classic games.
   You can also right-drag anywhere, use two fingers on a touch screen, and press Home to reset.
+  Actions → Top View (or T) looks straight down on the board.
 - **Pieces modelled in Blender**, from profiles measured on reference screenshots. The knight is
   carved from a side silhouette into a horse head with ears, eyes, nostrils and a grooved mane. A
   shader gives the wood growth rings and grain, under a lacquer coat.
-- **Stockfish 19** runs in a Web Worker at six levels: Beginner, Easy, Medium, Hard, Expert and
-  Maximum Strength.
+- **Stockfish 19** runs in a Web Worker at six levels (Beginner, Easy, Medium, Hard, Expert and
+  Maximum Strength) or at a custom rating from 400 to 3000, chosen with a slider.
+- **An opponent who looks the part**: the computer's portrait grows with its strength, from a boy
+  at Beginner through old-master portraits of a teenager, a young man, a man of forty and an old
+  man with a long white beard, to a brass automaton at Maximum Strength.
 - **The full rules from chess.js**:
   - castling, en passant and promotion (with a choice of piece)
   - check, checkmate, stalemate and the draw rules (fifty moves, threefold repetition,
@@ -115,6 +119,11 @@ Each level sets every Stockfish option, because options persist between searches
 | Expert | UCI_Elo 2400 | Engine's move |
 | Maximum Strength | Unrestricted, 64 MB hash | Engine's move |
 
+A **Custom** rating is interpolated between these recipes. From 1320 up it uses UCI_Elo with the
+think time of the nearest levels, so a custom 1600 plays exactly like Medium. Below 1320, where
+Stockfish cannot limit itself, the skill, depth and move policy are interpolated through Beginner
+and Easy, down to a looser 400.
+
 The strength ladder (`npm run ladder -- 8`, run at half the think time) gave the stronger level of
 each pair:
 
@@ -151,6 +160,12 @@ The modelling scripts live in [blender/scripts/](blender/scripts/):
 
 The editable source is `blender/chess_set.blend`, previews are in [blender/renders/](blender/renders/),
 and the exported models are in `public/models/chess/` (the Bell set in its `bell/` folder).
+
+## Opponent portraits
+
+Five portraits are public-domain old-master paintings and the sixth is an automaton rendered in
+Blender. `npm run portraits` gives them all one crop, brushwork, varnish and canvas treatment.
+Sources and licences are listed in [art/portraits/CREDITS.md](art/portraits/CREDITS.md).
 
 ## How it is built
 
