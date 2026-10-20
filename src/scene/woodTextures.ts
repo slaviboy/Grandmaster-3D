@@ -14,7 +14,7 @@
 
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 import { createNoise1D, createRng, range, type Rng } from '../core/rng.ts';
-import type { BoardTheme, SurfaceStyle, TableTheme } from './themes.ts';
+import type { BoardTheme, SlabVeins, SurfaceStyle, TableTheme } from './themes.ts';
 
 /** The colours and strength of wood grain; theme surfaces carry these fields too. */
 export interface GrainStyle {
@@ -214,6 +214,74 @@ export function drawMarble(
   ctx.restore();
 }
 
+/**
+ * Veins of a marble slab: long, gently bending light lines that ignore the squares, with a soft
+ * glow around a crisp core, some splitting into thinner branches. `unit` is one square in pixels.
+ */
+export function drawSlabVeins(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  unit: number,
+  veins: SlabVeins,
+  rng: Rng,
+): void {
+  const count = Math.round((veins.count * width * height) / (64 * unit * unit));
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const trace = (
+    x: number,
+    y: number,
+    angle: number,
+    length: number,
+    weight: number,
+    depth: number,
+  ) => {
+    const points: Array<[number, number]> = [[x, y]];
+    const step = unit * 0.06;
+    for (let travelled = 0; travelled < length; travelled += step) {
+      // Mostly straight, with now and then a sharp kink.
+      angle += rng() < 0.1 ? range(rng, -0.8, 0.8) : range(rng, -0.06, 0.06);
+      x += Math.cos(angle) * step;
+      y += Math.sin(angle) * step;
+      points.push([x, y]);
+      if (depth < 2 && rng() < 0.02) {
+        trace(
+          x,
+          y,
+          angle + range(rng, -0.9, 0.9),
+          length * range(rng, 0.2, 0.45),
+          weight * 0.55,
+          depth + 1,
+        );
+      }
+    }
+    const alpha = veins.opacity * weight;
+    const stroke = (lineWidth: number, a: number) => {
+      ctx.strokeStyle = `rgba(${veins.colour},${a})`;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      points.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
+      ctx.stroke();
+    };
+    stroke(unit * 0.05 * weight, alpha * 0.2);
+    stroke(unit * 0.016 * weight, alpha);
+  };
+  for (let i = 0; i < count; i++) {
+    trace(
+      rng() * width,
+      rng() * height,
+      // Mostly diagonal, as the veins on the reference board run.
+      range(rng, -0.5, 0.5) + (rng() < 0.5 ? Math.PI / 4 : (3 * Math.PI) / 4),
+      range(rng, 1.5, 4) * unit,
+      range(rng, 0.45, 1),
+      0,
+    );
+  }
+  ctx.restore();
+}
+
 /** A plain finish: the base colour with a faint mottle so it does not look like flat paint. */
 export function drawPlain(
   ctx: CanvasRenderingContext2D,
@@ -260,6 +328,7 @@ export function createSquaresTexture(theme: BoardTheme, seed = 7, size = 2048): 
       );
     }
   }
+  if (theme.slabVeins) drawSlabVeins(ctx, size, size, cell, theme.slabVeins, rng);
   return toTexture(canvas);
 }
 
@@ -319,6 +388,7 @@ export function drawFrameCanvas(
       ctx.restore();
     }
   }
+  if (theme.slabVeins) drawSlabVeins(ctx, size, size, unit, theme.slabVeins, rng);
 
   if (!labels.visible) return;
   const files = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];

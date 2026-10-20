@@ -47,6 +47,17 @@ export interface BoardTheme {
   readonly thickness?: number;
   /** Coordinate letter height in squares (default 0.3). */
   readonly labelSize?: number;
+  /** Long veins running across the whole board and frame, as on one cut marble slab. */
+  readonly slabVeins?: SlabVeins;
+}
+
+export interface SlabVeins {
+  /** Vein colour, as "r,g,b". */
+  readonly colour: string;
+  /** How many veins cross the playing area. */
+  readonly count: number;
+  /** Opacity of the strongest vein. */
+  readonly opacity: number;
 }
 
 /** wood, lacquer, metal and stone are opaque; glass is clear and lets light through; gloss is
