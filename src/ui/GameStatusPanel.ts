@@ -26,6 +26,8 @@ export interface PlayerInfo {
   readonly computer: boolean;
   /** A picture for the card; without one a computer gets the carved king, a person a silhouette. */
   readonly portrait?: { readonly src: string; readonly alt: string };
+  /** A short line under the name, such as "Disconnected". */
+  readonly note?: string;
 }
 
 export interface MoveListActions {
@@ -132,7 +134,7 @@ export class GameStatusPanel {
         ? state.thinking && state.thinking.depth > 0
           ? `Thinking… ${state.thinking.score}`
           : 'Thinking…'
-        : '';
+        : (info.note ?? '');
       card.root.classList.toggle(
         'to-move',
         state.turn === color && state.status.kind === 'playing',

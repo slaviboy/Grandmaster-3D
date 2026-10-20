@@ -77,7 +77,7 @@ export class Dock {
     this.chip.classList.toggle('thinking', state.phase === 'engineThinking');
     this.chip.classList.toggle(
       'yours',
-      playing && state.mode === 'computer' && state.turn === state.humanColor,
+      playing && state.mode !== 'local' && state.turn === state.humanColor,
     );
     this.status.textContent = status;
     this.undo.disabled = !state.canUndo;

@@ -113,6 +113,7 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
       [
         ['computer', 'Against the computer'],
         ['local', 'Two players on this device'],
+        ['online', 'A friend online'],
       ],
       current.mode,
     );
@@ -141,34 +142,37 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
     );
     const sideField = field('You play', side);
     const levelField = field('Difficulty', level);
+    const actions = el('div', 'dialog-actions');
+    const start = button(
+      'Start Game',
+      () => {
+        const chosen =
+          side.value === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : (side.value as 'w' | 'b');
+        close({
+          mode: mode.value as Settings['mode'],
+          humanColor: chosen,
+          difficulty: level.value as DifficultyId,
+          customRating: rating(),
+          minutes: Number(time.value),
+        });
+      },
+      true,
+    );
+    actions.append(
+      start,
+      button('Cancel', () => close(null)),
+    );
     const update = () => {
       const local = mode.value === 'local';
+      const person = mode.value !== 'computer';
       sideField.hidden = local;
-      levelField.hidden = local;
-      ratingField.hidden = local || level.value !== 'custom';
+      levelField.hidden = person;
+      ratingField.hidden = person || level.value !== 'custom';
+      start.textContent = mode.value === 'online' ? 'Create Link' : 'Start Game';
     };
     mode.addEventListener('change', update);
     level.addEventListener('change', update);
     update();
-    const actions = el('div', 'dialog-actions');
-    actions.append(
-      button(
-        'Start Game',
-        () => {
-          const chosen =
-            side.value === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : (side.value as 'w' | 'b');
-          close({
-            mode: mode.value as Settings['mode'],
-            humanColor: chosen,
-            difficulty: level.value as DifficultyId,
-            customRating: rating(),
-            minutes: Number(time.value),
-          });
-        },
-        true,
-      ),
-      button('Cancel', () => close(null)),
-    );
     body.append(
       field('Opponent', mode),
       sideField,
@@ -320,13 +324,17 @@ export function confirmDialog(title: string, message: string, confirm: string): 
 
 export type GameOverChoice = 'new' | 'review' | 'save';
 
-export function gameOverDialog(message: string, detail: string): Promise<GameOverChoice> {
+export function gameOverDialog(
+  message: string,
+  detail: string,
+  next = 'New Game',
+): Promise<GameOverChoice> {
   return openDialog<GameOverChoice>('Game Over', 'review', ({ body, close }) => {
     const text = el('div', 'game-over-text');
     text.append(el('strong', '', message), el('p', '', detail));
     const actions = el('div', 'dialog-actions');
     actions.append(
-      button('New Game', () => close('new'), true),
+      button(next, () => close('new'), true),
       button('Review the Board', () => close('review')),
       button('Save Game (PGN)', () => close('save')),
     );

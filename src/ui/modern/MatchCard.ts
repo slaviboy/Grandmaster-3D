@@ -139,8 +139,8 @@ export class MatchCard {
         ? state.thinking && state.thinking.depth > 0
           ? `Thinking ${state.thinking.score}`
           : 'Thinking'
-        : '';
-      row.note.hidden = !thinking;
+        : (info.note ?? '');
+      row.note.hidden = !row.note.textContent;
       this.renderCaptures(row, state.captured[other(color)], other(color));
       const lead = material(color) - material(other(color));
       row.lead.textContent = lead > 0 ? `+${lead}` : '';

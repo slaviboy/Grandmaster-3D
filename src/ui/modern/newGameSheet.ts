@@ -10,7 +10,8 @@
  */
 
 // The modern New Game sheet: pick the opponent by their portrait (or a custom rating), the side and
-// the time control, all visible at once. It answers like the retro New Game dialog.
+// the time control, all visible at once. It answers like the retro New Game dialog. A friend online
+// takes the side and time from here; the link comes next.
 
 import { DIFFICULTIES, type DifficultyId } from '../../engine/difficulty.ts';
 import { TIME_CONTROLS, type Settings } from '../../game/Settings.ts';
@@ -44,6 +45,7 @@ export function newGameSheet(current: Settings): Promise<Partial<Settings> | nul
       [
         ['computer', 'Against the computer'],
         ['local', 'Two players'],
+        ['online', 'A friend online'],
       ],
       mode,
       (value) => {
@@ -109,12 +111,12 @@ export function newGameSheet(current: Settings): Promise<Partial<Settings> | nul
 
     const update = () => {
       const local = mode === 'local';
-      strength.hidden = local;
+      const person = mode !== 'computer';
+      strength.hidden = person;
       yourSide.hidden = local;
-      ratingField.hidden = local || level !== 'custom';
+      ratingField.hidden = person || level !== 'custom';
+      start.textContent = mode === 'online' ? 'Create Link' : 'Start Game';
     };
-    update();
-
     const actions = el('div', 'dialog-actions');
     const start = el('button', 'btn', 'Start Game');
     start.type = 'button';
@@ -132,6 +134,7 @@ export function newGameSheet(current: Settings): Promise<Partial<Settings> | nul
     cancel.type = 'button';
     cancel.addEventListener('click', () => close(null));
     actions.append(start, cancel);
+    update();
 
     body.append(
       section('Opponent', opponent.element),
