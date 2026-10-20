@@ -17,6 +17,7 @@ import type { Store } from '../core/Store.ts';
 import type { OnlineState } from '../net/OnlineSession.ts';
 import { MAX_NAME_LENGTH, cleanName } from '../net/protocol.ts';
 import { el, openDialog } from './Dialog.ts';
+import { qrCode } from './qr.ts';
 
 export type ConsentKind = 'host' | 'guest' | 'rejoin' | 'rematch';
 
@@ -118,8 +119,8 @@ export function consentDialog(kind: ConsentKind, name: string): Promise<{ name: 
 export type WaitResult = 'playing' | 'cancelled' | 'failed';
 
 /**
- * Waits for the other player: for the host it shows the invitation link with a Copy button, for
- * the guest only the progress. Closes by itself when the game starts. Cancel (or Escape) resolves
+ * Waits for the other player: for the host it shows the invitation link with a Copy button and as
+ * a QR code to scan, for the guest only the progress. Closes by itself when the game starts. Cancel (or Escape) resolves
  * 'cancelled'; a connection that fails shows why and resolves 'failed' when dismissed.
  */
 export function waitDialog(state: Store<OnlineState>, link: string | null): Promise<WaitResult> {
@@ -147,7 +148,25 @@ export function waitDialog(state: Store<OnlineState>, link: string | null): Prom
         });
         copy.setAttribute('autofocus', '');
         row.append(field, copy);
-        body.append(row, el('p', 'online-reminder', 'Only share it with people you trust.'));
+        const figure = el('figure', 'online-qr');
+        const code = el('div', 'online-qr-code');
+        code.setAttribute('role', 'img');
+        code.setAttribute('aria-label', 'QR code of the game link');
+        const qr = qrCode(link);
+        code.innerHTML = qr.svg;
+        // Large, with whole pixels per module so every edge is sharp: about 5 px per module on a
+        // computer and 4 on a phone, which cameras read at a glance.
+        const target = Math.min(340, window.innerWidth * 0.7);
+        code.style.width = `${Math.max(3, Math.floor(target / qr.total)) * qr.total}px`;
+        figure.append(
+          code,
+          el('figcaption', '', "Or let your friend scan it with their phone's camera."),
+        );
+        body.append(
+          figure,
+          row,
+          el('p', 'online-reminder', 'Only share it with people you trust.'),
+        );
       }
       const status = el('p', 'online-status');
       status.setAttribute('role', 'status');

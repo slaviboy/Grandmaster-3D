@@ -322,3 +322,56 @@
     color: var(--text-dim);
   }
 }
+
+/* The invitation as a QR code: dark on white whatever the look, so any phone camera reads it. */
+:root[data-ui='modern'],
+:root[data-ui='retro'] {
+  .online-qr {
+    display: grid;
+    justify-items: center;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  /* The width is set in whole pixels per module by the dialog. */
+  .online-qr-code {
+    box-sizing: content-box;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .online-qr-code svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .online-qr figcaption {
+    text-align: center;
+  }
+}
+
+:root[data-ui='modern'] {
+  .online-qr-code {
+    border-radius: 1.4rem;
+    box-shadow:
+      0 0 0 1px var(--m-line-strong),
+      0 0.8rem 2.4rem rgba(0, 0, 0, 0.35);
+  }
+
+  .online-qr figcaption {
+    color: var(--m-muted);
+    font-size: 1.2rem;
+  }
+}
+
+:root[data-ui='retro'] {
+  .online-qr-code {
+    border: 0.28rem solid #c5e9f5;
+    border-radius: 0.7rem;
+  }
+
+  .online-qr figcaption {
+    color: var(--text-dim);
+  }
+}

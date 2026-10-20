@@ -32,6 +32,7 @@ export const COPYRIGHT_HOLDERS: readonly string[] = [
   'Jeff Hlywa',
   'Dan Motzenbecker',
   'Paul Miller',
+  'Kazuhiko Arase',
   // The GNU GPL's own text and its how-to template.
   'Free Software Foundation',
   '<name of author>',

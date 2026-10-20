@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "chess.js": "^1.4.0",
+    "qrcode-generator": "2.0.4",
     "stockfish": "^19.0.1",
     "three": "^0.186.1",
     "trystero": "0.26.0"
@@ -42,6 +43,7 @@
     "@types/three": "^0.186.0",
     "eslint": "^10.13.0",
     "globals": "^17.13.0",
+    "jsqr": "1.4.0",
     "pixelmatch": "^8.0.0",
     "pngjs": "^7.0.0",
     "prettier": "^3.9.10",

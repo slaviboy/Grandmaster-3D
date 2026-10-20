@@ -37,6 +37,12 @@ then opens a direct WebRTC connection.
 Copyright © 2019 Paul Miller. https://github.com/paulmillr/noble-secp256k1 — MIT License. Trystero
 uses it to sign its Nostr messages.
 
+## QR Code Generator — MIT
+
+Copyright © 2009 Kazuhiko Arase. https://github.com/kazuhikoarase/qrcode-generator — MIT License. It
+draws the invitation link as a QR code, in the browser. The word "QR Code" is a registered trademark
+of DENSO WAVE INCORPORATED.
+
 ## Assets
 
 The chess pieces were modelled for this project with the Blender scripts in `blender/scripts/`. The

@@ -31,6 +31,11 @@ export function pieceSvg(color: Color, kind: PieceKind, size = 24): string {
   return `<svg class="piece-icon" width="${size}" height="${size}" viewBox="0 0 45 45" aria-hidden="true"><path d="${PIECE_PATHS[kind]} ${BASE}" fill="${fill}" fill-rule="evenodd" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 }
 
+/** A piece's outline for drawing inside another SVG: the path in a 45x45 box. */
+export function piecePath(kind: PieceKind): string {
+  return `${PIECE_PATHS[kind]} ${BASE}`;
+}
+
 /** Glyphs for the round action buttons and window controls. */
 export const GLYPHS = {
   newGame:
