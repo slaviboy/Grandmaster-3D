@@ -10,9 +10,9 @@
  */
 
 // The modern interface: floating dark-glass cards around the board. A top bar with the wordmark,
-// the menus and the main buttons runs along the top. The Coach card stands at the top left, and the
+// the menus and the main buttons runs along the top. The Coach card stands at the top left, the
 // Match card (players, clocks and moves) at the right, where it keeps the board's framing of the
-// retro layout.
+// retro layout, and the dock with the status and game buttons at the bottom centre.
 
 import type { Color } from '../../game/types.ts';
 import { el } from '../Dialog.ts';
@@ -21,6 +21,7 @@ import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
 import type { Shell, ShellContext, ShellView } from '../shell.ts';
 import { CoachCard } from './CoachCard.ts';
 import { iconButton } from './controls.ts';
+import { Dock } from './Dock.ts';
 import { MatchCard } from './MatchCard.ts';
 
 export class ModernShell implements Shell {
@@ -28,6 +29,7 @@ export class ModernShell implements Shell {
   private readonly menu: MenuBar;
   private readonly match: MatchCard;
   private readonly coach: CoachCard;
+  private readonly dock: Dock;
 
   constructor(private readonly ctx: ShellContext) {
     const { app, commands, signal } = ctx;
@@ -61,7 +63,9 @@ export class ModernShell implements Shell {
       app.settings.get().showLegalMoves,
     );
 
-    this.element.append(top, this.coach.element, this.match.element);
+    this.dock = new Dock(commands, () => app.camera.isTopView);
+
+    this.element.append(top, this.coach.element, this.match.element, this.dock.element);
     app.root.append(this.element);
 
     // Small screens start with the move list folded so the board stays clear.
@@ -82,13 +86,15 @@ export class ModernShell implements Shell {
     return this.menu.isOpen;
   }
 
-  render({ state, settings, players, bottomColor }: ShellView): void {
+  render({ state, settings, players, bottomColor, status }: ShellView): void {
     this.coach.syncLegalMoves(settings.showLegalMoves);
     this.match.render(state, players, bottomColor);
+    this.dock.render(state, status);
   }
 
   renderClocks(times: Record<Color, number>, running: Color | null): void {
     this.match.renderClocks(times, running);
+    this.dock.syncTopView();
   }
 
   say(text: string): void {
