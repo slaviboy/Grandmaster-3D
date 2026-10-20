@@ -33,7 +33,8 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ChessBoard } from './ChessBoard.ts';
-import { createClothTexture } from './woodTextures.ts';
+import { tableTheme, type TableTheme } from './themes.ts';
+import { createTableTexture } from './woodTextures.ts';
 
 /** Called every frame with the elapsed seconds; returns true while it still needs frames. */
 export type FrameUpdater = (deltaSeconds: number) => boolean;
@@ -46,6 +47,7 @@ export class ChessScene {
   readonly camera = new PerspectiveCamera(30, 1, 0.5, 200);
   readonly board: ChessBoard;
   readonly keyLight: DirectionalLight;
+  private readonly clothMaterial: MeshStandardMaterial;
   private readonly updaters = new Set<FrameUpdater>();
   private readonly resizeListeners = new Set<(width: number, height: number) => void>();
   private readonly timer = new Timer();
@@ -101,12 +103,14 @@ export class ChessScene {
     this.board = new ChessBoard();
     this.scene.add(this.board.group);
 
-    const clothTexture = createClothTexture();
+    const clothTexture = createTableTexture(tableTheme('teal'));
     clothTexture.repeat.set(10, 10);
-    const cloth = new Mesh(
-      new PlaneGeometry(120, 120),
-      new MeshStandardMaterial({ map: clothTexture, roughness: 0.95, metalness: 0 }),
-    );
+    this.clothMaterial = new MeshStandardMaterial({
+      map: clothTexture,
+      roughness: 0.95,
+      metalness: 0,
+    });
+    const cloth = new Mesh(new PlaneGeometry(120, 120), this.clothMaterial);
     cloth.name = 'cloth';
     cloth.rotation.x = -Math.PI / 2;
     cloth.position.y = this.board.bottomY - 0.001;
@@ -120,6 +124,19 @@ export class ChessScene {
 
     this.timer.connect(document);
     this.renderer.setAnimationLoop((time) => this.tick(time));
+  }
+
+  /** Changes the table under the board: its texture and the colour of everything beyond it. */
+  setTable(theme: TableTheme): void {
+    const texture = createTableTexture(theme);
+    texture.repeat.set(10, 10);
+    this.clothMaterial.map?.dispose();
+    this.clothMaterial.map = texture;
+    this.clothMaterial.needsUpdate = true;
+    const colour = new Color(theme.background);
+    (this.scene.background as Color).copy(colour);
+    this.scene.fog?.color.copy(colour);
+    this.requestRender();
   }
 
   /** A blurred dark patch under the board: the soft drop shadow on the cloth in the reference. */

@@ -24,6 +24,7 @@ import {
   type CanvasTexture,
   type Vector3,
 } from 'three';
+import { boardTheme, type BoardTheme } from './themes.ts';
 import { createFrameTexture, createSquaresTexture, type FrameLabels } from './woodTextures.ts';
 
 /** Width of the frame around the playing area. */
@@ -47,17 +48,19 @@ export class ChessBoard {
   readonly bottomY = FRAME_LIP - BOARD_THICKNESS;
   private readonly frameMaterial: MeshStandardMaterial;
   private readonly edgeMaterial: MeshStandardMaterial;
+  private readonly surfaceMaterial: MeshStandardMaterial;
   private labels: FrameLabels = { side: 'white', visible: true };
+  private theme: BoardTheme = boardTheme('classic');
 
   constructor() {
     this.group.name = 'board';
 
-    const squares = createSquaresTexture();
     const surfaceMaterial = new MeshStandardMaterial({
-      map: squares,
-      roughness: 0.55,
+      map: createSquaresTexture(this.theme),
+      roughness: this.theme.roughness,
       metalness: 0,
     });
+    this.surfaceMaterial = surfaceMaterial;
     this.surface = new Mesh(new PlaneGeometry(8, 8), surfaceMaterial);
     this.surface.name = 'playing-surface';
     this.surface.rotation.x = -Math.PI / 2;
@@ -71,7 +74,7 @@ export class ChessBoard {
     // The extrusion's side walls (its second material group) read lighter in the reference,
     // like the exposed end of a planed board.
     this.edgeMaterial = this.frameMaterial.clone();
-    this.edgeMaterial.color.setRGB(1.14, 1.08, 1.3);
+    this.edgeMaterial.color.setRGB(...this.theme.edgeTint);
     this.edgeMaterial.vertexColors = true;
     this.frame = new Mesh(createFrameGeometry(), [this.frameMaterial, this.edgeMaterial]);
     this.frame.name = 'frame';
@@ -81,11 +84,32 @@ export class ChessBoard {
     this.group.add(this.surface, this.frame);
   }
 
+  get currentTheme(): BoardTheme {
+    return this.theme;
+  }
+
+  /** Repaints the squares and frame in another board theme. */
+  setTheme(theme: BoardTheme): void {
+    this.theme = theme;
+    this.surfaceMaterial.map?.dispose();
+    this.surfaceMaterial.map = createSquaresTexture(theme);
+    this.surfaceMaterial.roughness = theme.roughness;
+    this.surfaceMaterial.needsUpdate = true;
+    this.frameMaterial.roughness = theme.roughness;
+    this.edgeMaterial.roughness = theme.roughness;
+    this.edgeMaterial.color.setRGB(...theme.edgeTint);
+    this.repaintFrame();
+  }
+
   /** Puts the engraved coordinates on the side facing the given player. */
   setLabels(labels: Partial<FrameLabels>): void {
     const next = { ...this.labels, ...labels };
     if (next.side === this.labels.side && next.visible === this.labels.visible) return;
     this.labels = next;
+    this.repaintFrame();
+  }
+
+  private repaintFrame(): void {
     this.frameMaterial.map?.dispose();
     this.frameMaterial.map = this.makeFrameTexture();
     this.frameMaterial.needsUpdate = true;
@@ -102,7 +126,7 @@ export class ChessBoard {
   }
 
   private makeFrameTexture(): CanvasTexture {
-    const texture = createFrameTexture(FRAME_WIDTH, this.labels);
+    const texture = createFrameTexture(FRAME_WIDTH, this.labels, this.theme);
     // Extrude caps use shape coordinates (-4.5..4.5) as UVs; map them onto the 0..1 canvas.
     const span = 8 + 2 * FRAME_WIDTH;
     texture.repeat.set(1 / span, 1 / span);
@@ -116,9 +140,8 @@ export class ChessBoard {
     this.frameMaterial.map?.dispose();
     this.frameMaterial.dispose();
     this.edgeMaterial.dispose();
-    const surfaceMaterial = this.surface.material as MeshStandardMaterial;
-    surfaceMaterial.map?.dispose();
-    surfaceMaterial.dispose();
+    this.surfaceMaterial.map?.dispose();
+    this.surfaceMaterial.dispose();
   }
 }
 

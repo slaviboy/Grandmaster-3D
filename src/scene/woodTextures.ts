@@ -14,7 +14,9 @@
 
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 import { createNoise1D, createRng, range, type Rng } from '../core/rng.ts';
+import type { BoardTheme, SurfaceStyle, TableTheme } from './themes.ts';
 
+/** The colours and strength of wood grain; theme surfaces carry these fields too. */
 export interface GrainStyle {
   /** Base colour of the wood. */
   readonly base: string;
@@ -120,44 +122,125 @@ function toTexture(canvas: HTMLCanvasElement): CanvasTexture {
   return texture;
 }
 
-export const LIGHT_SQUARE: GrainStyle = {
-  base: '#f2c48f',
-  line: '176,120,64',
-  highlight: '255,236,200',
-  density: 22,
-  contrast: 0.55,
-  waviness: 3,
-};
+/** Paints one surface style into a rectangle: wood grain, marble or a plain finish. */
+export function drawSurface(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  style: SurfaceStyle,
+  rng: Rng,
+  vertical = false,
+): void {
+  if (style.pattern === 'wood') drawGrain(ctx, x, y, width, height, style, rng, vertical);
+  else if (style.pattern === 'marble') drawMarble(ctx, x, y, width, height, style, rng);
+  else drawPlain(ctx, x, y, width, height, style, rng);
+}
 
-export const DARK_SQUARE: GrainStyle = {
-  base: '#a47a4f',
-  line: '110,66,28',
-  highlight: '222,170,110',
-  density: 24,
-  contrast: 0.65,
-  waviness: 3,
-};
+/** Marble: soft clouds of lighter and darker stone crossed by thin branching veins. */
+export function drawMarble(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  style: SurfaceStyle,
+  rng: Rng,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+  ctx.fillStyle = style.base;
+  ctx.fillRect(x, y, width, height);
+  const size = Math.max(width, height);
+  const clouds = Math.round(6 + (width * height) / 40000);
+  for (let i = 0; i < clouds; i++) {
+    const cx = x + rng() * width;
+    const cy = y + rng() * height;
+    const r = range(rng, 0.15, 0.55) * size;
+    const colour = rng() < 0.5 ? style.line : style.highlight;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(${colour},${range(rng, 0.08, 0.2) * style.contrast})`);
+    g.addColorStop(1, `rgba(${colour},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, width, height);
+  }
+  // Veins: wandering lines that occasionally fork.
+  const veins = Math.max(2, Math.round((style.density * size) / 256));
+  for (let i = 0; i < veins; i++) {
+    let px = x + rng() * width;
+    let py = y + rng() * height;
+    let angle = range(rng, 0, Math.PI * 2);
+    const steps = Math.round(range(rng, 20, 60));
+    const step = size / 40;
+    const alpha = range(rng, 0.15, 0.55) * style.contrast;
+    let lineWidth = range(rng, 0.6, 2.4) * (size / 256);
+    ctx.strokeStyle = `rgba(${style.line},${alpha})`;
+    ctx.lineCap = 'round';
+    for (let s = 0; s < steps; s++) {
+      angle += range(rng, -0.45, 0.45);
+      const nx = px + Math.cos(angle) * step;
+      const ny = py + Math.sin(angle) * step;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+      if (rng() < 0.06) {
+        // A short fork.
+        let fx = nx;
+        let fy = ny;
+        let fa = angle + range(rng, -1.2, 1.2);
+        for (let f = 0; f < 8; f++) {
+          fa += range(rng, -0.4, 0.4);
+          const gx = fx + Math.cos(fa) * step * 0.7;
+          const gy = fy + Math.sin(fa) * step * 0.7;
+          ctx.lineWidth = lineWidth * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(gx, gy);
+          ctx.stroke();
+          fx = gx;
+          fy = gy;
+        }
+      }
+      lineWidth = Math.max(0.3, lineWidth * range(rng, 0.94, 1.04));
+      px = nx;
+      py = ny;
+    }
+  }
+  ctx.restore();
+}
 
-export const FRAME_WOOD: GrainStyle = {
-  base: '#c8955b',
-  line: '168,98,40',
-  highlight: '255,212,150',
-  density: 16,
-  contrast: 0.6,
-  waviness: 5,
-};
-
-export const CLOTH: GrainStyle = {
-  base: '#1c4053',
-  line: '8,36,50',
-  highlight: '40,100,124',
-  density: 30,
-  contrast: 0.9,
-  waviness: 9,
-};
+/** A plain finish: the base colour with a faint mottle so it does not look like flat paint. */
+export function drawPlain(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  style: SurfaceStyle,
+  rng: Rng,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+  ctx.fillStyle = style.base;
+  ctx.fillRect(x, y, width, height);
+  const specks = Math.round((width * height) / 120);
+  for (let i = 0; i < specks; i++) {
+    const colour = rng() < 0.5 ? style.line : style.highlight;
+    ctx.fillStyle = `rgba(${colour},${range(rng, 0.03, 0.12) * style.contrast})`;
+    ctx.fillRect(x + rng() * width, y + rng() * height, range(rng, 1, 3), range(rng, 1, 3));
+  }
+  ctx.restore();
+}
 
 /** The 8x8 playing surface: one canvas, 256 px per square, a1 at the bottom left. */
-export function createSquaresTexture(seed = 7, size = 2048): CanvasTexture {
+export function createSquaresTexture(theme: BoardTheme, seed = 7, size = 2048): CanvasTexture {
   const [canvas, ctx] = makeCanvas(size, size);
   const rng = createRng(seed);
   const cell = size / 8;
@@ -165,13 +248,13 @@ export function createSquaresTexture(seed = 7, size = 2048): CanvasTexture {
     for (let col = 0; col < 8; col++) {
       // Canvas row 0 is rank 8; a1 (col 0, row 7) is dark.
       const light = (col + row) % 2 === 0;
-      drawGrain(
+      drawSurface(
         ctx,
         col * cell,
         row * cell,
         cell,
         cell,
-        light ? LIGHT_SQUARE : DARK_SQUARE,
+        light ? theme.light : theme.dark,
         rng,
         true,
       );
@@ -195,6 +278,7 @@ export function drawFrameCanvas(
   canvas: HTMLCanvasElement,
   frameWidth: number,
   labels: FrameLabels,
+  theme: BoardTheme,
   seed = 11,
 ): void {
   const ctx = canvas.getContext('2d');
@@ -203,34 +287,37 @@ export function drawFrameCanvas(
   const unit = size / (8 + 2 * frameWidth);
   const strip = frameWidth * unit;
   const rng = createRng(seed);
+  const frame = theme.frame;
 
   // Centre and the side strips. Each strip is clipped to a trapezoid so the corners meet in mitres.
-  drawGrain(ctx, 0, 0, size, size, FRAME_WOOD, rng);
-  const sides: Array<{ poly: number[]; vertical: boolean }> = [
-    { poly: [0, 0, size, 0, size - strip, strip, strip, strip], vertical: false },
-    {
-      poly: [0, size, size, size, size - strip, size - strip, strip, size - strip],
-      vertical: false,
-    },
-    { poly: [0, 0, strip, strip, strip, size - strip, 0, size], vertical: true },
-    {
-      poly: [size, 0, size - strip, strip, size - strip, size - strip, size, size],
-      vertical: true,
-    },
-  ];
-  for (const side of sides) {
-    ctx.save();
-    ctx.beginPath();
-    for (let i = 0; i < side.poly.length; i += 2) {
-      const px = side.poly[i]!;
-      const py = side.poly[i + 1]!;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+  drawSurface(ctx, 0, 0, size, size, frame, rng);
+  if (frame.pattern === 'wood') {
+    const sides: Array<{ poly: number[]; vertical: boolean }> = [
+      { poly: [0, 0, size, 0, size - strip, strip, strip, strip], vertical: false },
+      {
+        poly: [0, size, size, size, size - strip, size - strip, strip, size - strip],
+        vertical: false,
+      },
+      { poly: [0, 0, strip, strip, strip, size - strip, 0, size], vertical: true },
+      {
+        poly: [size, 0, size - strip, strip, size - strip, size - strip, size, size],
+        vertical: true,
+      },
+    ];
+    for (const side of sides) {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < side.poly.length; i += 2) {
+        const px = side.poly[i]!;
+        const py = side.poly[i + 1]!;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.clip();
+      drawGrain(ctx, 0, 0, size, size, frame, rng, side.vertical);
+      ctx.restore();
     }
-    ctx.closePath();
-    ctx.clip();
-    drawGrain(ctx, 0, 0, size, size, FRAME_WOOD, rng, side.vertical);
-    ctx.restore();
   }
 
   if (!labels.visible) return;
@@ -241,14 +328,14 @@ export function drawFrameCanvas(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Engraved look: a faint dark edge above-left and the pale fill slightly below-right.
+  // Engraved look: a faint edge above-left and the fill slightly below-right.
   const engrave = (text: string, cx: number, cy: number, angle: number) => {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
-    ctx.fillStyle = 'rgba(120,64,20,0.35)';
+    ctx.fillStyle = theme.labelShadow;
     ctx.fillText(text, -unit * 0.012, -unit * 0.012);
-    ctx.fillStyle = 'rgba(255,236,206,0.88)';
+    ctx.fillStyle = theme.labelColour;
     ctx.fillText(text, 0, 0);
     ctx.restore();
   };
@@ -270,16 +357,158 @@ export function drawFrameCanvas(
   }
 }
 
-export function createFrameTexture(frameWidth: number, labels: FrameLabels): CanvasTexture {
+export function createFrameTexture(
+  frameWidth: number,
+  labels: FrameLabels,
+  theme: BoardTheme,
+): CanvasTexture {
   const [canvas] = makeCanvas(2048, 2048);
-  drawFrameCanvas(canvas, frameWidth, labels);
+  drawFrameCanvas(canvas, frameWidth, labels, theme);
   return toTexture(canvas);
 }
 
-/** The blue tablecloth, tiling. */
-export function createClothTexture(seed = 3): CanvasTexture {
+/**
+ * Cracked stone: irregular cells (a tiling Voronoi pattern) with thin dark cracks between them and
+ * a little light in each cell's middle, like the table under the marble board in the reference.
+ */
+export function drawCracked(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  style: SurfaceStyle,
+  rng: Rng,
+  cells = 9,
+): void {
+  const parse = (rgb: string) => rgb.split(',').map(Number) as [number, number, number];
+  const base = [
+    Number.parseInt(style.base.slice(1, 3), 16),
+    Number.parseInt(style.base.slice(3, 5), 16),
+    Number.parseInt(style.base.slice(5, 7), 16),
+  ];
+  const line = parse(style.line);
+  const light = parse(style.highlight);
+  // Two crack layers: large irregular cells, and finer crazing inside them.
+  const layers = [cells, cells * 3].map((n) => ({
+    n,
+    pitch: size / n,
+    seeds: Array.from({ length: n * n }, (_, k) => ({
+      x: ((k % n) + range(rng, 0.02, 0.98)) * (size / n),
+      y: (Math.floor(k / n) + range(rng, 0.02, 0.98)) * (size / n),
+      tone: range(rng, -1, 1),
+    })),
+  }));
+  const nearest = (layer: (typeof layers)[number], px: number, py: number) => {
+    const gx = Math.floor(px / layer.pitch);
+    const gy = Math.floor(py / layer.pitch);
+    let f1 = Infinity;
+    let f2 = Infinity;
+    let tone = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const cx = (gx + dx + layer.n) % layer.n;
+        const cy = (gy + dy + layer.n) % layer.n;
+        const seed = layer.seeds[cy * layer.n + cx]!;
+        // Wrap the seed position so the pattern tiles.
+        const d = Math.hypot(
+          px - (seed.x + (gx + dx - cx) * layer.pitch),
+          py - (seed.y + (gy + dy - cy) * layer.pitch),
+        );
+        if (d < f1) {
+          f2 = f1;
+          f1 = d;
+          tone = seed.tone;
+        } else if (d < f2) {
+          f2 = d;
+        }
+      }
+    }
+    return { edge: f2 - f1, f1, tone };
+  };
+  // Tiling noise: a few sine waves with whole-number frequencies across the tile.
+  const waves = Array.from({ length: 7 }, () => ({
+    kx: Math.round(range(rng, -4, 4)) || 1,
+    ky: Math.round(range(rng, -4, 4)) || 2,
+    phase: range(rng, 0, Math.PI * 2),
+    amp: range(rng, 0.4, 1),
+  }));
+  const ampSum = waves.reduce((a, w) => a + w.amp, 0);
+  const tiled = (px: number, py: number, scale = 1, shift = 0) => {
+    let v = 0;
+    for (const w of waves) {
+      v +=
+        w.amp * Math.sin((2 * Math.PI * scale * (w.kx * px + w.ky * py)) / size + w.phase + shift);
+    }
+    return v / ampSum;
+  };
+  const image = ctx.createImageData(size, size);
+  const data = image.data;
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      const big = nearest(layers[0]!, px, py);
+      const fine = nearest(layers[1]!, px, py);
+      // Mottled stone: slow two-axis noise plus a little per-cell tone.
+      const mottle = tiled(px, py) * 0.7 + tiled(px, py, 3, 1.7) * 0.3;
+      const k = 1 + (big.tone * 0.06 + mottle * 0.12) * style.contrast;
+      const glow = Math.max(0, mottle) * 0.35 * style.contrast;
+      let r = base[0]! * k + (light[0] - base[0]!) * glow;
+      let g = base[1]! * k + (light[1] - base[1]!) * glow;
+      let b = base[2]! * k + (light[2] - base[2]!) * glow;
+      const wobble = tiled(px, py, 9, 0.4);
+      const crack = Math.max(0, 1 - big.edge / (1.4 + wobble * 0.8));
+      const craze = Math.max(0, 1 - fine.edge / 0.9) * 0.45 * (0.5 + 0.5 * tiled(px, py, 5, 2.9));
+      const t = Math.min(1, crack + craze);
+      r += (line[0] - r) * t;
+      g += (line[1] - g) * t;
+      b += (line[2] - b) * t;
+      // A faint light rim along each big crack, as on glazed stone.
+      const rim = big.edge > 1.6 && big.edge < 3.4 ? 0.12 * style.contrast : 0;
+      const i = (py * size + px) * 4;
+      data[i] = r + (light[0] - r) * rim;
+      data[i + 1] = g + (light[1] - g) * rim;
+      data[i + 2] = b + (light[2] - b) * rim;
+      data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+/** Felt or velvet: fine fibre noise over gentle blotches. */
+export function drawFelt(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  style: SurfaceStyle,
+  rng: Rng,
+): void {
+  ctx.fillStyle = style.base;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 18; i++) {
+    const cx = rng() * size;
+    const cy = rng() * size;
+    const r = range(rng, 0.1, 0.3) * size;
+    const colour = rng() < 0.5 ? style.line : style.highlight;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(${colour},${0.12 * style.contrast})`);
+    g.addColorStop(1, `rgba(${colour},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  }
+  const image = ctx.getImageData(0, 0, size, size);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const n = (rng() - 0.5) * 26 * style.contrast;
+    data[i] = data[i]! + n;
+    data[i + 1] = data[i + 1]! + n;
+    data[i + 2] = data[i + 2]! + n;
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+/** The table under the board, tiling. */
+export function createTableTexture(theme: TableTheme, seed = 3): CanvasTexture {
   const [canvas, ctx] = makeCanvas(1024, 1024);
-  drawGrain(ctx, 0, 0, 1024, 1024, CLOTH, createRng(seed));
+  const rng = createRng(seed);
+  if (theme.pattern === 'cracked') drawCracked(ctx, 1024, theme.surface, rng);
+  else if (theme.pattern === 'felt') drawFelt(ctx, 1024, theme.surface, rng);
+  else drawGrain(ctx, 0, 0, 1024, 1024, theme.surface, rng);
   const texture = toTexture(canvas);
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;

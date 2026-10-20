@@ -407,9 +407,9 @@ export const TABLE_THEMES: readonly TableTheme[] = [
     pattern: 'cracked',
     surface: {
       pattern: 'plain',
-      base: '#14546e',
-      line: '1,40,58',
-      highlight: '60,130,156',
+      base: '#0f4a62',
+      line: '1,30,44',
+      highlight: '64,132,156',
       density: 0,
       contrast: 0.9,
       waviness: 0,
