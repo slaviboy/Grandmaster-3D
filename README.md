@@ -18,8 +18,8 @@ your opponent at six difficulty levels or any rating you choose.
 - **Stockfish 19** runs in a Web Worker at six levels (Beginner, Easy, Medium, Hard, Expert and
   Maximum Strength) or at a custom rating from 400 to 3000, chosen with a slider.
 - **An opponent who looks the part**: the computer's portrait grows with its strength, from a boy
-  at Beginner through old-master portraits of a teenager, a young man, a man of forty and an old
-  man with a long white beard, to a brass automaton at Maximum Strength.
+  at Beginner through a teenager, a young man, a man in his forties and a white-bearded wizard, to
+  a robot at Maximum Strength.
 - **The full rules from chess.js**:
   - castling, en passant and promotion (with a choice of piece)
   - check, checkmate, stalemate and the draw rules (fifty moves, threefold repetition,
@@ -163,9 +163,9 @@ and the exported models are in `public/models/chess/` (the Bell set in its `bell
 
 ## Opponent portraits
 
-Five portraits are public-domain old-master paintings and the sixth is an automaton rendered in
-Blender. `npm run portraits` gives them all one crop, brushwork, varnish and canvas treatment.
-Sources and licences are listed in [art/portraits/CREDITS.md](art/portraits/CREDITS.md).
+The portraits are cropped from illustrated level cards in
+[art/portraits/sources/](art/portraits/sources/) by `npm run portraits`; see
+[art/portraits/CREDITS.md](art/portraits/CREDITS.md).
 
 ## How it is built
 

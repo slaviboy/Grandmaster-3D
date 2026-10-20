@@ -10,20 +10,20 @@
  */
 
 // Player portraits for the Game Status panel: a dark silhouette for a human player, and for the
-// computer a portrait that grows with its strength, from a child at Beginner to an automaton at
-// Maximum Strength (public/portraits/, built by scripts/build-portraits.mjs). The carved wooden
-// king stands in if a portrait cannot be loaded.
+// computer a portrait that grows with its strength, from a boy at Beginner to a robot at Maximum
+// Strength (public/portraits/, built by scripts/build-portraits.mjs). The carved wooden king stands
+// in if a portrait cannot be loaded.
 
 import { DIFFICULTIES, type DifficultyId, type PresetId } from '../engine/difficulty.ts';
 
 /** Who sits across the board at each level. */
 const SITTERS: Record<PresetId, string> = {
-  beginner: 'a young boy',
-  easy: 'a teenage boy',
+  beginner: 'a smiling boy',
+  easy: 'a teenager',
   medium: 'a young man',
-  hard: 'a bearded man in a ruff',
-  expert: 'an old man with a long white beard',
-  maximum: 'a brass automaton',
+  hard: 'a man in his forties',
+  expert: 'a white-bearded wizard',
+  maximum: 'a robot',
 };
 
 /** The computer's portrait at a difficulty; a custom rating gets the nearest level's. */
