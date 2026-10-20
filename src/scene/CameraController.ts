@@ -41,7 +41,10 @@ interface View {
 
 const DEG = Math.PI / 180;
 const MIN_ELEVATION = 12 * DEG;
-const MAX_ELEVATION = 88 * DEG;
+// Just short of straight down, where the camera's up direction would be undefined.
+const MAX_ELEVATION = 89.5 * DEG;
+/** Distance at which the whole board, frame included, fits the reference field of view. */
+const TOP_DISTANCE = 21;
 const MIN_DISTANCE = 9;
 const MAX_DISTANCE = 42;
 const MAX_PAN = 3.5;
@@ -209,6 +212,31 @@ export class CameraController {
     const side = Math.round(this.goal.azimuth / Math.PI) * Math.PI;
     Object.assign(this.goal, this.home, { azimuth: side });
     this.requestRender();
+  }
+
+  /**
+   * Looks straight down on the board, the player's own side at the bottom; called again it goes
+   * back to the reference view.
+   */
+  topView(): void {
+    if (this.isTopView) {
+      this.reset();
+      return;
+    }
+    const side = Math.round(this.goal.azimuth / Math.PI) * Math.PI;
+    Object.assign(this.goal, {
+      azimuth: side,
+      elevation: MAX_ELEVATION,
+      distance: TOP_DISTANCE,
+      targetX: 0,
+      targetZ: 0,
+    });
+    this.requestRender();
+  }
+
+  /** Whether the camera is (heading to) looking straight down. */
+  get isTopView(): boolean {
+    return this.goal.elevation > MAX_ELEVATION - 0.5 * DEG;
   }
 
   /** Looks at the board from White's or Black's side, turning the short way round. */

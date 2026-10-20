@@ -400,6 +400,7 @@ export class UiRoot {
       if (key === 'h') this.hint();
       else if (key === 'm') void this.app.controller.moveNow();
       else if (key === 'f') void this.app.camera.flip();
+      else if (key === 't') this.app.camera.topView();
     }
   }
 
@@ -522,6 +523,12 @@ export class UiRoot {
           },
           sep,
           { label: '&Flip Board', shortcut: 'F', action: () => void app.camera.flip() },
+          {
+            label: 'T&op View',
+            shortcut: 'T',
+            checked: () => app.camera.isTopView,
+            action: () => app.camera.topView(),
+          },
           { label: 'Reset &View', shortcut: 'Home', action: () => app.camera.reset() },
         ],
       },

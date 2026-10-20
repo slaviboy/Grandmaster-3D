@@ -387,6 +387,31 @@ test('plays a computer at a custom rating chosen with the slider', async ({ page
   expect(errors).toEqual([]);
 });
 
+test('looks straight down from the top view and back', async ({ page }) => {
+  const errors = await open(page);
+  await newGame(page, { mode: 'local', minutes: 0 });
+  const top = () =>
+    page.evaluate(
+      () =>
+        (window.__chessDebug as unknown as { app: { camera: { isTopView: boolean } } }).app.camera
+          .isTopView,
+    );
+  await page.getByRole('menuitem', { name: 'Actions' }).click();
+  await page.locator('.menu-entry', { hasText: 'Top View' }).click();
+  expect(await top()).toBe(true);
+  await page.waitForTimeout(1500);
+  // Moves still work by clicking from above.
+  await move(page, 'e2', 'e4');
+  await idle(page);
+  expect(await history(page)).toEqual(['e4']);
+  // Flipping keeps the top view; T toggles back to the normal view.
+  await page.keyboard.press('f');
+  expect(await top()).toBe(true);
+  await page.keyboard.press('t');
+  expect(await top()).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test('works on a phone-sized screen with touch', async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 780 },
