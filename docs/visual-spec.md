@@ -34,11 +34,15 @@ references:
 | Marble Edition | A thin board (0.2 of a square) of cool blue-grey marble: light squares `#B7D0DC`, dark `#88A5B0`, crossed by long, light veins that run straight across squares with sharp kinks. Large grey-blue coordinates (0.4 of a square). Red Lacquer & Silver pieces in the Bell shape: wide bell bases about 0.7 across, thin stems and a double collar; king 1.75, queen 1.58, bishop 1.44, knight 1.19, rook 1.05, pawn 0.90. Both sides are polished, mottled and mirror the board. Blue stone table |
 | Glass Studio | A clear glass sheet 0.12 of a square thick with a green-tinted edge, printed with frosted-white and glossy black squares and a double black line on a clear border. The pieces mirror in the black squares. Clear glass pieces against mirror-black glass pieces; clear glass casts only a soft contact shadow. A neutral light grey studio sweep with a white backdrop |
 
-## Interface
+## Retro interface
+
+The interface of the reference, in `src/ui/RetroShell.ts` and the panels it builds, styled by
+`theme.css` and `ui.css` under `html[data-ui='retro']`.
 
 | Element | Specification |
 |---|---|
 | Title bar | `#105876` with the wordmark top left and `_ □ X` buttons top right |
+| Interface switch | A small Modern / Retro toggle left of the window buttons, outlined in the panel border colour, the current style on `#397C96` |
 | Menu | File · Edit · Game · Actions · Mentor · Preferences · Windows · Help, with underlined accelerator letters, in light text on the bar |
 | Panels | Body `#105876`, slightly translucent; header `#397C96`; 1px light-blue border; white Tahoma/Verdana-style text; ▴ (collapse) and X in the header |
 | Chess Coach (left) | Collapsed header by default. Expanded, it holds sections (Moves, Pieces, Board, Show Hints) with checkboxes and radio buttons, plus coach messages |
@@ -48,6 +52,34 @@ references:
 | Bottom right | A rounded strip of round icon buttons |
 | Status line | One line of text along the bottom edge, such as "Black is checkmated" |
 | Dialogs | Dark panels with a header bar and full-width rounded buttons |
+
+## Modern interface
+
+The default interface, in `src/ui/modern/`, styled by `modern.css` under `html[data-ui='modern']`.
+It keeps the board and its framing, and redraws everything around it as floating graphite glass.
+
+| Token | Value |
+|---|---|
+| Surface | `rgba(19, 21, 26, 0.74)` with `backdrop-filter: blur(1.8rem) saturate(1.4)`; solid `#16181D` where blur is unsupported |
+| Menus and dialogs | `rgba(22, 24, 30, 0.9)`, same blur |
+| Hairlines | `rgba(255, 255, 255, 0.08)`, stronger `0.14` |
+| Text | `#F2F2F4`, muted `#A1A3AA`, faint `#6C6F77` |
+| Accent | Champagne gold `#D6B36A` (highlights `#ECD197`); primary buttons and the running clock use a `#E3C682`→`#C8A255` gradient with `#1D1708` ink |
+| Danger | `#E5736B` (resign, low time) |
+| Type | The system sans-serif (Inter or SF Pro where installed); the wordmark and Game Over headline in a book serif (Iowan Old Style, Palatino) |
+| Shape | Cards and the top bar 1.6rem radius, buttons 1.1rem, dialogs 2rem; 0.8rem gutters |
+| Size | rem, following the window like the retro layout but clamped to 9–14 px so text stays readable |
+
+| Element | Specification |
+|---|---|
+| Top bar | Floating along the top: a gold king mark and the serif wordmark, the Game · View · Look · Options · Help menus, then the Modern / Retro switch, a gold New game button and full screen |
+| Menus | Frosted popovers with hover pills, gold check marks, key caps for shortcuts and chevrons for submenus; access keys still work but are not underlined |
+| Coach card | Top left, 18.4rem wide so it stays clear of the a-file. Folded to one line with the latest remark; open, it holds switches, segmented choices, Suggest a move and the commentary, the latest remark in gold |
+| Match card | Top right, 21.2rem wide, as close to the board as the retro panels. Opponent at the top and player at the bottom; each row has a portrait, a colour disc, the rating, captured pieces (black ones in graphite) and the lead, and a clock that turns gold while running and red in the last 30 seconds. The move list between them marks the latest move with a gold pill |
+| Dock | Bottom centre, below the board's near edge: a turn and status chip, then icon buttons with upward tooltips; the top view button stays lit while it is on |
+| Dialogs | Frosted sheets rising in over a lightly blurred board, a round thin-cross close button, switch rows, rounded fields, gold primary actions on the right, a red resign button |
+| New Game | Portrait cards per level (16:10 crops) with "Rated N", a Custom card with the slider, side cards and time chips |
+| Phones | Below 760 px the wordmark text and button labels hide, the move list starts folded and the dock wraps the status onto its own row; below 560 px the top bar tightens and full screen moves to the View menu |
 
 ## Results
 

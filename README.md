@@ -1,17 +1,56 @@
 # Grandmaster 3D
 
-A 3D chess game for the browser in the style of the classic early-2000s desktop chess games. It has
-a wooden board on a blue cloth, Staunton pieces turned in Blender, teal panels, and Stockfish as
-your opponent at six difficulty levels or any rating you choose.
+A 3D chess game for the browser: a wooden board on a blue cloth, Staunton pieces turned in Blender,
+and Stockfish as your opponent at six difficulty levels or any rating you choose. Play it in a
+modern dark-glass interface, or switch to a retro one in the style of the classic early-2000s
+desktop chess games.
 
-![The game](docs/screenshots/game.jpg)
+**New here? The [user guide](docs/user-guide.md) explains every menu, card, button and setting.**
+
+## Two interfaces
+
+The 3D board is the same in both. The **Modern | Retro** switch in the top bar changes everything
+around it at once, mid-game. The game, the clocks and the coach carry over, and your choice is
+remembered. New players start in Modern.
+
+### Modern
+
+![The modern interface](docs/screenshots/modern.jpg)
+
+Floating graphite-glass cards with a champagne-gold accent:
+
+- **Top bar:** the wordmark, the Game, View, Look, Options and Help menus, the Modern | Retro
+  switch, a gold New game button and full screen.
+- **Match card:** both players with portraits, clocks, captured pieces and the material lead, and
+  the move list between them.
+- **Coach card:** one line with the latest remark, opening to the board aids and commentary.
+- **Dock:** the status line and the game buttons below the board.
+- **Dialogs** as frosted sheets, and a **New Game** sheet that picks the opponent by portrait.
+
+| New Game sheet | Coach card with danger zones |
+| --- | --- |
+| ![New Game](docs/screenshots/modern-new-game.jpg) | ![Coach](docs/screenshots/modern-coach.jpg) |
+
+### Retro
+
+![The retro interface](docs/screenshots/retro.jpg)
+
+The look of a 2000s desktop chess game:
+
+- a teal title bar with eight menus and window buttons;
+- translucent Chess Coach, Game Status and Captured Pieces windows;
+- a turn tab with slide-out round buttons, and a status line along the bottom.
+
+| Chess Coach and move list | Rotated and zoomed |
+| --- | --- |
+| ![Coach](docs/screenshots/coach.jpg) | ![Rotated](docs/screenshots/rotated.jpg) |
 
 ## Features
 
 - **A real 3D board.** Drag a corner of the board to rotate and tilt it, drag an edge to pan, and
   use the wheel or PgUp/PgDn to zoom. The arrow keys also rotate and tilt, as in the classic games.
   You can also right-drag anywhere, use two fingers on a touch screen, and press Home to reset.
-  Actions → Top View (or T) looks straight down on the board.
+  Top View (T, or the dock's grid button) looks straight down on the board.
 - **Pieces modelled in Blender**, from profiles measured on reference screenshots. The knight is
   carved from a side silhouette into a horse head with ears, eyes, nostrils and a grooved mane. A
   shader gives the wood growth rings and grain, under a lacquer coat.
@@ -37,18 +76,14 @@ your opponent at six difficulty levels or any rating you choose.
     one more, lifting over pieces in its way.
   - *Demolish captures*: the captured piece shatters into fragments that were pre-fractured in
     Blender: wooden chunks, or glass shards with a glassy tinkle for glass pieces.
-- **Looks you can change** under Preferences → Looks and Board and Pieces:
+- **Looks you can change** under Look (Modern) or Preferences (Retro) → Looks and Board and Pieces:
   - 4 one-click looks that set the board, pieces and table together
   - 7 boards, 8 piece sets in two carved shapes (Staunton and Bell), and 6 tables
   - a Custom choice for each, using your own colours
   - a glass look with a mirroring glass board and clear and black glass pieces. If glass runs
-    below 40 frames a second, its reflections turn off by themselves (Preferences → Glass
-    Reflections turns them back on).
+    below 40 frames a second, its reflections turn off by themselves (Glass Reflections, under
+    Options or Preferences, turns them back on).
 - Sounds synthesised with Web Audio, so there are no audio files.
-
-| Chess Coach and move list | Rotated and zoomed |
-| --- | --- |
-| ![Coach](docs/screenshots/coach.jpg) | ![Rotated](docs/screenshots/rotated.jpg) |
 
 ## Looks
 
@@ -103,6 +138,7 @@ For development and tests, the page accepts these URL parameters:
 | `anim=0` | Instant animations |
 | `engine=off` | No engine |
 | `difficulty=` | Difficulty level |
+| `ui=modern`, `ui=retro` | Interface style |
 | `seed=` | Seed for the random generator |
 | `debug=1` | Adds `window.__chessDebug` |
 
@@ -174,7 +210,8 @@ src/game/     rules (ChessGame over chess.js), controller state machine, clock, 
 src/engine/   UCI parsing, Stockfish adapter, Web Worker transport, difficulty presets, move policy
 src/scene/    three.js scene, board, camera controls, piece loading and placement, highlights,
               input, move animations and paths, shatter effect
-src/ui/       menu bar, panels, dialogs, icons
+src/ui/       interface core (UiRoot: commands, menus, coach), the retro shell and its panels,
+              the modern shell and its cards (src/ui/modern/), dialogs, icons
 src/app/      wires everything together
 blender/      modelling scripts, source .blend, renders
 tests/        unit, architecture and end-to-end tests
@@ -210,5 +247,5 @@ special headers: no cross-origin isolation, no `SharedArrayBuffer`. The server o
 Grandmaster 3D is free software under the [GNU General Public License v3 or later](LICENSE). It
 includes Stockfish, which is GPL-3.0. Third-party notices are in [NOTICE.md](NOTICE.md).
 
-The look follows classic commercial chess games of the early 2000s. All models, textures, icons,
-sounds and code here are original, and no assets from those games are used.
+The retro look follows classic commercial chess games of the early 2000s. All models, textures,
+icons, sounds and code here are original, and no assets from those games are used.
