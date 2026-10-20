@@ -71,6 +71,8 @@ export class UiRoot {
   constructor(private readonly app: App) {
     this.element = document.createElement('div');
     this.element.className = 'ui';
+    // The interface styles apply under html[data-ui]; this layout is the retro one.
+    document.documentElement.dataset.ui = 'retro';
     // Keep the reference proportions: the layout is designed for a 1024x768 window.
     const scale = () => {
       const factor = Math.min(window.innerWidth / 1024, window.innerHeight / 768);
