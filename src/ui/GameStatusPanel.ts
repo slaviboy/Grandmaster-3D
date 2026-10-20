@@ -24,6 +24,8 @@ export interface PlayerInfo {
   readonly name: string;
   readonly rating?: number;
   readonly computer: boolean;
+  /** A picture for the card; without one a computer gets the carved king, a person a silhouette. */
+  readonly portrait?: { readonly src: string; readonly alt: string };
 }
 
 export interface MoveListActions {
@@ -115,7 +117,8 @@ export class GameStatusPanel {
   render(state: GameState, players: Record<Color, PlayerInfo>, bottomColor: Color): void {
     this.bottomColor = bottomColor;
     const topColor: Color = bottomColor === 'w' ? 'b' : 'w';
-    const portraitsKey = `${bottomColor}|${players.w.computer}|${players.b.computer}`;
+    const look = (p: PlayerInfo) => `${p.computer}:${p.portrait?.src ?? ''}`;
+    const portraitsKey = `${bottomColor}|${look(players.w)}|${look(players.b)}`;
     for (const [card, color] of [
       [this.top, topColor],
       [this.bottom, bottomColor],
@@ -135,9 +138,20 @@ export class GameStatusPanel {
         state.turn === color && state.status.kind === 'playing',
       );
       if (portraitsKey !== this.portraits) {
-        card.portrait.innerHTML = info.computer
+        const fallback = info.computer
           ? computerPortrait(`portrait-${color}`)
           : humanPortrait(`portrait-${color}`);
+        if (info.portrait) {
+          const image = document.createElement('img');
+          image.src = info.portrait.src;
+          image.alt = info.portrait.alt;
+          image.addEventListener('error', () => (card.portrait.innerHTML = fallback), {
+            once: true,
+          });
+          card.portrait.replaceChildren(image);
+        } else {
+          card.portrait.innerHTML = fallback;
+        }
       }
     }
     this.portraits = portraitsKey;

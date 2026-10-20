@@ -9,8 +9,43 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// Original player portraits for the Game Status panel: a dark silhouette for a human player and a
-// carved wooden king for the computer.
+// Player portraits for the Game Status panel: a dark silhouette for a human player, and for the
+// computer a portrait that grows with its strength, from a child at Beginner to an automaton at
+// Maximum Strength (public/portraits/, built by scripts/build-portraits.mjs). The carved wooden
+// king stands in if a portrait cannot be loaded.
+
+import { DIFFICULTIES, type DifficultyId, type PresetId } from '../engine/difficulty.ts';
+
+/** Who sits across the board at each level. */
+const SITTERS: Record<PresetId, string> = {
+  beginner: 'a young boy',
+  easy: 'a teenage boy',
+  medium: 'a young man',
+  hard: 'a bearded man in a ruff',
+  expert: 'an old man with a long white beard',
+  maximum: 'a brass automaton',
+};
+
+/** The computer's portrait at a difficulty; a custom rating gets the nearest level's. */
+export function opponentPortrait(
+  level: DifficultyId,
+  rating: number,
+): { src: string; alt: string } {
+  let preset: PresetId;
+  if (level === 'custom') {
+    let nearest = DIFFICULTIES[0]!;
+    for (const d of DIFFICULTIES) {
+      if (Math.abs(d.rating - rating) < Math.abs(nearest.rating - rating)) nearest = d;
+    }
+    preset = nearest.id;
+  } else {
+    preset = level;
+  }
+  return {
+    src: `${import.meta.env.BASE_URL}portraits/${preset}.jpg`,
+    alt: `Portrait of ${SITTERS[preset]}`,
+  };
+}
 
 export function humanPortrait(id: string): string {
   return `<svg viewBox="0 0 64 80" aria-hidden="true"><defs><radialGradient id="${id}" cx="0.45" cy="0.3" r="0.9"><stop offset="0" stop-color="#bfe4f2"/><stop offset="0.55" stop-color="#5aa4c4"/><stop offset="1" stop-color="#1d5d7c"/></radialGradient></defs><rect width="64" height="80" fill="url(#${id})"/><path d="M32 14c8.6 0 14 6.6 14 15.4 0 6.2-2.6 11.6-6.3 14.6l.3 3.8c9.4 2.6 17 8.2 19.5 16.2l1.5 16H-1l1.5-16C3 56 10.6 50.4 20 47.8l.3-3.8C16.6 41 14 35.6 14 29.4 14 20.6 23.4 14 32 14z" fill="#05090c"/></svg>`;

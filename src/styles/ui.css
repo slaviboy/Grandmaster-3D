@@ -266,10 +266,15 @@
   background: #0a3d52;
 }
 
-.portrait svg {
+.portrait svg,
+.portrait img {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.portrait img {
+  object-fit: cover;
 }
 
 .player-line {

@@ -34,6 +34,7 @@ import {
   settingsDialog,
   shortcutsDialog,
 } from './dialogs.ts';
+import { opponentPortrait } from './portraits.ts';
 import { GameStatusPanel, type PlayerInfo } from './GameStatusPanel.ts';
 import { themeDialog } from './ThemeDialog.ts';
 import {
@@ -168,7 +169,12 @@ export class UiRoot {
   }
 
   private players(state: GameState): Record<Color, PlayerInfo> {
-    const computer: PlayerInfo = { name: 'Stockfish', rating: state.rating, computer: true };
+    const computer: PlayerInfo = {
+      name: 'Stockfish',
+      rating: state.rating,
+      computer: true,
+      portrait: opponentPortrait(state.difficulty, state.rating),
+    };
     if (state.mode === 'local') {
       return { w: { name: 'White', computer: false }, b: { name: 'Black', computer: false } };
     }
