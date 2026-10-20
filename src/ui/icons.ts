@@ -49,3 +49,27 @@ export const GLYPHS = {
   sound:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
 } as const;
+
+const line = (d: string) =>
+  `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/** Thin line icons for the modern interface. */
+export const LINE_ICONS = {
+  plus: line('M12 5v14M5 12h14'),
+  topView: line(
+    'M5 4.5h14a.5.5 0 0 1 .5.5v14a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zM4.5 12h15M12 4.5v15',
+  ),
+  fullscreen: line('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'),
+  first: line('M6.5 5v14M17.5 6l-7 6 7 6'),
+  prev: line('M15 6l-6 6 6 6'),
+  next: line('M9 6l6 6-6 6'),
+  last: line('M17.5 5v14M6.5 6l7 6-7 6'),
+  moveNow: line('M13 3L5.5 13.5H11L10 21l8-11h-5.5z'),
+  close: line('M6.5 6.5l11 11M17.5 6.5l-11 11'),
+  chevronDown: line('M6 9.5l6 6 6-6'),
+  chevronRight: line('M9.5 6l6 6-6 6'),
+  check: line('M5 12.5l4.5 4.5L19 7.5'),
+  coach: line(
+    'M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 10h8M8 13h5',
+  ),
+} as const;

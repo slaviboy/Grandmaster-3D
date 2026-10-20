@@ -13,6 +13,8 @@
 // another switches to it. Alt+letter opens a menu, the arrow keys move through items and submenus,
 // Enter chooses and Escape closes. Labels mark their access key with "&" ("&File").
 
+import { LINE_ICONS } from './icons.ts';
+
 export interface MenuItem {
   readonly label?: string;
   readonly shortcut?: string;
@@ -31,6 +33,8 @@ export interface Menu {
 export interface MenuBarOptions {
   /** Removes the bar's listeners on the document and window when aborted. */
   readonly signal?: AbortSignal;
+  /** The modern look draws check marks, shortcuts and submenu arrows as icons and key caps. */
+  readonly variant?: 'retro' | 'modern';
 }
 
 function accessKey(label: string): string | undefined {
@@ -55,12 +59,14 @@ export class MenuBar {
   readonly element: HTMLElement;
   private readonly buttons: HTMLButtonElement[] = [];
   private open: { index: number; list: HTMLElement; sub?: HTMLElement } | null = null;
+  private readonly modern: boolean;
 
   constructor(
     private readonly menus: readonly Menu[],
     options: MenuBarOptions = {},
   ) {
     const { signal } = options;
+    this.modern = options.variant === 'modern';
     this.element = document.createElement('nav');
     this.element.className = 'menubar';
     this.element.setAttribute('role', 'menubar');
@@ -159,7 +165,9 @@ export class MenuBar {
       if (checked !== undefined) entry.setAttribute('aria-checked', String(checked));
       const enabled = item.enabled?.() ?? true;
       if (!enabled) entry.setAttribute('aria-disabled', 'true');
-      entry.innerHTML = `<span class="menu-check">${checked ? '✓' : ''}</span><span class="menu-label">${labelHtml(item.label ?? '')}</span><span class="menu-shortcut">${escapeHtml(item.shortcut ?? '')}${item.submenu ? '▸' : ''}</span>`;
+      entry.innerHTML = this.modern
+        ? `<span class="menu-check">${checked ? LINE_ICONS.check : ''}</span><span class="menu-label">${labelHtml(item.label ?? '')}</span><span class="menu-shortcut">${item.shortcut ? `<kbd>${escapeHtml(item.shortcut)}</kbd>` : ''}${item.submenu ? LINE_ICONS.chevronRight : ''}</span>`
+        : `<span class="menu-check">${checked ? '✓' : ''}</span><span class="menu-label">${labelHtml(item.label ?? '')}</span><span class="menu-shortcut">${escapeHtml(item.shortcut ?? '')}${item.submenu ? '▸' : ''}</span>`;
       const activate = () => {
         if (!enabled) return;
         if (item.submenu) {

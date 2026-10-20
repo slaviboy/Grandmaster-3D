@@ -103,6 +103,13 @@ describe('Settings', () => {
     expect(s.custom.boardPattern).toBe('wood');
   });
 
+  it('keeps a known interface style and falls back to the default for anything else', () => {
+    expect(sanitize({ uiStyle: 'retro' }).uiStyle).toBe('retro');
+    expect(sanitize({ uiStyle: 'modern' }).uiStyle).toBe('modern');
+    expect(sanitize({ uiStyle: 'fancy' }).uiStyle).toBe(DEFAULT_SETTINGS.uiStyle);
+    expect(sanitize({}).uiStyle).toBe(DEFAULT_SETTINGS.uiStyle);
+  });
+
   it('round-trips through storage and survives broken storage', () => {
     const data = new Map<string, string>();
     const storage = {

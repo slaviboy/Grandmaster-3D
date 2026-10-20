@@ -57,11 +57,14 @@ export class RetroShell implements Shell {
     this.menu = new MenuBar(this.menus(), { signal });
     titleBar.append(this.menu.element);
 
-    this.coach = new CoachPanel({
-      onOptions: (options) => ctx.setCoachAids(options),
-      onShowLegalMoves: (on) => app.settings.update({ showLegalMoves: on }),
-      onHint: () => commands.hint(),
-    });
+    this.coach = new CoachPanel(
+      {
+        onOptions: (options) => ctx.setCoachAids(options),
+        onShowLegalMoves: (on) => app.settings.update({ showLegalMoves: on }),
+        onHint: () => commands.hint(),
+      },
+      ctx.coachAids(),
+    );
     this.status = new GameStatusPanel({
       first: () => commands.undoAll(),
       back: () => commands.undo(),

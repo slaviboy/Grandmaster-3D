@@ -12,7 +12,7 @@
 // Builds the game: the scene and camera, the Blender pieces, the board marks and animations, the
 // engine, the controller and the interface, and wires them together. URL parameters for testing:
 // ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no computer, ?seed=<n>,
-// ?difficulty=<id>, ?debug=1 installs window.__chessDebug.
+// ?difficulty=<id>, ?ui=modern|retro interface, ?debug=1 installs window.__chessDebug.
 
 import { Raycaster, Vector3 } from 'three';
 import { SoundManager } from '../audio/SoundManager.ts';
@@ -23,7 +23,7 @@ import { WorkerTransport } from '../engine/EngineTransport.ts';
 import { isDifficultyId } from '../engine/difficulty.ts';
 import { StockfishAdapter } from '../engine/StockfishAdapter.ts';
 import { GameController } from '../game/GameController.ts';
-import { loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
+import { isUiStyle, loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
 import { Tweener } from '../scene/animation/tween.ts';
 import { FragmentLibrary, ShatterEffect } from '../scene/effects/ShatterEffect.ts';
@@ -64,13 +64,14 @@ export class App {
   private glassFallbackUsed = false;
 
   constructor(readonly root: HTMLElement) {
-    const initial = loadSettings();
+    let initial = loadSettings();
     const difficultyParam = this.params.get('difficulty');
-    this.settings = new Store<Settings>(
-      difficultyParam && isDifficultyId(difficultyParam)
-        ? { ...initial, difficulty: difficultyParam }
-        : initial,
-    );
+    if (difficultyParam && isDifficultyId(difficultyParam)) {
+      initial = { ...initial, difficulty: difficultyParam };
+    }
+    const uiParam = this.params.get('ui');
+    if (isUiStyle(uiParam)) initial = { ...initial, uiStyle: uiParam };
+    this.settings = new Store<Settings>(initial);
 
     this.scene = new ChessScene(root);
     const requestRender = () => this.scene.requestRender();

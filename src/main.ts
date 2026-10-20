@@ -12,6 +12,7 @@
 import './styles/base.css';
 import './styles/theme.css';
 import './styles/ui.css';
+import './styles/modern.css';
 import { App } from './app/App.ts';
 import { UiRoot } from './ui/UiRoot.ts';
 

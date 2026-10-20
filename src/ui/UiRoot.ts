@@ -17,7 +17,7 @@ import type { App } from '../app/App.ts';
 import { DIFFICULTIES, difficulty } from '../engine/difficulty.ts';
 import { coachMarks, describeMove, describeResult } from '../game/coach.ts';
 import type { GameState } from '../game/GameController.ts';
-import { TIME_CONTROLS, type Settings } from '../game/Settings.ts';
+import { TIME_CONTROLS, type Settings, type UiStyle } from '../game/Settings.ts';
 import type { Color } from '../game/types.ts';
 import { dialogOpen } from './Dialog.ts';
 import {
@@ -42,13 +42,20 @@ import {
   currentLook,
 } from '../scene/themes.ts';
 import type { MenuItem } from './MenuBar.ts';
+import { ModernShell } from './modern/ModernShell.ts';
 import { RetroShell } from './RetroShell.ts';
 import type { CoachAids, Commands, MenuCatalog, Shell } from './shell.ts';
 
 const VERSION = '0.1.0';
 
 export class UiRoot {
-  private shell: Shell;
+  private shell: Shell | null = null;
+  private style: UiStyle | null = null;
+  /** Aborted when the mounted shell is replaced, taking its listeners with it. */
+  private mounted: AbortController | null = null;
+  /** The coach's recent lines, so a newly mounted shell carries on the same commentary. */
+  private readonly log: string[] = [];
+  private readonly menu: MenuCatalog;
   private coachOptions: CoachAids = {
     captureMoves: false,
     checkMoves: false,
@@ -75,8 +82,6 @@ export class UiRoot {
   };
 
   constructor(private readonly app: App) {
-    // The interface styles apply under html[data-ui]; this layout is the retro one.
-    document.documentElement.dataset.ui = 'retro';
     // Keep the reference proportions: the layout is designed for a 1024x768 window.
     const scale = () => {
       const factor = Math.min(window.innerWidth / 1024, window.innerHeight / 768);
@@ -88,24 +93,55 @@ export class UiRoot {
     scale();
     window.addEventListener('resize', scale);
 
-    this.shell = new RetroShell({
-      app,
-      commands: this.commands,
-      menu: this.catalog(),
-      coachAids: () => this.coachOptions,
-      setCoachAids: (aids) => {
-        this.coachOptions = aids;
-        this.refreshCoachMarks();
-      },
-      signal: new AbortController().signal,
-    });
-    this.app.onNotice((text) => this.shell.say(text));
+    this.menu = this.catalog();
+    this.mount(app.settings.get().uiStyle);
+    this.app.onNotice((text) => this.say(text));
 
     app.controller.state.subscribe((state) => this.render(state));
-    app.settings.subscribe(() => this.render(app.controller.state.get()));
+    app.settings.subscribe((settings) => {
+      if (settings.uiStyle !== this.style) this.mount(settings.uiStyle);
+      this.render(app.controller.state.get());
+    });
     setInterval(() => this.renderClocks(), 200);
     window.addEventListener('keydown', (event) => this.onKey(event));
     this.renderClocks();
+  }
+
+  /** Puts up the interface in the given style, replacing the current one. */
+  private mount(style: UiStyle): void {
+    this.shell?.dispose();
+    this.mounted?.abort();
+    this.mounted = new AbortController();
+    this.style = style;
+    // The interface styles apply under html[data-ui].
+    document.documentElement.dataset.ui = style;
+    const context = {
+      app: this.app,
+      commands: this.commands,
+      menu: this.menu,
+      coachAids: () => this.coachOptions,
+      setCoachAids: (aids: CoachAids) => {
+        this.coachOptions = aids;
+        this.refreshCoachMarks();
+      },
+      signal: this.mounted.signal,
+    };
+    const shell = style === 'modern' ? new ModernShell(context) : new RetroShell(context);
+    for (const line of this.log) shell.say(line);
+    this.shell = shell;
+    this.renderClocks();
+  }
+
+  private say(text: string): void {
+    if (!text) return;
+    this.log.push(text);
+    if (this.log.length > 40) this.log.shift();
+    this.shell?.say(text);
+  }
+
+  private clearLog(): void {
+    this.log.length = 0;
+    this.shell?.clearLog();
   }
 
   private players(state: GameState): Record<Color, PlayerInfo> {
@@ -123,7 +159,7 @@ export class UiRoot {
   }
 
   private render(state: GameState): void {
-    this.shell.render({
+    this.shell?.render({
       state,
       settings: this.app.settings.get(),
       players: this.players(state),
@@ -163,19 +199,19 @@ export class UiRoot {
             ? 'You'
             : 'Stockfish';
       const isLast = i === state.history.length - 1;
-      this.shell.say(describeMove(move, who, isLast && state.inCheck));
+      this.say(describeMove(move, who, isLast && state.inCheck));
     }
     this.seenMoves = state.history.length;
     const result = describeResult(state.status);
     const key = `${result}|${state.history.length}`;
     if (result && state.phase === 'gameOver' && key !== this.announced) {
       this.announced = key;
-      this.shell.say(result);
+      this.say(result);
       void this.showGameOver(state, result);
     }
     if (!result) this.announced = '';
     if (state.engineError && state.engineError !== this.lastError) {
-      this.shell.say(`The engine had a problem (${state.engineError}); it restarts by itself.`);
+      this.say(`The engine had a problem (${state.engineError}); it restarts by itself.`);
     }
     this.lastError = state.engineError;
   }
@@ -216,7 +252,7 @@ export class UiRoot {
       w: timed ? clock.remaining('w') : clock.elapsed('w'),
       b: timed ? clock.remaining('b') : clock.elapsed('b'),
     };
-    this.shell.renderClocks(times, clock.active);
+    this.shell?.renderClocks(times, clock.active);
   }
 
   private pgn(): string {
@@ -236,11 +272,11 @@ export class UiRoot {
   private async newGame(): Promise<void> {
     const patch = await newGameDialog(this.app.settings.get());
     if (!patch) return;
-    this.shell.clearLog();
+    this.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
     const state = this.app.controller.state.get();
-    this.shell.say(
+    this.say(
       state.mode === 'computer'
         ? `New game against Stockfish (${state.difficulty === 'custom' ? `rated ${state.rating}` : difficulty(state.difficulty).label}). You play ${state.humanColor === 'w' ? 'White' : 'Black'}.`
         : 'New two-player game. White moves first.',
@@ -248,7 +284,7 @@ export class UiRoot {
   }
 
   private async quickNewGame(patch: Partial<Settings>): Promise<void> {
-    this.shell.clearLog();
+    this.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
   }
@@ -267,7 +303,7 @@ export class UiRoot {
 
   private hint(): void {
     void this.app.controller.requestHint().then((hint) => {
-      if (hint) this.shell.say(`Coach suggests ${hint.from}–${hint.to}.`);
+      if (hint) this.say(`Coach suggests ${hint.from}–${hint.to}.`);
     });
   }
 
@@ -291,9 +327,9 @@ export class UiRoot {
             ? await this.app.controller.loadFen(trimmed)
             : await this.app.controller.loadPgn(trimmed);
           if (result.ok) {
-            this.shell.clearLog();
+            this.clearLog();
             this.seenMoves = this.app.controller.game.history().length;
-            this.shell.say(looksLikeFen ? 'Position loaded.' : 'Game loaded.');
+            this.say(looksLikeFen ? 'Position loaded.' : 'Game loaded.');
           }
           return result;
         },
@@ -308,7 +344,7 @@ export class UiRoot {
   }
 
   private onKey(event: KeyboardEvent): void {
-    if (dialogOpen() || this.shell.menuOpen) return;
+    if (dialogOpen() || this.shell?.menuOpen) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select')) return;
     const mod = event.ctrlKey || event.metaKey;

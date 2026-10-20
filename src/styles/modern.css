@@ -1,0 +1,425 @@
+/*
+ * Copyright (C) 2026 Stanislav Georgiev
+ * https://github.com/slaviboy
+ *
+ * This file is part of Grandmaster 3D.
+ *
+ * Grandmaster 3D is free software: you can redistribute it and/or modify it under the terms of the
+ * GNU General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version. See the LICENSE file for the full terms.
+ */
+
+/*
+ * The modern interface (html[data-ui='modern']): floating graphite glass over the board, hairline
+ * borders, a champagne-gold accent and the system's own sans-serif. Sizes are in rem and follow the
+ * window like the retro interface, within limits that keep text readable on phones and calm on
+ * large screens.
+ */
+:root[data-ui='modern'] {
+  font-size: clamp(9px, calc(10px * var(--ui-scale)), 14px);
+  --m-font:
+    Inter, 'SF Pro Text', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --m-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --m-surface: rgba(19, 21, 26, 0.74);
+  --m-surface-strong: rgba(22, 24, 30, 0.9);
+  --m-solid: #16181d;
+  --m-raised: rgba(255, 255, 255, 0.05);
+  --m-hover: rgba(255, 255, 255, 0.08);
+  --m-press: rgba(255, 255, 255, 0.12);
+  --m-line: rgba(255, 255, 255, 0.08);
+  --m-line-strong: rgba(255, 255, 255, 0.14);
+  --m-text: #f2f2f4;
+  --m-muted: #a1a3aa;
+  --m-faint: #6c6f77;
+  --m-gold: #d6b36a;
+  --m-gold-hi: #ecd197;
+  --m-gold-ink: #1d1708;
+  --m-gold-soft: rgba(214, 179, 106, 0.16);
+  --m-gold-line: rgba(214, 179, 106, 0.55);
+  --m-danger: #e5736b;
+  --m-blur: blur(1.8rem) saturate(1.4);
+  --m-radius: 1.6rem;
+  --m-shadow: 0 1.2rem 3.2rem rgba(0, 0, 0, 0.32), 0 0.1rem 0.3rem rgba(0, 0, 0, 0.22);
+  --m-shadow-lg: 0 2rem 5rem rgba(0, 0, 0, 0.45), 0 0.2rem 0.6rem rgba(0, 0, 0, 0.3);
+  --m-ring: 0 0 0 0.2rem rgba(214, 179, 106, 0.55);
+
+  /* Every floating surface: frosted glass, or solid where the browser cannot blur. */
+  .m-topbar,
+  .menu {
+    background: var(--m-surface);
+    -webkit-backdrop-filter: var(--m-blur);
+    backdrop-filter: var(--m-blur);
+    border: 1px solid var(--m-line);
+    box-shadow: var(--m-shadow);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .m-topbar,
+    .menu {
+      background: var(--m-solid);
+    }
+  }
+
+  .m-ui {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    color: var(--m-text);
+    font: 400 1.3rem/1.45 var(--m-font);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  .m-ui > * {
+    pointer-events: auto;
+  }
+
+  .m-ui svg {
+    display: block;
+  }
+
+  .m-ui :focus-visible {
+    outline: none;
+    box-shadow: var(--m-ring);
+  }
+
+  /* Buttons. */
+  .m-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    height: 3.4rem;
+    padding: 0 1.5rem;
+    border: 1px solid var(--m-line-strong);
+    border-radius: 1.1rem;
+    background: var(--m-raised);
+    color: var(--m-text);
+    font: 600 1.3rem var(--m-font);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      transform 0.15s;
+  }
+
+  .m-btn svg {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .m-btn:hover {
+    background: var(--m-hover);
+  }
+
+  .m-btn:active {
+    transform: translateY(1px);
+  }
+
+  .m-btn-primary {
+    border-color: rgba(255, 238, 196, 0.35);
+    background: linear-gradient(180deg, #e3c682, #c8a255);
+    color: var(--m-gold-ink);
+    box-shadow:
+      0 0.4rem 1.4rem rgba(214, 179, 106, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  .m-btn-primary:hover {
+    background: linear-gradient(180deg, #ecd294, #d2ad62);
+  }
+
+  .m-icon-btn {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: 1.1rem;
+    background: none;
+    color: var(--m-muted);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .m-icon-btn svg {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .m-icon-btn:hover {
+    background: var(--m-hover);
+    color: var(--m-text);
+  }
+
+  .m-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: none;
+  }
+
+  /* Tooltips from data-tip, shown below by default. */
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 0.8rem);
+    transform: translateX(-50%);
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.7rem;
+    background: rgba(10, 11, 14, 0.92);
+    border: 1px solid var(--m-line);
+    color: var(--m-text);
+    font: 500 1.15rem var(--m-font);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 30;
+    animation: m-fade 0.12s 0.35s both;
+  }
+
+  /* Top bar: wordmark, menus, then the main buttons. */
+  .m-topbar {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    height: 5rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 0.8rem 0 0.9rem;
+    border-radius: var(--m-radius);
+    z-index: 10;
+  }
+
+  .m-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    height: 3rem;
+    padding-right: 1.4rem;
+    border-right: 1px solid var(--m-line);
+    flex: none;
+  }
+
+  .m-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border-radius: 1.1rem;
+    background: radial-gradient(circle at 32% 24%, #f5e3b6, var(--m-gold) 55%, #93722f);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+      0 0.3rem 1rem rgba(214, 179, 106, 0.22);
+  }
+
+  .m-brand-mark svg {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .m-brand-mark svg path {
+    fill: var(--m-gold-ink);
+    stroke: none;
+  }
+
+  .m-brand-name {
+    font: 600 1.95rem/1 var(--m-serif);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .m-brand-name small {
+    margin-left: 0.5rem;
+    color: var(--m-gold);
+    font: 700 1rem var(--m-font);
+    letter-spacing: 0.18em;
+    vertical-align: 0.45em;
+  }
+
+  .m-topbar .menubar {
+    display: flex;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .menubar-item {
+    flex: none;
+    height: 3.4rem;
+    padding: 0 1.2rem;
+    border: 0;
+    border-radius: 1.1rem;
+    background: none;
+    color: var(--m-muted);
+    font: 500 1.38rem var(--m-font);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .menubar-item u {
+    text-decoration: none;
+  }
+
+  .menubar-item:hover,
+  .menubar-item:focus-visible {
+    background: var(--m-hover);
+    color: var(--m-text);
+  }
+
+  .menubar-item.open {
+    background: var(--m-press);
+    color: var(--m-text);
+  }
+
+  .m-topbar-end {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+    flex: none;
+  }
+
+  /* Dropdown menus. MenuBar places them at the button's lower left corner. */
+  .menu {
+    position: fixed;
+    z-index: 40;
+    min-width: 25rem;
+    margin-top: 0.8rem;
+    padding: 0.6rem;
+    border-color: var(--m-line-strong);
+    border-radius: 1.4rem;
+    background: var(--m-surface-strong);
+    box-shadow: var(--m-shadow-lg);
+    color: var(--m-text);
+    font: 400 1.32rem var(--m-font);
+    animation: m-menu-in 0.14s ease-out;
+  }
+
+  .menu.submenu {
+    margin: -0.3rem 0 0 0.8rem;
+  }
+
+  .menu-entry {
+    display: grid;
+    grid-template-columns: 2rem 1fr auto;
+    align-items: center;
+    gap: 0.8rem;
+    min-height: 3.2rem;
+    padding: 0 0.8rem 0 0.7rem;
+    border-radius: 0.9rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .menu-entry u {
+    text-decoration: none;
+  }
+
+  .menu-entry:hover,
+  .menu-entry:focus {
+    background: var(--m-hover);
+  }
+
+  .menu-entry[aria-disabled='true'] {
+    color: var(--m-faint);
+    cursor: default;
+  }
+
+  .menu-entry[aria-disabled='true']:hover {
+    background: none;
+  }
+
+  .menu-check {
+    display: grid;
+    place-items: center;
+    color: var(--m-gold);
+  }
+
+  .menu-check svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .menu-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--m-faint);
+  }
+
+  .menu-shortcut svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .menu-shortcut kbd {
+    padding: 0.1rem 0.6rem;
+    border: 1px solid var(--m-line);
+    border-radius: 0.6rem;
+    background: var(--m-raised);
+    color: var(--m-muted);
+    font: 500 1.1rem var(--m-font);
+  }
+
+  .menu-separator {
+    height: 1px;
+    margin: 0.5rem 0.8rem;
+    background: var(--m-line);
+  }
+
+  @media (max-width: 760px) {
+    .m-brand-name {
+      display: none;
+    }
+
+    .m-brand {
+      padding-right: 0.8rem;
+    }
+
+    .m-new-game span {
+      display: none;
+    }
+
+    .m-new-game {
+      width: 3.4rem;
+      padding: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+/* Keyframes cannot nest inside the scope; the m- prefix keeps them apart. */
+@keyframes m-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes m-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}

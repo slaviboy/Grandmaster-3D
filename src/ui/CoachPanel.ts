@@ -30,14 +30,18 @@ export class CoachPanel {
   readonly panel: Panel;
   private readonly log: HTMLElement;
   private readonly legal: HTMLInputElement;
-  private options: Omit<CoachOptions, 'side'> = {
-    captureMoves: false,
-    checkMoves: false,
-    board: 'off',
-    pawns: 'off',
-  };
+  private options: Omit<CoachOptions, 'side'>;
 
-  constructor(private readonly callbacks: CoachCallbacks) {
+  constructor(
+    private readonly callbacks: CoachCallbacks,
+    initial: Omit<CoachOptions, 'side'> = {
+      captureMoves: false,
+      checkMoves: false,
+      board: 'off',
+      pawns: 'off',
+    },
+  ) {
+    this.options = { ...initial };
     this.panel = new Panel({ id: 'chess-coach', title: 'Chess Coach', collapsed: true });
     const body = this.panel.body;
 
@@ -45,8 +49,10 @@ export class CoachPanel {
     this.legal = this.checkbox(body, 'All legal moves', true, (on) =>
       callbacks.onShowLegalMoves(on),
     );
-    this.checkbox(body, 'Capture moves', false, (on) => this.change({ captureMoves: on }));
-    this.checkbox(body, 'Check moves', false, (on) => this.change({ checkMoves: on }));
+    this.checkbox(body, 'Capture moves', initial.captureMoves, (on) =>
+      this.change({ captureMoves: on }),
+    );
+    this.checkbox(body, 'Check moves', initial.checkMoves, (on) => this.change({ checkMoves: on }));
 
     body.append(this.heading('Pieces'));
     this.radios<PawnAid>(
@@ -57,6 +63,7 @@ export class CoachPanel {
         ['isolated', 'Isolated pawns'],
         ['passed', 'Passed pawns'],
       ],
+      initial.pawns,
       (pawns) => this.change({ pawns }),
     );
 
@@ -70,6 +77,7 @@ export class CoachPanel {
         ['safe', 'Safe zones'],
         ['coverage', 'Board coverage'],
       ],
+      initial.board,
       (board) => this.change({ board }),
     );
 
@@ -138,16 +146,17 @@ export class CoachPanel {
     parent: HTMLElement,
     name: string,
     choices: ReadonlyArray<[T, string]>,
+    current: T,
     onChange: (value: T) => void,
   ): void {
-    choices.forEach(([value, label], index) => {
+    choices.forEach(([value, label]) => {
       const row = document.createElement('label');
       row.className = 'check';
       const input = document.createElement('input');
       input.type = 'radio';
       input.name = name;
       input.value = value;
-      input.checked = index === 0;
+      input.checked = value === current;
       input.addEventListener('change', () => input.checked && onChange(value));
       row.append(input, document.createTextNode(label));
       parent.append(row);

@@ -33,6 +33,13 @@ import type { Color } from './types.ts';
 
 export type GameMode = 'computer' | 'local';
 
+/** The interface around the board: the modern design, or the retro one of the reference. */
+export type UiStyle = 'modern' | 'retro';
+
+export function isUiStyle(value: unknown): value is UiStyle {
+  return value === 'modern' || value === 'retro';
+}
+
 export interface Settings {
   readonly difficulty: DifficultyId;
   /** The computer's rating when the difficulty is Custom. */
@@ -59,6 +66,7 @@ export interface Settings {
   readonly tableTheme: string;
   /** The player's colours for the Custom looks. */
   readonly custom: CustomColours;
+  readonly uiStyle: UiStyle;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -79,6 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pieceTheme: DEFAULT_PIECES,
   tableTheme: DEFAULT_TABLE,
   custom: DEFAULT_CUSTOM,
+  uiStyle: 'retro',
 };
 
 export const TIME_CONTROLS: readonly number[] = [0, 5, 10, 15, 30];
@@ -108,6 +117,7 @@ export function sanitize(raw: unknown): Settings {
     pieceTheme: isPieceThemeId(s.pieceTheme) ? s.pieceTheme : DEFAULT_PIECES,
     tableTheme: isTableThemeId(s.tableTheme) ? s.tableTheme : DEFAULT_TABLE,
     custom: sanitizeCustom(s.custom),
+    uiStyle: isUiStyle(s.uiStyle) ? s.uiStyle : DEFAULT_SETTINGS.uiStyle,
   };
 }
 
