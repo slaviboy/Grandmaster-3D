@@ -16,6 +16,7 @@
 
 import { Raycaster, Vector3 } from 'three';
 import { SoundManager } from '../audio/SoundManager.ts';
+import { FrameMonitor } from '../core/FrameMonitor.ts';
 import { Store } from '../core/Store.ts';
 import { checkConsistency } from '../dev/ConsistencyChecker.ts';
 import { WorkerTransport } from '../engine/EngineTransport.ts';
@@ -56,6 +57,11 @@ export class App {
   readonly controller: GameController;
   readonly ready: Promise<void>;
   private readonly params = new URLSearchParams(location.search);
+  private readonly noticeListeners = new Set<(text: string) => void>();
+  /** Frame times while animating, to spot glass that is too slow for this machine. */
+  private readonly frames = new FrameMonitor();
+  /** The automatic fallback turns glass reflections off at most once per session. */
+  private glassFallbackUsed = false;
 
   constructor(readonly root: HTMLElement) {
     const initial = loadSettings();
@@ -147,7 +153,9 @@ export class App {
       const animating = this.tweener.update(delta);
       const shattering = this.shatter.update(delta);
       this.controller.tick();
-      return moving || animating || shattering;
+      const active = moving || animating || shattering;
+      this.watchGlassSpeed(delta, active);
+      return active;
     });
 
     // Apply looks only when they actually change: repainting costs a few milliseconds.
@@ -197,6 +205,43 @@ export class App {
 
     this.ready = this.start();
     if (import.meta.env.DEV || this.params.has('debug')) this.installDebugHook();
+  }
+
+  /** Short messages for the player (shown in the Chess Coach panel). */
+  onNotice(listener: (text: string) => void): () => void {
+    this.noticeListeners.add(listener);
+    return () => this.noticeListeners.delete(listener);
+  }
+
+  private notice(text: string): void {
+    for (const listener of this.noticeListeners) listener(text);
+  }
+
+  /**
+   * Real glass costs extra rendering. If animations run slower than 40 frames a second while a
+   * glass look uses it, turn the reflections off once and say so; the player can turn them back on.
+   */
+  private watchGlassSpeed(delta: number, active: boolean): void {
+    const s = this.settings.get();
+    const board = this.scene.board.currentTheme.construction === 'glass';
+    const theme = this.assets.currentTheme;
+    const pieces = theme.w.finish === 'glass' || theme.b.finish === 'glass';
+    if (this.glassFallbackUsed || !s.glassReflections || !(board || pieces)) {
+      this.frames.reset();
+      return;
+    }
+    this.frames.record(delta, active);
+    if (!this.frames.slow) return;
+    this.glassFallbackUsed = true;
+    // Frame times reach us capped at 0.1 s, so anything slower reads as "under 10".
+    const median = this.frames.median;
+    const rate = median >= 0.1 ? 'under 10' : String(Math.round(1 / median));
+    this.frames.reset();
+    this.settings.update({ glassReflections: false });
+    this.notice(
+      `Glass ran at ${rate} frames a second on this computer, so reflections are now off. ` +
+        'Turn them back on under Preferences > Glass Reflections.',
+    );
   }
 
   /** The fragments are only needed for the optional Demolish animation; load them in the background. */

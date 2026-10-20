@@ -110,6 +110,7 @@ export class UiRoot {
       onShowLegalMoves: (on) => this.app.settings.update({ showLegalMoves: on }),
       onHint: () => this.hint(),
     });
+    this.app.onNotice((text) => this.coach.say(text));
     this.status = new GameStatusPanel({
       first: () => void this.undoAll(),
       back: () => void this.app.controller.undo(),
