@@ -321,3 +321,74 @@ test('works on a phone-sized screen with touch', async ({ browser }) => {
   expect(width).toBeLessThanOrEqual(390);
   await context.close();
 });
+
+test('switches board, piece and table looks from the menu and the dialog', async ({ page }) => {
+  const errors = await open(page);
+  const theme = () =>
+    page.evaluate(
+      () =>
+        (window.__chessDebug as unknown as { theme(): Record<string, unknown> }).theme() as {
+          board: string;
+          pieces: string;
+          table: string;
+          whiteMaterial: { metalness: number } | null;
+        },
+    );
+  await newGame(page, { mode: 'local', minutes: 0 });
+  await move(page, 'e2', 'e4');
+  await idle(page);
+
+  // Quick submenu.
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry .menu-label', { hasText: /^Board$/ }).hover();
+  await page.locator('.submenu .menu-entry', { hasText: 'Mahogany' }).click();
+  expect((await theme()).board).toBe('mahogany');
+
+  // Dialog: pick presets in every tab and keep them.
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry', { hasText: 'Board and Pieces' }).click();
+  await page.locator('[data-pane=board] .swatch[data-theme=marble]').click();
+  await page.locator('.tab[data-tab=pieces]').click();
+  await page.locator('[data-pane=pieces] .swatch[data-theme=lacquer-silver]').click();
+  await page.locator('.tab[data-tab=table]').click();
+  await page.locator('[data-pane=table] .swatch[data-theme=blue-stone]').click();
+  await page.getByRole('button', { name: 'OK' }).click();
+  const kept = await theme();
+  expect(kept).toMatchObject({ board: 'marble', pieces: 'lacquer-silver', table: 'blue-stone' });
+  expect(kept.whiteMaterial!.metalness).toBeGreaterThan(0.3);
+
+  // Cancel puts the previous look back.
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry', { hasText: 'Board and Pieces' }).click();
+  await page.locator('.tab[data-tab=pieces]').click();
+  await page.locator('[data-pane=pieces] .swatch[data-theme=gold-silver]').click();
+  expect((await theme()).pieces).toBe('gold-silver');
+  await page.keyboard.press('Escape');
+  expect((await theme()).pieces).toBe('lacquer-silver');
+
+  // A custom colour switches that category to Custom.
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry', { hasText: 'Board and Pieces' }).click();
+  await page
+    .locator('[data-pane=board] input[data-custom=dark]')
+    .evaluate((el: HTMLInputElement) => {
+      el.value = '#2a5d8f';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  await page.getByRole('button', { name: 'OK' }).click();
+  expect((await theme()).board).toBe('custom');
+
+  // The game is untouched and the choices survive a reload.
+  expect(await history(page)).toEqual(['e4']);
+  expect(await consistency(page)).toEqual([]);
+  await page.reload();
+  await page.waitForFunction(() => window.__chessDebug?.pieceCount() === 32, null, {
+    timeout: 60_000,
+  });
+  expect(await theme()).toMatchObject({
+    board: 'custom',
+    pieces: 'lacquer-silver',
+    table: 'blue-stone',
+  });
+  expect(errors).toEqual([]);
+});
