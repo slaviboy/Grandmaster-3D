@@ -17,6 +17,15 @@
 import { Plane, Raycaster, Vector2, Vector3, type PerspectiveCamera } from 'three';
 import { REFERENCE_VIEW } from './referenceView.ts';
 
+export interface ReferenceView {
+  readonly fov: number;
+  readonly elevation: number;
+  readonly distance: number;
+  readonly targetZ: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+}
+
 export type DragZone = 'corner' | 'edge';
 
 /** Tells the controller which camera zone (if any) lies under a client-space point. */
@@ -80,6 +89,7 @@ export class CameraController {
   private readonly ground = new Plane(new Vector3(0, 1, 0), 0);
   private readonly settleListeners: Array<() => void> = [];
   private hoverZone: DragZone | null = null;
+  private reference: ReferenceView = REFERENCE_VIEW;
   /** Width in pixels covered by panels along the right edge. */
   private reservedRight = 0;
   enabled = true;
@@ -125,6 +135,23 @@ export class CameraController {
     if (this.hoverZone === 'corner') return ROTATE_CURSOR;
     if (this.hoverZone === 'edge') return PAN_CURSOR;
     return null;
+  }
+
+  /**
+   * Replaces the calibrated view, for comparing against a screenshot taken with another camera
+   * (development tool; null restores the default reference view).
+   */
+  useReferenceView(view: ReferenceView | null): void {
+    this.reference = view ?? REFERENCE_VIEW;
+    Object.assign(this.home, {
+      elevation: this.reference.elevation * DEG,
+      distance: this.reference.distance,
+      targetX: 0,
+      targetZ: this.reference.targetZ,
+    });
+    Object.assign(this.goal, this.home, { azimuth: this.goal.azimuth });
+    Object.assign(this.current, this.goal);
+    this.apply();
   }
 
   /** Tells the camera how much of the right edge the side panels cover. */
@@ -248,9 +275,10 @@ export class CameraController {
     // narrower windows, fit the board (frame included, about 0.85 of the height wide at the
     // reference view) into the part of the screen not covered by the side panels, and centre it
     // there.
-    const halfTan = Math.tan((REFERENCE_VIEW.fov * DEG) / 2);
+    const reference = this.reference;
+    const halfTan = Math.tan((reference.fov * DEG) / 2);
     let fit = 1;
-    let shiftX = -REFERENCE_VIEW.offsetX;
+    let shiftX = -reference.offsetX;
     if (aspect < 1.3) {
       const available = Math.max(1, this.width - this.reservedRight);
       fit = Math.max(1, (0.854 * this.height) / (0.94 * available));
@@ -264,7 +292,7 @@ export class CameraController {
       v.targetZ + Math.cos(v.azimuth) * cosE * v.distance,
     );
     this.camera.lookAt(v.targetX, 0, v.targetZ);
-    const shiftY = -REFERENCE_VIEW.offsetY;
+    const shiftY = -reference.offsetY;
     this.camera.setViewOffset(
       this.width,
       this.height,
