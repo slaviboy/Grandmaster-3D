@@ -74,6 +74,12 @@ export const LINE_ICONS = {
   chevronDown: line('M6 9.5l6 6 6-6'),
   chevronRight: line('M9.5 6l6 6-6 6'),
   check: line('M5 12.5l4.5 4.5L19 7.5'),
+  /** Three cards, the middle one larger: the slider of opponents. */
+  slider: line(
+    'M8.5 5h7a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 8v8M20 8v8',
+  ),
+  /** A grid of small cards: the compact view of opponents. */
+  grid: line('M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z'),
   sliders: line('M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5'),
   mic: line(
     'M12 3.5a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0v-5a3 3 0 0 1 3-3zM6 11.5a6 6 0 0 0 12 0M12 17.5v3',

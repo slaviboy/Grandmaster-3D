@@ -1844,6 +1844,178 @@
     color: var(--m-gold-hi);
   }
 
+  /* The Strength heading, with the Slider / Compact switch at its right. */
+  .m-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .m-view-toggle {
+    display: flex;
+    gap: 0.2rem;
+    padding: 0.2rem;
+    border: 1px solid var(--m-line);
+    border-radius: 1rem;
+    background: rgba(0, 0, 0, 0.22);
+  }
+
+  .m-view-btn {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.8rem;
+    background: none;
+    color: var(--m-faint);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .m-view-btn svg {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .m-view-btn:hover {
+    color: var(--m-text);
+  }
+
+  .m-view-btn[aria-checked='true'] {
+    background: var(--m-hover);
+    color: var(--m-gold-hi);
+  }
+
+  .m-levels[hidden],
+  .m-carousel[hidden] {
+    display: none;
+  }
+
+  /*
+   * The slider: every card sits at the middle and moves by its distance from the chosen one
+   * (--d), so choosing another slides them all. Cards beyond the neighbours are invisible, which
+   * hides the jump from one end to the other when the loop wraps round.
+   */
+  .m-carousel {
+    position: relative;
+  }
+
+  .m-carousel-stage {
+    container-type: inline-size;
+    overflow: hidden;
+    padding: 0.4rem 0;
+    touch-action: pan-y;
+  }
+
+  .m-carousel-track {
+    --w: min(19rem, 44cqw);
+    --step: calc(var(--w) * 0.9 + 1rem);
+    position: relative;
+    height: calc(var(--w) * 1.25);
+  }
+
+  .m-carousel-card {
+    --s: 0.8;
+    --pos: translateX(calc(-50% + var(--d) * var(--step))) scale(var(--s));
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--w);
+    transform: var(--pos);
+    transition:
+      transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 0.38s,
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+
+  .m-carousel-card:hover {
+    transform: var(--pos);
+  }
+
+  .m-carousel-card[data-pos='center'] {
+    --s: 1;
+    z-index: 2;
+  }
+
+  .m-carousel-card[data-pos='side'] {
+    z-index: 1;
+    opacity: 0.5;
+  }
+
+  .m-carousel-card[data-pos='side']:hover {
+    opacity: 0.75;
+  }
+
+  .m-carousel-card[data-pos='away'] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* The whole portrait, uncropped. */
+  .m-carousel .m-level img,
+  .m-carousel .m-level-art {
+    aspect-ratio: 4 / 5;
+    object-position: 50% 50%;
+  }
+
+  .m-carousel .m-level-text {
+    padding: 3.4rem 1.2rem 1rem;
+  }
+
+  .m-carousel .m-level-name {
+    font-size: 1.6rem;
+  }
+
+  .m-carousel .m-level-rating {
+    font-size: 1.2rem;
+  }
+
+  .m-carousel .m-level-art svg {
+    width: 6rem;
+    height: 6rem;
+    margin-bottom: 0;
+  }
+
+  .m-carousel-arrow.m-icon-btn {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    width: 4rem;
+    height: 4rem;
+    border: 1px solid var(--m-line-strong);
+    border-radius: 50%;
+    background: rgba(16, 18, 22, 0.72);
+    -webkit-backdrop-filter: blur(0.8rem);
+    backdrop-filter: blur(0.8rem);
+    color: var(--m-text);
+    transform: translateY(-50%);
+  }
+
+  .m-carousel-arrow.m-icon-btn:hover {
+    background: rgba(30, 32, 38, 0.92);
+    color: var(--m-gold-hi);
+  }
+
+  .m-carousel-arrow.prev {
+    left: 0.2rem;
+  }
+
+  .m-carousel-arrow.next {
+    right: 0.2rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .m-carousel-card {
+      transition: opacity 0.2s;
+    }
+  }
+
   .m-sides {
     display: flex;
     gap: 0.8rem;

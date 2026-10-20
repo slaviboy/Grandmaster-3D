@@ -110,6 +110,13 @@ describe('Settings', () => {
     expect(sanitize({}).uiStyle).toBe(DEFAULT_SETTINGS.uiStyle);
   });
 
+  it('shows the opponents as a slider by default, and remembers the compact grid', () => {
+    expect(DEFAULT_SETTINGS.levelView).toBe('slider');
+    expect(sanitize({ levelView: 'compact' }).levelView).toBe('compact');
+    expect(sanitize({ levelView: 'carousel' }).levelView).toBe('slider');
+    expect(sanitize({}).levelView).toBe('slider');
+  });
+
   it('round-trips through storage and survives broken storage', () => {
     const data = new Map<string, string>();
     const storage = {

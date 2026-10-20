@@ -41,6 +41,13 @@ export function isUiStyle(value: unknown): value is UiStyle {
   return value === 'modern' || value === 'retro';
 }
 
+/** How the modern New Game sheet shows the opponents: a slider of big cards, or a compact grid. */
+export type LevelView = 'slider' | 'compact';
+
+export function isLevelView(value: unknown): value is LevelView {
+  return value === 'slider' || value === 'compact';
+}
+
 export interface Settings {
   readonly difficulty: DifficultyId;
   /** The computer's rating when the difficulty is Custom. */
@@ -68,6 +75,7 @@ export interface Settings {
   /** The player's colours for the Custom looks. */
   readonly custom: CustomColours;
   readonly uiStyle: UiStyle;
+  readonly levelView: LevelView;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -89,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tableTheme: DEFAULT_TABLE,
   custom: DEFAULT_CUSTOM,
   uiStyle: 'modern',
+  levelView: 'slider',
 };
 
 export const TIME_CONTROLS: readonly number[] = [0, 5, 10, 15, 30];
@@ -120,6 +129,7 @@ export function sanitize(raw: unknown): Settings {
     tableTheme: isTableThemeId(s.tableTheme) ? s.tableTheme : DEFAULT_TABLE,
     custom: sanitizeCustom(s.custom),
     uiStyle: isUiStyle(s.uiStyle) ? s.uiStyle : DEFAULT_SETTINGS.uiStyle,
+    levelView: isLevelView(s.levelView) ? s.levelView : DEFAULT_SETTINGS.levelView,
   };
 }
 

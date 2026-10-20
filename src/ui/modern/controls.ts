@@ -13,6 +13,7 @@
 // choices (segmented pills or cards) that behave like radio buttons.
 
 import { el } from '../Dialog.ts';
+import { LINE_ICONS } from '../icons.ts';
 
 /** A button showing only an icon; the label names it for screen readers and its tooltip. */
 export function iconButton(
@@ -56,6 +57,8 @@ export interface Choice<T extends string> {
 export interface ChoiceGroup<T extends string> {
   readonly element: HTMLElement;
   readonly value: T;
+  /** Shows another choice as chosen without reporting it (to keep two views of one choice in step). */
+  select(value: T): void;
 }
 
 /**
@@ -123,6 +126,131 @@ export function choiceGroup<T extends string>(
     element: group,
     get value() {
       return value;
+    },
+    select(next: T) {
+      value = next;
+      mark();
+    },
+  };
+}
+
+/**
+ * A slider of big cards: the chosen one in the middle, its neighbours smaller and fainter on either
+ * side, the rest out of sight. The arrows, a click on a neighbour, a swipe or the arrow keys choose
+ * the next one, which slides to the middle. It never ends: past the last card comes the first.
+ */
+export function carousel<T extends string>(
+  label: string,
+  /** What one card is, for the arrows' names ("Next opponent"). */
+  noun: string,
+  choices: ReadonlyArray<Choice<T>>,
+  current: T,
+  onChange: (value: T) => void,
+  itemClass: string,
+): ChoiceGroup<T> {
+  const root = el('div', 'm-carousel');
+  root.setAttribute('role', 'radiogroup');
+  root.setAttribute('aria-label', label);
+  root.setAttribute('aria-roledescription', 'slider of choices');
+  const stage = el('div', 'm-carousel-stage');
+  const track = el('div', 'm-carousel-track');
+  stage.append(track);
+  const n = choices.length;
+  const half = Math.floor(n / 2);
+  let index = Math.max(
+    0,
+    choices.findIndex((c) => c.value === current),
+  );
+
+  const cards = choices.map((choice, i) => {
+    const card = el('button', `${itemClass} m-carousel-card`);
+    card.type = 'button';
+    card.setAttribute('role', 'radio');
+    card.dataset.value = choice.value;
+    if (choice.html) {
+      card.innerHTML = choice.html;
+      card.setAttribute('aria-label', choice.label);
+    } else {
+      card.textContent = choice.label;
+    }
+    card.addEventListener('click', () => {
+      if (swiped) return;
+      if (i !== index) choose(i, true);
+    });
+    card.addEventListener('keydown', (event) => {
+      const step =
+        event.key === 'ArrowRight' || event.key === 'ArrowDown'
+          ? 1
+          : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+            ? -1
+            : 0;
+      if (!step) return;
+      event.preventDefault();
+      event.stopPropagation();
+      choose(index + step, true);
+    });
+    track.append(card);
+    return card;
+  });
+
+  /** Places every card by its distance from the chosen one, the short way round. */
+  const layout = () => {
+    cards.forEach((card, i) => {
+      const d = ((((i - index) % n) + n + half) % n) - half;
+      card.style.setProperty('--d', String(d));
+      card.dataset.pos = d === 0 ? 'center' : Math.abs(d) === 1 ? 'side' : 'away';
+      const chosen = d === 0;
+      card.setAttribute('aria-checked', String(chosen));
+      card.tabIndex = chosen ? 0 : -1;
+      if (Math.abs(d) > 1) card.setAttribute('aria-hidden', 'true');
+      else card.removeAttribute('aria-hidden');
+    });
+  };
+
+  const choose = (next: number, focus = false) => {
+    const wrapped = ((next % n) + n) % n;
+    if (wrapped !== index) {
+      index = wrapped;
+      layout();
+      onChange(choices[index]!.value);
+    }
+    if (focus) cards[index]!.focus({ preventScroll: true });
+  };
+
+  const prev = iconButton(LINE_ICONS.prev, `Previous ${noun}`, () => choose(index - 1));
+  const next = iconButton(LINE_ICONS.next, `Next ${noun}`, () => choose(index + 1));
+  prev.classList.add('m-carousel-arrow', 'prev');
+  next.classList.add('m-carousel-arrow', 'next');
+
+  // A swipe on a touch screen moves one card; the click that ends it does not count.
+  let startX: number | null = null;
+  let swiped = false;
+  stage.addEventListener('pointerdown', (event) => {
+    startX = event.clientX;
+    swiped = false;
+  });
+  stage.addEventListener('pointerup', (event) => {
+    if (startX === null) return;
+    const dx = event.clientX - startX;
+    startX = null;
+    if (Math.abs(dx) < 40) return;
+    swiped = true;
+    choose(index + (dx < 0 ? 1 : -1));
+    setTimeout(() => (swiped = false), 0);
+  });
+
+  root.append(prev, stage, next);
+  layout();
+  return {
+    element: root,
+    get value() {
+      return choices[index]!.value;
+    },
+    select(value: T) {
+      const i = choices.findIndex((c) => c.value === value);
+      if (i < 0 || i === index) return;
+      index = i;
+      layout();
     },
   };
 }

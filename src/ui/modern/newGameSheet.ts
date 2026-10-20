@@ -10,16 +10,17 @@
  */
 
 // The modern New Game sheet: pick the opponent by their portrait (or a custom rating), the side and
-// the time control, all visible at once. It answers like the retro New Game dialog. A friend online
+// the time control, all visible at once. The opponents show as a slider of big cards (the default)
+// or a compact grid; the player's choice of view is remembered. It answers like the retro New Game dialog. A friend online
 // takes the side and time from here; the link comes next.
 
 import { DIFFICULTIES, type DifficultyId } from '../../engine/difficulty.ts';
-import { TIME_CONTROLS, type Settings } from '../../game/Settings.ts';
+import { TIME_CONTROLS, type LevelView, type Settings } from '../../game/Settings.ts';
 import { el, openDialog } from '../Dialog.ts';
 import { ratingSlider } from '../dialogs.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { opponentPortrait } from '../portraits.ts';
-import { choiceGroup, segmented } from './controls.ts';
+import { carousel, choiceGroup, segmented } from './controls.ts';
 
 type Side = 'w' | 'b' | 'random';
 
@@ -29,7 +30,15 @@ function section(title: string, ...content: HTMLElement[]): HTMLElement {
   return wrap;
 }
 
-export function newGameSheet(current: Settings): Promise<Partial<Settings> | null> {
+export interface SheetOptions {
+  /** Called when the player switches between the slider and the compact grid. */
+  readonly onLevelView?: (view: LevelView) => void;
+}
+
+export function newGameSheet(
+  current: Settings,
+  { onLevelView }: SheetOptions = {},
+): Promise<Partial<Settings> | null> {
   return openDialog<Partial<Settings> | null>('New Game', null, ({ body, root, close }) => {
     root.classList.add('new-game-sheet');
     let mode = current.mode;
@@ -54,33 +63,70 @@ export function newGameSheet(current: Settings): Promise<Partial<Settings> | nul
       },
     );
 
-    const levels = choiceGroup<DifficultyId>(
-      'Strength',
-      [
-        ...DIFFICULTIES.map((d) => {
-          const portrait = opponentPortrait(d.id, d.rating);
-          return {
-            value: d.id,
-            label: `${d.label}, about ${d.rating}`,
-            html: `<img src="${portrait.src}" alt="" draggable="false"><span class="m-level-text"><span class="m-level-name">${d.label}</span><span class="m-level-rating">Rated ${d.rating}</span></span>`,
-          };
-        }),
-        {
-          value: 'custom' as const,
-          label: 'Custom rating',
-          html: `<span class="m-level-art">${LINE_ICONS.sliders}</span><span class="m-level-text"><span class="m-level-name">Custom</span><span class="m-level-rating">Rated <span class="m-custom-rating">${current.customRating}</span></span></span>`,
-        },
-      ],
-      level,
-      (value) => {
-        level = value;
-        update();
+    const levelChoices = [
+      ...DIFFICULTIES.map((d) => {
+        const portrait = opponentPortrait(d.id, d.rating);
+        return {
+          value: d.id,
+          label: `${d.label}, about ${d.rating}`,
+          html: `<img src="${portrait.src}" alt="" draggable="false"><span class="m-level-text"><span class="m-level-name">${d.label}</span><span class="m-level-rating">Rated ${d.rating}</span></span>`,
+        };
+      }),
+      {
+        value: 'custom' as const,
+        label: 'Custom rating',
+        html: `<span class="m-level-art">${LINE_ICONS.sliders}</span><span class="m-level-text"><span class="m-level-name">Custom</span><span class="m-level-rating">Rated <span class="m-custom-rating">${current.customRating}</span></span></span>`,
       },
+    ];
+    // Two views of one choice: the slider of big cards and the compact grid, kept in step.
+    const chooseLevel = (value: DifficultyId) => {
+      level = value;
+      slider.select(value);
+      grid.select(value);
+      update();
+    };
+    const slider = carousel<DifficultyId>(
+      'Strength',
+      'opponent',
+      levelChoices,
+      level,
+      chooseLevel,
+      'm-level',
+    );
+    const grid = choiceGroup<DifficultyId>(
+      'Strength',
+      levelChoices,
+      level,
+      chooseLevel,
       'm-levels',
       'm-level',
     );
-    const customRating = levels.element.querySelector<HTMLElement>('.m-custom-rating')!;
-    ratingInput.addEventListener('input', () => (customRating.textContent = ratingInput.value));
+    const customRatings = [slider, grid].map((view) =>
+      view.element.querySelector<HTMLElement>('.m-custom-rating')!,
+    );
+    ratingInput.addEventListener('input', () => {
+      for (const label of customRatings) label.textContent = ratingInput.value;
+    });
+
+    let view = current.levelView;
+    const views = choiceGroup<LevelView>(
+      'Show opponents as',
+      [
+        { value: 'slider', label: 'Slider', html: LINE_ICONS.slider },
+        { value: 'compact', label: 'Compact', html: LINE_ICONS.grid },
+      ],
+      view,
+      (value) => {
+        view = value;
+        onLevelView?.(value);
+        update();
+      },
+      'm-view-toggle',
+      'm-view-btn',
+    );
+    for (const button of views.element.querySelectorAll<HTMLElement>('.m-view-btn')) {
+      button.dataset.tip = button.getAttribute('aria-label') ?? '';
+    }
 
     const sides = choiceGroup<Side>(
       'You play',
@@ -106,13 +152,18 @@ export function newGameSheet(current: Settings): Promise<Partial<Settings> | nul
       (value) => (minutes = Number(value)),
     );
 
-    const strength = section('Strength', levels.element, ratingField);
+    const strengthHead = el('div', 'm-section-head');
+    strengthHead.append(el('div', 'coach-heading', 'Strength'), views.element);
+    const strength = el('div', 'm-section');
+    strength.append(strengthHead, slider.element, grid.element, ratingField);
     const yourSide = section('You play', sides.element);
 
     const update = () => {
       const local = mode === 'local';
       const person = mode !== 'computer';
       strength.hidden = person;
+      slider.element.hidden = view !== 'slider';
+      grid.element.hidden = view !== 'compact';
       yourSide.hidden = local;
       ratingField.hidden = person || level !== 'custom';
       start.textContent = mode === 'online' ? 'Create Link' : 'Start Game';

@@ -382,8 +382,13 @@ export class UiRoot {
 
   private async newGame(preset: Partial<Settings> = {}): Promise<void> {
     if (this.sessionOpen() && !(await this.readyToLeave())) return;
-    const ask = this.style === 'modern' ? newGameSheet : newGameDialog;
-    const patch = await ask({ ...this.app.settings.get(), ...preset });
+    const current = { ...this.app.settings.get(), ...preset };
+    const patch =
+      this.style === 'modern'
+        ? await newGameSheet(current, {
+            onLevelView: (levelView) => this.app.settings.update({ levelView }),
+          })
+        : await newGameDialog(current);
     if (!patch) return;
     if (patch.mode === 'online') return this.hostOnline(patch);
     this.clearLog();
