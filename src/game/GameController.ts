@@ -129,6 +129,8 @@ export class GameController {
   private readonly rng: Rng;
   private readonly delay: (ms: number) => Promise<void>;
   private readonly offFlag: () => void;
+  /** Who made each move in the history, for the development consistency check. */
+  private sources: Array<'player' | 'engine'> = [];
   /** Resolves when the current asynchronous step (animation, engine turn) is over. */
   private idle: Promise<void> = Promise.resolve();
 
@@ -159,6 +161,7 @@ export class GameController {
     const result = this.game.reset(fen);
     if (!result.ok) return result;
     await this.interrupt();
+    this.sources = [];
     this.clock.reset(this.limit());
     this.hint = null;
     this.engineError = null;
@@ -221,6 +224,7 @@ export class GameController {
     this.hint = null;
     const record = this.game.tryMove(move);
     if (!record) return false;
+    this.sources.push('player');
     this.track(this.afterMove(record));
     return true;
   }
@@ -231,7 +235,10 @@ export class GameController {
     const engineTurn = this.isEngineTurn();
     await this.interrupt();
     const plies = this.settings.mode === 'computer' && !engineTurn ? 2 : 1;
-    for (let i = 0; i < plies && this.game.canUndo(); i++) this.game.undo();
+    for (let i = 0; i < plies && this.game.canUndo(); i++) {
+      this.game.undo();
+      this.sources.pop();
+    }
     this.options.view.sync(this.game.board());
     this.settle();
   }
@@ -241,7 +248,11 @@ export class GameController {
     if (!this.game.canRedo() || this.phase === 'loading') return;
     await this.interrupt();
     const plies = this.settings.mode === 'computer' ? 2 : 1;
-    for (let i = 0; i < plies && this.game.canRedo(); i++) this.game.redo();
+    for (let i = 0; i < plies && this.game.canRedo(); i++) {
+      const record = this.game.redo();
+      if (record)
+        this.sources.push(record.color === this.settings.humanColor ? 'player' : 'engine');
+    }
     this.options.view.sync(this.game.board());
     this.settle();
   }
@@ -265,6 +276,7 @@ export class GameController {
     if (!check.ok) return check;
     await this.interrupt();
     this.game.loadPgn(pgn);
+    this.sources = this.game.history().map(() => 'player');
     this.clock.reset(this.limit());
     this.options.view.sync(this.game.board());
     this.settle();
@@ -299,6 +311,13 @@ export class GameController {
     this.generation++;
     this.offFlag();
     this.clock.pause();
+  }
+
+  /** Each move with its side and whether the computer made it. */
+  moveAudit(): Array<{ color: Color; byEngine: boolean }> {
+    return this.game
+      .history()
+      .map((m, i) => ({ color: m.color, byEngine: this.sources[i] === 'engine' }));
   }
 
   /** Call every frame: advances the clocks and notices a falling flag. */
@@ -424,9 +443,13 @@ export class GameController {
         to: fallback.to,
         promotion: fallback.promotion as PromotionKind | undefined,
       });
-      if (forced) await this.afterMove(forced);
+      if (forced) {
+        this.sources.push('engine');
+        await this.afterMove(forced);
+      }
       return;
     }
+    this.sources.push('engine');
     await this.afterMove(record);
   }
 
