@@ -62,6 +62,7 @@ uniform vec3 woodDark;
 uniform float woodRings;
 uniform float woodContrast;
 uniform float woodPattern;
+uniform float woodMottle;
 uniform vec3 woodSeed;
 varying vec3 vWoodPosition;
 
@@ -109,6 +110,9 @@ vec3 woodColor(vec3 p) {
     float brush = woodNoise(vec3(p.x * 30.0, p.y * 400.0, p.z * 30.0));
     t = 0.5 + (brush - 0.5) * woodContrast;
   }
+  // Optional mottle: soft patches stretched up the piece, like the streaks of a cast finish.
+  float mottle = woodNoise(p * vec3(7.0, 2.2, 7.0)) * 0.65 + woodNoise(p * vec3(19.0, 5.0, 19.0)) * 0.35;
+  t += (mottle - 0.5) * 2.0 * woodMottle;
   return mix(woodLight, woodDark, clamp(t, 0.0, 1.0));
 }
 `;
@@ -138,6 +142,7 @@ export function createPieceMaterial(
     woodRings: { value: style.rings },
     woodContrast: { value: style.contrast },
     woodPattern: { value: PATTERN[style.finish] },
+    woodMottle: { value: style.mottle ?? 0 },
     woodSeed: {
       value: new Vector3(
         Math.sin(seed * 12.9898) * 3.7,

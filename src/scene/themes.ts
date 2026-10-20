@@ -65,6 +65,8 @@ export interface PieceStyle {
   readonly clearcoat: number;
   /** Colour of the inside, shown on the cut faces when a piece shatters. */
   readonly endGrain: string;
+  /** Coarse cloudy streaks running up the piece, on top of the finish's own pattern (default 0). */
+  readonly mottle?: number;
   /** What polished pieces mirror: a neutral room (default) or the board and table around them. */
   readonly reflects?: 'room' | 'surroundings';
 }
