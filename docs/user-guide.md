@@ -62,6 +62,10 @@ bottom left (Retro), Game or File ▸ New Game…, or Ctrl+N.
 - **Time.** Untimed, or 5, 10, 15 or 30 minutes per player.
 
 In Modern, every choice is on one page. Click a card or chip, or use the arrow keys inside a group.
+The opponents show as a **slider** of big portraits: the chosen one in the middle, its neighbours
+smaller on either side. The ‹ › arrows, a click on a neighbour, a swipe or the arrow keys bring the
+next one to the middle, and it goes round without end. The two icons by **Strength** switch to a
+**compact** grid of all the opponents at once, and back; the game remembers which you prefer.
 Shortcuts from the menus start a new game straight away with one thing changed: Play as White,
 Play as Black, Two Players and Time Control. Changing the Difficulty does not start a new game; the
 computer plays at the new strength from its next move.
@@ -374,7 +378,7 @@ On macOS, Cmd works in place of Ctrl.
 
 The browser keeps your preferences for the next visit:
 
-- the interface (Modern or Retro);
+- the interface (Modern or Retro), and whether New Game shows the opponents as a slider or a grid;
 - the side, opponent, difficulty, custom rating and time control;
 - sound, animation speed, move path, demolish and glass reflections;
 - legal-move, last-move and coordinate marks;
