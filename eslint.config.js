@@ -32,4 +32,9 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
     },
   },
+  {
+    // Command-line scripts report to the terminal.
+    files: ['scripts/**'],
+    rules: { 'no-console': 'off' },
+  },
 );
