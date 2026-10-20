@@ -63,6 +63,8 @@ export class UiRoot {
     board: 'off',
     pawns: 'off',
   };
+  /** The colour at the bottom of the screen when the shell was last drawn. */
+  private shownSide: Color | null = null;
   private seenMoves = 0;
   private seenGeneration = -1;
   private announced = '';
@@ -160,11 +162,12 @@ export class UiRoot {
   }
 
   private render(state: GameState): void {
+    this.shownSide = this.app.camera.side === 'black' ? 'b' : 'w';
     this.shell?.render({
       state,
       settings: this.app.settings.get(),
       players: this.players(state),
-      bottomColor: this.app.camera.side === 'black' ? 'b' : 'w',
+      bottomColor: this.shownSide,
       status: this.statusText(state),
     });
     this.narrate(state);
@@ -247,6 +250,11 @@ export class UiRoot {
   }
 
   private renderClocks(): void {
+    // The players' cards follow the board when it turns (a flip, or taking Black) without a move.
+    const side: Color = this.app.camera.side === 'black' ? 'b' : 'w';
+    if (this.shownSide !== null && side !== this.shownSide) {
+      this.render(this.app.controller.state.get());
+    }
     const clock = this.app.controller.clock;
     const timed = clock.limit !== null;
     const times = {
