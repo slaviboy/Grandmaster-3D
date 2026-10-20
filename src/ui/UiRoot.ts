@@ -530,7 +530,7 @@ export class UiRoot {
     const consent = await this.askConsent('host');
     if (!consent) return;
     const s = { ...this.app.settings.get(), ...patch };
-    const link = this.app.hostOnline(consent.name, s.humanColor, s.minutes);
+    const link = await this.app.hostOnline(consent.name, s.humanColor, s.minutes);
     const session = this.app.online.get()!;
     const result = await waitDialog(session.state, link);
     if (result !== 'playing' && this.app.online.get() === session) await this.app.leaveOnline();
@@ -544,7 +544,7 @@ export class UiRoot {
       if (this.sessionOpen() && !(await this.readyToLeave())) return;
       const consent = await this.askConsent('guest');
       if (!consent) return;
-      this.app.joinOnline(invite, consent.name);
+      await this.app.joinOnline(invite, consent.name);
       await this.waitForHost();
       return;
     }
@@ -555,7 +555,7 @@ export class UiRoot {
       this.app.forgetSavedOnline();
       return;
     }
-    this.app.resumeOnline(saved, consent.name);
+    await this.app.resumeOnline(saved, consent.name);
     if (saved.role === 'guest') await this.waitForHost();
   }
 

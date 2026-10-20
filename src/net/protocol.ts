@@ -151,30 +151,44 @@ export function parseMessage(data: unknown): Message | null {
 // --- the invitation link ---------------------------------------------------------------------
 
 /**
- * A game's meeting place. The room id names it on the relays; the secret encrypts the handshake
- * and proves a player was invited. Both live only in the link's hash, which browsers never send
- * to the web server.
+ * An invitation: one random secret, which lives only in the link's hash (browsers never send the
+ * hash to the web server). It encrypts the handshake and proves a player was invited, and the
+ * room the two meet in is derived from it, so the link carries nothing else and stays short.
  */
 export interface Invite {
-  readonly room: string;
   readonly secret: string;
 }
 
-const ROOM = /^[A-Za-z0-9_-]{22}$/;
-const SECRET = /^[A-Za-z0-9_-]{43}$/;
-const INVITE_HASH = /^#play=([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
+const SECRET = /^[A-Za-z0-9_-]{22}$/;
+const INVITE_HASH = /^#g=([A-Za-z0-9_-]{22})$/;
 
 /** Random bytes as unpadded base64url. */
 export function randomId(bytes: number): string {
-  const data = crypto.getRandomValues(new Uint8Array(bytes));
+  return base64url(crypto.getRandomValues(new Uint8Array(bytes)));
+}
+
+function base64url(data: Uint8Array): string {
   let binary = '';
   for (const byte of data) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** A fresh room (128 random bits) and secret (256 random bits). */
+/**
+ * A fresh invitation: 128 random bits, far beyond guessing, in 22 characters, so the link and
+ * its QR code stay small.
+ */
 export function createInvite(): Invite {
-  return { room: randomId(16), secret: randomId(32) };
+  return { secret: randomId(16) };
+}
+
+/**
+ * The room the two players meet in on the relays, derived one way from the secret: the same for
+ * both, different for every game, and telling nothing about the secret.
+ */
+export async function roomFor(invite: Invite): Promise<string> {
+  const data = new TextEncoder().encode(`grandmaster-3d room:${invite.secret}`);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+  return base64url(digest.subarray(0, 16));
 }
 
 /** A token the host gives its guest, so only that guest can take the seat back after a reload. */
@@ -183,26 +197,24 @@ export function createToken(): string {
 }
 
 export function isInvite(value: unknown): value is Invite {
-  return (
-    isObject(value) &&
-    typeof value.room === 'string' &&
-    typeof value.secret === 'string' &&
-    ROOM.test(value.room) &&
-    SECRET.test(value.secret)
-  );
+  return isObject(value) && typeof value.secret === 'string' && SECRET.test(value.secret);
 }
 
 export function isToken(value: unknown): value is string {
   return typeof value === 'string' && TOKEN.test(value);
 }
 
-/** The page's address with the invitation in its hash. */
-export function inviteUrl(base: string, invite: Invite): string {
-  return `${base.split('#')[0]}#play=${invite.room}.${invite.secret}`;
+/**
+ * The link to send: the page's address without its query or hash (the friend keeps their own
+ * settings), and the invitation in the hash.
+ */
+export function inviteUrl(page: string, invite: Invite): string {
+  const url = new URL(page);
+  return `${url.origin}${url.pathname}#g=${invite.secret}`;
 }
 
 /** The invitation in a location hash, if it is exactly one; null for anything else. */
 export function parseInvite(hash: string): Invite | null {
   const match = INVITE_HASH.exec(hash);
-  return match ? { room: match[1]!, secret: match[2]! } : null;
+  return match ? { secret: match[1]! } : null;
 }

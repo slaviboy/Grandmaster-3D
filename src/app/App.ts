@@ -13,7 +13,7 @@
 // engine, the controller and the interface, and wires them together. URL parameters for testing:
 // ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no computer, ?seed=<n>,
 // ?difficulty=<id>, ?ui=modern|retro interface, ?debug=1 installs window.__chessDebug (never
-// during an online game). An invitation arrives as #play=<room>.<secret>; it is read once and
+// during an online game). An invitation arrives as #g=<secret>; it is read once and
 // taken out of the address bar at once.
 
 import { Raycaster, Vector3 } from 'three';
@@ -28,7 +28,7 @@ import { GameController } from '../game/GameController.ts';
 import type { Color } from '../game/types.ts';
 import { OnlineSession, type SavedSession, type SessionGame } from '../net/OnlineSession.ts';
 import { openPeerLink } from '../net/PeerLink.ts';
-import { createInvite, inviteUrl, parseInvite, type Invite } from '../net/protocol.ts';
+import { createInvite, inviteUrl, parseInvite, roomFor, type Invite } from '../net/protocol.ts';
 import { tabStorage } from '../net/savedSession.ts';
 import { isUiStyle, loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
@@ -299,7 +299,7 @@ export class App {
 
   /** Takes the invitation from the address bar, if any, and clears it from there. */
   private readInvite(): boolean {
-    if (!location.hash.startsWith('#play')) return false;
+    if (!location.hash.startsWith('#g=')) return false;
     const invite = parseInvite(location.hash);
     history.replaceState(null, '', location.pathname + location.search);
     if (invite) this.pendingInvite = invite;
@@ -328,19 +328,20 @@ export class App {
     tabStorage.clear();
   }
 
-  /** Makes a new invitation and waits for the friend; returns the link to send. */
-  hostOnline(name: string, color: Color, minutes: number): string {
+  /** Makes a new invitation and waits for the friend; resolves with the link to send. */
+  async hostOnline(name: string, color: Color, minutes: number): Promise<string> {
     const invite = createInvite();
-    this.begin(OnlineSession.host({ ...this.sessionOptions(invite), name, color, minutes }));
+    const options = await this.sessionOptions(invite);
+    this.begin(OnlineSession.host({ ...options, name, color, minutes }));
     return inviteUrl(location.href, invite);
   }
 
-  joinOnline(invite: Invite, name: string): void {
-    this.begin(OnlineSession.join({ ...this.sessionOptions(invite), name }));
+  async joinOnline(invite: Invite, name: string): Promise<void> {
+    this.begin(OnlineSession.join({ ...(await this.sessionOptions(invite)), name }));
   }
 
-  resumeOnline(saved: SavedSession, name: string): void {
-    const options = this.sessionOptions(saved.invite);
+  async resumeOnline(saved: SavedSession, name: string): Promise<void> {
+    const options = await this.sessionOptions(saved.invite);
     this.begin(OnlineSession.resume({ ...saved, name }, options));
   }
 
@@ -353,12 +354,12 @@ export class App {
     session.dispose();
   }
 
-  private sessionOptions(invite: Invite) {
+  private async sessionOptions(invite: Invite) {
     const game: SessionGame = {
       controller: this.controller,
       startGame: (color, minutes) => this.newGame({ mode: 'online', humanColor: color, minutes }),
     };
-    return { link: openPeerLink(invite), game, invite, storage: tabStorage };
+    return { link: openPeerLink(invite, await roomFor(invite)), game, invite, storage: tabStorage };
   }
 
   private begin(session: OnlineSession): void {

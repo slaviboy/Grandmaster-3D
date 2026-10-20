@@ -33,9 +33,9 @@ const NO_HANDLERS: LinkHandlers = {
   error: () => undefined,
 };
 
-/** Joins the invitation's room and starts looking for the other player. */
-export function openPeerLink(invite: Invite): LinkPort {
-  return new PeerLink(invite);
+/** Joins the invitation's room (see roomFor) and starts looking for the other player. */
+export function openPeerLink(invite: Invite, room: string): LinkPort {
+  return new PeerLink(invite, room);
 }
 
 class PeerLink implements LinkPort {
@@ -49,10 +49,10 @@ class PeerLink implements LinkPort {
   private readonly tracks = new Map<MediaStreamTrack, MediaStream>();
   private closed = false;
 
-  constructor(invite: Invite) {
+  constructor(invite: Invite, room: string) {
     this.room = joinRoom(
       { appId: APP_ID, password: invite.secret, maxReceiveBytes: MAX_RECEIVE_BYTES },
-      invite.room,
+      room,
       {
         onJoinError: ({ error }) => this.handlers.error(friendlyError(error)),
         onPeerHandshake: async (peerId) => {

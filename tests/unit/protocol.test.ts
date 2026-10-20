@@ -21,6 +21,7 @@ import {
   isInvite,
   parseInvite,
   parseMessage,
+  roomFor,
 } from '../../src/net/protocol.ts';
 import { parseSaved } from '../../src/net/savedSession.ts';
 
@@ -113,27 +114,41 @@ describe('cleanName', () => {
 });
 
 describe('invitation links', () => {
-  it('round-trips through the hash and is random every time', () => {
+  it('carries only the secret, after the bare page address', () => {
     const invite = createInvite();
     expect(isInvite(invite)).toBe(true);
-    const url = inviteUrl('https://example.org/game/?ui=modern#old', invite);
-    expect(url.startsWith('https://example.org/game/?ui=modern#play=')).toBe(true);
+    const url = inviteUrl('https://example.org/game/?ui=modern&debug=1#old', invite);
+    expect(url).toBe(`https://example.org/game/#g=${invite.secret}`);
     expect(parseInvite(new URL(url).hash)).toEqual(invite);
     expect(createInvite()).not.toEqual(invite);
     expect(createToken()).toMatch(/^[A-Za-z0-9_-]{22}$/);
   });
 
+  it('stays short: about 67 characters on the published site', () => {
+    const url = inviteUrl('https://slaviboy.github.io/grandmaster-3d/', createInvite());
+    expect(url.length).toBe(67);
+  });
+
+  it('derives the same room for both players, a different one for every game', async () => {
+    const invite = createInvite();
+    const room = await roomFor(invite);
+    expect(await roomFor({ ...invite })).toBe(room);
+    expect(room).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(room).not.toContain(invite.secret);
+    expect(await roomFor(createInvite())).not.toBe(room);
+  });
+
   it('accepts only the exact form', () => {
-    const { room, secret } = createInvite();
+    const { secret } = createInvite();
     for (const hash of [
       '',
-      '#play=',
-      `#play=${room}`,
-      `#play=${room}.${secret}x`,
-      `#play=${room}.${secret}&x=1`,
-      `#play=${room}.${secret.slice(1)}<`,
-      `#play=${room}.${secret}`.replace('play', 'Play'),
-      `#play=${room}+${secret}`,
+      '#g=',
+      `#g=${secret}x`,
+      `#g=${secret}&x=1`,
+      `#g=${secret.slice(1)}<`,
+      `#G=${secret}`,
+      `#play=${secret}`,
+      `#g=${secret}.${secret}`,
     ]) {
       expect(parseInvite(hash), hash).toBeNull();
     }
@@ -165,7 +180,7 @@ describe('parseSaved', () => {
       { minutes: 7 },
       { moves: ['e2e4', 'castle'] },
       { clocks: { w: -1, b: 0 } },
-      { invite: { room: 'r', secret: 's' } },
+      { invite: { secret: 's' } },
     ]) {
       expect(parseSaved({ ...good, ...patch }), JSON.stringify(patch)).toBeNull();
     }

@@ -39,7 +39,7 @@ export function parseSaved(value: unknown): SavedSession | null {
   if (typeof clocks !== 'object' || clocks === null || !isTime(clocks.w) || !isTime(clocks.b))
     return null;
   return {
-    invite: { room: s.invite.room, secret: s.invite.secret },
+    invite: { secret: s.invite.secret },
     role: s.role,
     token: s.token,
     name: cleanName(s.name, 'Player'),
