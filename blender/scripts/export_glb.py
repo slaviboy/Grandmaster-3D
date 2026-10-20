@@ -7,7 +7,8 @@
 # GNU General Public License as published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version. See the LICENSE file for the full terms.
 
-"""Exports the twelve pieces of chess_set.blend to public/models/chess/{side}-{type}.glb.
+"""Exports the pieces of chess_set.blend: the Staunton set to public/models/chess/{side}-{type}.glb and
+the Bell set to public/models/chess/bell/{side}-{type}.glb.
 
 Each file holds one mesh with +Y up, its base on y = 0, and a flat material (colour, roughness and
 clear coat). Both sides of a type share identical geometry, so the game loads each shape once and
@@ -29,13 +30,21 @@ import common
 TYPES = ["pawn", "rook", "knight", "bishop", "queen", "king"]
 
 
+# Piece sets: object-name prefix in the .blend and output folder under public/models/chess.
+SETS = [("", ""), ("bell-", "bell")]
+
+
 def main():
-    out_dir = os.path.join(common.ROOT, "public", "models", "chess")
+    for prefix, folder in SETS:
+        export_set(prefix, os.path.join(common.ROOT, "public", "models", "chess", folder))
+
+
+def export_set(prefix, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     for side in ("white", "black"):
         export_mat = bpy.data.materials[f"wood_{side}_export"]
         for kind in TYPES:
-            source = bpy.data.objects[f"{side}-{kind}"]
+            source = bpy.data.objects[f"{prefix}{side}-{kind}"]
             # A temporary object at the origin with the flat material the exporter understands.
             obj = bpy.data.objects.new(f"{side}-{kind}", source.data.copy())
             obj.name = f"{side}-{kind}"

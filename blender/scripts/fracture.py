@@ -15,7 +15,7 @@ and intersected with the piece by the exact boolean solver. Cut faces get a seco
 (raw end grain). Each chunk keeps its origin at its
 own centre so it tumbles naturally. Both colours share these shapes.
 
-Writes public/models/chess/fragments/{type}.glb.
+Writes public/models/chess/fragments/{type}.glb (Staunton) and fragments/bell/{type}.glb (Bell).
 
 Run: Blender -b blender/chess_set.blend --python-exit-code 1 -P blender/scripts/fracture.py
 """
@@ -106,8 +106,21 @@ def convex_cell(seeds, index, inner):
     return obj
 
 
-def cell(obj, seeds, index, outer, inner):
-    """The part of the piece closer to seeds[index] than to any other seed, as a bmesh."""
+def cell(obj, seeds, index, outer, inner, piece_volume=None):
+    """The part of the piece closer to seeds[index] than to any other seed, as a bmesh.
+
+    The exact solver occasionally fails silently near thin details (the bishop's slit) and returns
+    the whole cell or the whole piece; such a result is larger than the piece, so the cell is cut
+    again with the float solver.
+    """
+    bm = cut_cell(obj, seeds, index, outer, inner, "EXACT")
+    if piece_volume is not None and abs(bm.calc_volume()) > piece_volume * 1.001:
+        bm.free()
+        bm = cut_cell(obj, seeds, index, outer, inner, "FLOAT")
+    return bm
+
+
+def cut_cell(obj, seeds, index, outer, inner, solver):
     piece = bpy.data.objects.new("piece-copy", obj.data.copy())
     bpy.context.scene.collection.objects.link(piece)
     piece.data.materials.clear()
@@ -117,7 +130,7 @@ def cell(obj, seeds, index, outer, inner):
     cutter = convex_cell(seeds, index, inner)
     mod = piece.modifiers.new("cell", "BOOLEAN")
     mod.operation = "INTERSECT"
-    mod.solver = "EXACT"
+    mod.solver = solver
     mod.material_mode = "TRANSFER"
     mod.object = cutter
     common.apply_modifiers(piece)
@@ -143,8 +156,6 @@ def cell(obj, seeds, index, outer, inner):
 
 def main():
     rng = random.Random(1234)
-    out_dir = os.path.join(common.ROOT, "public", "models", "chess", "fragments")
-    os.makedirs(out_dir, exist_ok=True)
     outer = bpy.data.materials.get("wood_white_export")
     inner = bpy.data.materials.get("end_grain") or bpy.data.materials.new("end_grain")
     if inner.node_tree is None:
@@ -152,8 +163,32 @@ def main():
     inner.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.86, 0.72, 0.52, 1)
     inner.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.85
 
+    for prefix, folder in (("", ""), ("bell-", "bell")):
+        out_dir = os.path.join(common.ROOT, "public", "models", "chess", "fragments", folder)
+        os.makedirs(out_dir, exist_ok=True)
+        fracture_set(prefix, out_dir, rng, outer, inner)
+
+
+def remeshed_copy(obj):
+    """A voxel-remeshed copy: one clean solid surface the boolean solver always handles."""
+    copy = bpy.data.objects.new(f"{obj.name}-solid", obj.data.copy())
+    bpy.context.scene.collection.objects.link(copy)
+    mod = copy.modifiers.new("remesh", "REMESH")
+    mod.mode = "VOXEL"
+    mod.voxel_size = 0.008
+    decimate = copy.modifiers.new("decimate", "DECIMATE")
+    decimate.ratio = 0.12
+    common.apply_modifiers(copy)
+    return copy
+
+
+def fracture_set(prefix, out_dir, rng, outer, inner):
     for kind in TYPES:
-        source = bpy.data.objects[kind]
+        fracture_piece(bpy.data.objects[f"{prefix}{kind}"], kind, out_dir, rng, outer, inner)
+
+
+def fracture_piece(source, kind, out_dir, rng, outer, inner, fallback=True):
+    if True:
         bm_full = bmesh.new()
         bm_full.from_mesh(source.data)
         piece_volume = bm_full.calc_volume()
@@ -167,7 +202,7 @@ def main():
             total_volume = 0.0
             complete = True
             for i in range(len(seeds)):
-                bm = cell(source, seeds, i, outer, inner)
+                bm = cell(source, seeds, i, outer, inner, piece_volume)
                 if len(bm.faces) == 0:
                     bm.free()
                     continue
@@ -176,6 +211,10 @@ def main():
                     complete = False
                     break
                 volume = abs(bm.calc_volume())
+                if volume > piece_volume * 1.001:
+                    bm.free()
+                    complete = False
+                    break
                 total_volume += volume
                 parts.append((i, bm))
             ratio = total_volume / piece_volume
@@ -185,7 +224,14 @@ def main():
                 bm.free()
             print(f"{kind}: attempt {attempt + 1} left a chunk open, trying new seeds")
         else:
-            raise RuntimeError(f"{kind}: could not fracture into closed chunks")
+            if not fallback:
+                raise RuntimeError(f"{kind}: could not fracture into closed chunks")
+            # Thin details can defeat the solver for every seed layout; fracture a remeshed copy.
+            print(f"{kind}: fracturing a remeshed copy instead")
+            solid = remeshed_copy(source)
+            fracture_piece(solid, kind, out_dir, rng, outer, inner, fallback=False)
+            common.remove(solid)
+            return
 
         root = bpy.data.objects.new(f"{kind}-fragments", None)
         bpy.context.scene.collection.objects.link(root)

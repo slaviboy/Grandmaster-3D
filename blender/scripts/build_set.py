@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bpy
 
+import bell
 import common
 import knight
 import materials
@@ -35,24 +36,42 @@ from profiles import BASE_RADIUS, HEIGHTS, RADIAL_SCALE
 
 TYPES = ["pawn", "rook", "knight", "bishop", "queen", "king"]
 BUDGET = {"pawn": 6000, "rook": 9000, "knight": 15000, "bishop": 11000, "queen": 15000, "king": 12000}
-BUILDERS = {**pieces.BUILDERS, **knight.BUILDERS}
+
+# Each set: name prefix, builders, measured heights and base radii (for the metadata).
+SETS = [
+    {
+        "id": "staunton",
+        "prefix": "",
+        "builders": {**pieces.BUILDERS, **knight.BUILDERS},
+        "heights": HEIGHTS,
+        "base": {k: BASE_RADIUS[k] * RADIAL_SCALE[k] for k in TYPES},
+        "collections": ("Masters", "White", "Black"),
+        "metadata": "metadata.json",
+    },
+    {
+        "id": "bell",
+        "prefix": "bell-",
+        "builders": bell.BUILDERS,
+        "heights": bell.HEIGHTS,
+        "base": {k: None for k in TYPES},
+        "collections": ("BellMasters", "BellWhite", "BellBlack"),
+        "metadata": "metadata-bell.json",
+    },
+]
 
 
-def main():
-    common.reset_scene()
-    masters = common.ensure_collection("Masters")
-    sides = {c: common.ensure_collection(c.capitalize()) for c in ("white", "black")}
-    woods = {c: materials.wood_material(c) for c in sides}
-    for c in sides:
-        materials.export_material(c)
-
+def build(spec, woods):
+    masters_name, white_name, black_name = spec["collections"]
+    masters = common.ensure_collection(masters_name)
+    sides = {"white": common.ensure_collection(white_name), "black": common.ensure_collection(black_name)}
+    prefix = spec["prefix"]
     metadata = {}
     for index, kind in enumerate(TYPES):
         started = time.time()
-        master = BUILDERS[kind]()
+        master = spec["builders"][kind]()
         common.ground(master)
-        master.name = kind
-        master.data.name = kind
+        master.name = f"{prefix}{kind}"
+        master.data.name = f"{prefix}{kind}"
         common.move_to_collection(master, masters)
         master.hide_render = True
 
@@ -60,35 +79,46 @@ def main():
         height = b["max"][2]
         radius = max(-b["min"][0], b["max"][0], -b["min"][1], b["max"][1])
         tris = common.triangle_count(master)
+        expected = spec["heights"][kind]
         if not common.is_manifold(master):
-            raise RuntimeError(f"{kind} is not watertight")
+            raise RuntimeError(f"{prefix}{kind} is not watertight")
         if tris > BUDGET[kind]:
-            raise RuntimeError(f"{kind} has {tris} triangles, over its budget of {BUDGET[kind]}")
-        if abs(height - HEIGHTS[kind]) > 0.02:
-            raise RuntimeError(f"{kind} is {height:.3f} tall, expected {HEIGHTS[kind]}")
+            raise RuntimeError(f"{prefix}{kind} has {tris} triangles, over its budget of {BUDGET[kind]}")
+        if abs(height - expected) > 0.02:
+            raise RuntimeError(f"{prefix}{kind} is {height:.3f} tall, expected {expected}")
+        base = spec["base"][kind]
         metadata[kind] = {
             "height": round(height, 4),
-            "baseRadius": round(BASE_RADIUS[kind] * RADIAL_SCALE[kind], 4),
+            "baseRadius": round(base if base is not None else radius, 4),
             "maxRadius": round(radius, 4),
             "triangles": tris,
         }
 
         for c, collection in sides.items():
-            obj = bpy.data.objects.new(f"{c}-{kind}", master.data)
+            obj = bpy.data.objects.new(f"{prefix}{c}-{kind}", master.data)
             collection.objects.link(obj)
             # Object-level material links let both sides share one mesh.
             if not obj.data.materials:
                 obj.data.materials.append(None)
             obj.material_slots[0].link = "OBJECT"
             obj.material_slots[0].material = woods[c]
-            obj.location = ((index - 2.5) * 0.9, 0.0 if c == "white" else 1.2, 0.0)
-        print(f"{kind}: {tris} triangles, {height:.3f} tall, {time.time() - started:.1f}s")
-
-    blend = os.path.join(common.ROOT, "blender", "chess_set.blend")
-    bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
-    with open(os.path.join(common.ROOT, "blender", "metadata.json"), "w") as f:
+            row = (0.0 if c == "white" else 1.2) + (3.0 if prefix else 0.0)
+            obj.location = ((index - 2.5) * 0.9, row, 0.0)
+        print(f"{prefix}{kind}: {tris} triangles, {height:.3f} tall, {time.time() - started:.1f}s")
+    with open(os.path.join(common.ROOT, "blender", spec["metadata"]), "w") as f:
         json.dump(metadata, f, indent=2)
         f.write("\n")
+
+
+def main():
+    common.reset_scene()
+    woods = {c: materials.wood_material(c) for c in ("white", "black")}
+    for c in woods:
+        materials.export_material(c)
+    for spec in SETS:
+        build(spec, woods)
+    blend = os.path.join(common.ROOT, "blender", "chess_set.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
     print("saved", blend)
 
 
