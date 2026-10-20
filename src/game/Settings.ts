@@ -41,6 +41,8 @@ export interface Settings {
   readonly followPath: boolean;
   /** Captured pieces shatter into wooden fragments instead of simply disappearing. */
   readonly demolish: boolean;
+  /** Glass that mirrors and refracts for real; off swaps in cheaper look-alikes. */
+  readonly glassReflections: boolean;
   readonly showLegalMoves: boolean;
   readonly showCoordinates: boolean;
   readonly showLastMove: boolean;
@@ -61,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   animationSpeed: 1,
   followPath: false,
   demolish: false,
+  glassReflections: true,
   showLegalMoves: true,
   showCoordinates: true,
   showLastMove: true,

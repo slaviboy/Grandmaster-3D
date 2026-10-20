@@ -151,14 +151,23 @@ export class App {
     });
 
     // Apply looks only when they actually change: repainting costs a few milliseconds.
-    let looks = { board: '', pieces: '', table: '' };
+    let looks = { board: '', pieces: '', table: '', reflections: '' };
     this.settings.subscribe((s) => {
       const custom = JSON.stringify(s.custom);
       const next = {
         board: `${s.boardTheme}|${s.boardTheme === 'custom' ? custom : ''}`,
         pieces: `${s.pieceTheme}|${s.pieceTheme === 'custom' ? custom : ''}`,
         table: `${s.tableTheme}|${s.tableTheme === 'custom' ? custom : ''}`,
+        reflections: String(s.glassReflections),
       };
+      if (next.reflections !== looks.reflections) {
+        this.scene.board.setReflections(s.glassReflections);
+        this.assets.setGlassOptions({ transmission: s.glassReflections });
+        // Clear glass pieces swap to the cheaper material (or back) at once.
+        const theme = this.assets.currentTheme;
+        const clear = theme.w.finish === 'glass' || theme.b.finish === 'glass';
+        if (clear && next.pieces === looks.pieces && this.assets.ready) this.pieces.restyle();
+      }
       if (next.board !== looks.board) {
         this.scene.setBoardTheme(boardTheme(s.boardTheme, s.custom));
         this.shatter.clothY = this.scene.board.bottomY;

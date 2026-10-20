@@ -559,6 +559,11 @@ export class UiRoot {
           },
           { label: '&Demolish Captures', checked: () => s().demolish, action: toggle('demolish') },
           {
+            label: 'Glass &Reflections',
+            checked: () => s().glassReflections,
+            action: toggle('glassReflections'),
+          },
+          {
             label: 'Board &Coordinates',
             checked: () => s().showCoordinates,
             action: toggle('showCoordinates'),

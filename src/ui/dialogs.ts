@@ -138,6 +138,10 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
       'Demolish captures (pieces shatter)',
       current.demolish,
     );
+    const [glassRow, glass] = checkbox(
+      'Glass reflections (turn off if glass looks are slow)',
+      current.glassReflections,
+    );
     const [legalRow, legal] = checkbox('Show legal moves', current.showLegalMoves);
     const [lastRow, last] = checkbox('Show last move', current.showLastMove);
     const [coordsRow, coords] = checkbox('Show board coordinates', current.showCoordinates);
@@ -151,6 +155,7 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
             animationSpeed: Number(speed.value),
             followPath: path.checked,
             demolish: demolish.checked,
+            glassReflections: glass.checked,
             showLegalMoves: legal.checked,
             showLastMove: last.checked,
             showCoordinates: coords.checked,
@@ -167,7 +172,7 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
       demolishRow,
     );
     const board = el('div', 'settings-group');
-    board.append(el('div', 'coach-heading', 'Board'), legalRow, lastRow, coordsRow);
+    board.append(el('div', 'coach-heading', 'Board'), legalRow, lastRow, coordsRow, glassRow);
     board.append(button('Board, pieces and table colours…', () => close('themes')));
     const audio = el('div', 'settings-group');
     audio.append(el('div', 'coach-heading', 'Sound'), soundRow);
