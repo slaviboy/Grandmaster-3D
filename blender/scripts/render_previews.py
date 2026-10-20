@@ -65,9 +65,32 @@ def setup(scene):
     return camera
 
 
+# Blender writes these into every image it saves, the .blend file's full path and the
+# computer's name among them; previews go into a public repository, so none are written.
+STAMP_FIELDS = (
+    "camera",
+    "date",
+    "filename",
+    "frame",
+    "frame_range",
+    "hostname",
+    "lens",
+    "marker",
+    "memory",
+    "note",
+    "render_time",
+    "scene",
+    "sequencer_strip",
+    "time",
+)
+
+
 def render(scene, path, width, height):
     scene.render.image_settings.file_format = "JPEG"
     scene.render.image_settings.quality = 88
+    scene.render.use_stamp = False
+    for field in STAMP_FIELDS:
+        setattr(scene.render, "use_stamp_" + field, False)
     scene.render.resolution_x = width
     scene.render.resolution_y = height
     scene.render.filepath = path

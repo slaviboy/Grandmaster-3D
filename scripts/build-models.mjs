@@ -13,8 +13,10 @@
 // Usage: npm run models [-- build|export|previews ...]   (default: all three steps)
 // Set BLENDER to the Blender executable if it is not in the default macOS location.
 import { spawnSync } from 'node:child_process';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripMetadata } from './image-metadata.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const blender = process.env.BLENDER ?? '/Applications/Blender.app/Contents/MacOS/Blender';
@@ -51,4 +53,12 @@ for (const step of order) {
   console.log(`\n== ${step}`);
   const result = spawnSync(blender, args, { stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status ?? 1);
+  // The previews are published: whatever Blender still writes into an image goes.
+  if (step === 'previews') {
+    const renders = join(root, 'blender', 'renders');
+    for (const name of readdirSync(renders).filter((n) => /\.(jpe?g|png)$/i.test(n))) {
+      const file = join(renders, name);
+      writeFileSync(file, stripMetadata(readFileSync(file)));
+    }
+  }
 }
