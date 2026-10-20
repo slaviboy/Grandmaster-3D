@@ -15,13 +15,15 @@ import bmesh
 import bpy
 
 import common
-from profiles import PROFILES
+from profiles import PROFILES, RADIAL_SCALE
 
 LATHE_STEPS = 48
 
 
 def turned(name, profile_name, steps=LATHE_STEPS, samples=3):
-    profile = common.catmull_rom(PROFILES[profile_name](), samples=samples)
+    scale = RADIAL_SCALE[profile_name.split("_")[0]]
+    points = [(p[0] * scale, *p[1:]) for p in PROFILES[profile_name]()]
+    profile = common.catmull_rom(points, samples=samples)
     return common.lathe(name, profile, steps=steps)
 
 
@@ -49,7 +51,7 @@ def build_rook():
         cutter = common.box(
             "crenel",
             (0.8, 0.11, 0.14),
-            location=(0, 0, 1.075 + 0.07),
+            location=(0, 0, 0.865 + 0.07),
             rotation=(0, 0, angle),
         )
         common.boolean(obj, cutter)
@@ -64,8 +66,8 @@ def build_bishop():
     # the axis, so it shows as a diagonal groove to a viewer on White's right.
     cutter = common.box(
         "slit",
-        (0.30, 0.6, 0.024),
-        location=(0.165, 0, 1.0),
+        (0.30, 0.6, 0.022),
+        location=(0.165 * RADIAL_SCALE["bishop"], 0, 1.0),
         rotation=(math.radians(40), 0, 0),
     )
     common.boolean(obj, cutter)
@@ -80,7 +82,13 @@ def build_queen():
     for i in range(8):
         a = (i + 0.5) * 2 * math.pi / 8
         cutter = common.sphere(
-            "scallop", 0.056, location=(math.cos(a) * 0.252, math.sin(a) * 0.252, 1.482)
+            "scallop",
+            0.056 * RADIAL_SCALE["queen"],
+            location=(
+                math.cos(a) * 0.252 * RADIAL_SCALE["queen"],
+                math.sin(a) * 0.252 * RADIAL_SCALE["queen"],
+                1.482,
+            ),
         )
         common.boolean(obj, cutter)
     bevel_and_weight(obj, width=0.004)
@@ -106,7 +114,8 @@ def cross_pattee(name, thickness=0.062):
     ]
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
-    verts = [bm.verts.new((x, -thickness / 2, z)) for x, z in outline]
+    scale = RADIAL_SCALE["king"]
+    verts = [bm.verts.new((x * scale, -thickness / 2, z)) for x, z in outline]
     face = bm.faces.new(verts)
     bmesh.ops.recalc_face_normals(bm, faces=[face])
     result = bmesh.ops.extrude_face_region(bm, geom=[face])

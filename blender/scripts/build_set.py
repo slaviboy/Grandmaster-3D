@@ -31,7 +31,7 @@ import common
 import knight
 import materials
 import pieces
-from profiles import BASE_RADIUS, HEIGHTS
+from profiles import BASE_RADIUS, HEIGHTS, RADIAL_SCALE
 
 TYPES = ["pawn", "rook", "knight", "bishop", "queen", "king"]
 BUDGET = {"pawn": 6000, "rook": 9000, "knight": 15000, "bishop": 11000, "queen": 15000, "king": 12000}
@@ -68,7 +68,7 @@ def main():
             raise RuntimeError(f"{kind} is {height:.3f} tall, expected {HEIGHTS[kind]}")
         metadata[kind] = {
             "height": round(height, 4),
-            "baseRadius": BASE_RADIUS[kind],
+            "baseRadius": round(BASE_RADIUS[kind] * RADIAL_SCALE[kind], 4),
             "maxRadius": round(radius, 4),
             "triangles": tris,
         }

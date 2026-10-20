@@ -20,10 +20,11 @@ import math
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import common
 import pieces
+from profiles import RADIAL_SCALE
 
 # Side silhouette in (forward, height) squares; forward = toward the muzzle. Listed going up the
 # back of the mane, over the ears, down the face, under the jaw and down the chest.
@@ -204,6 +205,10 @@ def build_knight():
     decimate = head.modifiers.new("decimate", "DECIMATE")
     decimate.ratio = 0.12
     common.apply_modifiers(head)
+    # Narrow the head as measured on the reference (0.5 squares muzzle to mane), keeping its height.
+    head.data.transform(
+        Matrix.Diagonal((0.86 * RADIAL_SCALE["knight"], RADIAL_SCALE["knight"], 1.0, 1.0))
+    )
     foot = pieces.turned("knight", "knight_foot")
     common.boolean(foot, head, operation="UNION")
     common.smooth_by_angle(foot, 40)

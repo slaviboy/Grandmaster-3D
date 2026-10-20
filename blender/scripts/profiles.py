@@ -12,8 +12,9 @@
 Each profile is a list of (radius, height, sharp) control points from the centre of the underside,
 out along the base, up the piece and back to the axis at the top. Points marked sharp are corners;
 the rest are joined by a smooth curve. Heights were measured on the reference screenshots with the
-calibrated camera: king 1.745, queen 1.63, bishop 1.36, knight 1.30, rook 1.15 and pawn 0.87
-squares tall.
+calibrated camera: king 1.745, queen 1.63, bishop 1.36, knight 1.30, rook 0.93 and pawn 0.83
+squares tall. (For the flat-topped rook and the ball-headed pawn the highest point on screen is the
+far rim, not the centre, which the measurement accounts for.)
 """
 
 HEIGHTS = {
@@ -21,8 +22,19 @@ HEIGHTS = {
     "queen": 1.63,
     "bishop": 1.36,
     "knight": 1.30,
-    "rook": 1.15,
-    "pawn": 0.87,
+    "rook": 0.93,
+    "pawn": 0.83,
+}
+
+# Measured base widths on the reference are narrower than a classic tournament set: the profiles
+# below are drawn at classic proportions and then narrowed by these factors when lathed.
+RADIAL_SCALE = {
+    "king": 0.83,
+    "queen": 0.85,
+    "bishop": 0.93,
+    "knight": 0.94,
+    "rook": 0.91,
+    "pawn": 1.0,
 }
 
 BASE_RADIUS = {
@@ -172,32 +184,38 @@ def rook():
     return (
         base(r)
         + [
-            (r * 0.83, 0.16),
-            (0.248, 0.21),
-            (0.226, 0.29),
-            (0.212, 0.42),
-            (0.204, 0.58),
-            (0.202, 0.72),
-            (0.206, 0.80),
-            (0.214, 0.835, True),
-            (0.236, 0.85),
-            (0.242, 0.87),
-            (0.235, 0.89),
-            (0.212, 0.902, True),
-            (0.222, 0.94),
-            (0.250, 1.01),
-            (0.272, 1.08),
-            (0.282, 1.12, True),
-            (0.278, 1.15, True),
-            (0.225, 1.15, True),
-            (0.215, 1.085, True),
-            (0.0, 1.085, True),
+            (r * 0.83, 0.155),
+            (0.245, 0.195),
+            (0.224, 0.26),
+            (0.210, 0.36),
+            (0.203, 0.48),
+            (0.202, 0.58),
+            (0.207, 0.64),
+            (0.214, 0.665, True),
+            (0.236, 0.678),
+            (0.242, 0.695),
+            (0.235, 0.712),
+            (0.212, 0.722, True),
+            (0.222, 0.75),
+            (0.250, 0.81),
+            (0.272, 0.87),
+            (0.282, 0.905, True),
+            (0.278, 0.93, True),
+            (0.225, 0.93, True),
+            (0.215, 0.875, True),
+            (0.0, 0.875, True),
         ]
     )
 
 
 def pawn():
+    """Drawn at 0.87 squares and scaled to the measured 0.83."""
     r = BASE_RADIUS["pawn"]
+    k = HEIGHTS["pawn"] / 0.87
+    return [(p[0], p[1] * k, *p[2:]) for p in _pawn_points(r)]
+
+
+def _pawn_points(r):
     return (
         base(r, 0.85)
         + [
