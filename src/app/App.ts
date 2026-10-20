@@ -255,7 +255,8 @@ export class App {
       newGame: (patch: Partial<Settings>, fen?: string) => this.newGame(patch, fen),
       setSettings: (patch: Partial<Settings>) => this.settings.update(patch),
       render: () => this.scene.renderNow(),
-      cameraPosition: () => this.scene.camera.position.toArray().map((v) => Math.round(v * 1000) / 1000),
+      cameraPosition: () =>
+        this.scene.camera.position.toArray().map((v) => Math.round(v * 1000) / 1000),
       effectCount: () => this.shatter.group.children.length,
     };
   }
