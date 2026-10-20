@@ -117,8 +117,9 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
   });
 }
 
-export function settingsDialog(current: Settings): Promise<Partial<Settings> | null> {
-  return openDialog<Partial<Settings> | null>('Settings', null, ({ body, close }) => {
+/** The Settings dialog; resolves with the changes, null on cancel, or 'themes' to open the looks. */
+export function settingsDialog(current: Settings): Promise<Partial<Settings> | null | 'themes'> {
+  return openDialog<Partial<Settings> | null | 'themes'>('Settings', null, ({ body, close }) => {
     const [soundRow, sound] = checkbox('Sound effects', current.sound);
     const speed = select<number>(
       [
@@ -167,6 +168,7 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
     );
     const board = el('div', 'settings-group');
     board.append(el('div', 'coach-heading', 'Board'), legalRow, lastRow, coordsRow);
+    board.append(button('Board, pieces and table colours…', () => close('themes')));
     const audio = el('div', 'settings-group');
     audio.append(el('div', 'coach-heading', 'Sound'), soundRow);
     body.append(animations, board, audio, actions);

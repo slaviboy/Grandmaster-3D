@@ -34,6 +34,8 @@ import {
   shortcutsDialog,
 } from './dialogs.ts';
 import { GameStatusPanel, type PlayerInfo } from './GameStatusPanel.ts';
+import { themeDialog } from './ThemeDialog.ts';
+import { BOARD_THEMES, CUSTOM_ID, PIECE_THEMES, TABLE_THEMES } from '../scene/themes.ts';
 import { MenuBar, type Menu, type MenuItem } from './MenuBar.ts';
 import type { Panel } from './Panel.ts';
 
@@ -297,7 +299,8 @@ export class UiRoot {
 
   private async settings(): Promise<void> {
     const patch = await settingsDialog(this.app.settings.get());
-    if (patch) this.app.settings.update(patch);
+    if (patch === 'themes') await themeDialog(this.app.settings);
+    else if (patch) this.app.settings.update(patch);
   }
 
   private async resign(): Promise<void> {
@@ -552,6 +555,53 @@ export class UiRoot {
             label: 'Board &Coordinates',
             checked: () => s().showCoordinates,
             action: toggle('showCoordinates'),
+          },
+          sep,
+          { label: 'Board and &Pieces…', action: () => void themeDialog(app.settings) },
+          {
+            label: '&Board',
+            submenu: () => [
+              ...BOARD_THEMES.map((t) => ({
+                label: t.label,
+                checked: () => s().boardTheme === t.id,
+                action: () => app.settings.update({ boardTheme: t.id }),
+              })),
+              {
+                label: 'Custom…',
+                checked: () => s().boardTheme === CUSTOM_ID,
+                action: () => void themeDialog(app.settings, 'board'),
+              },
+            ],
+          },
+          {
+            label: 'Piece &Set',
+            submenu: () => [
+              ...PIECE_THEMES.map((t) => ({
+                label: t.label,
+                checked: () => s().pieceTheme === t.id,
+                action: () => app.settings.update({ pieceTheme: t.id }),
+              })),
+              {
+                label: 'Custom…',
+                checked: () => s().pieceTheme === CUSTOM_ID,
+                action: () => void themeDialog(app.settings, 'pieces'),
+              },
+            ],
+          },
+          {
+            label: 'T&able',
+            submenu: () => [
+              ...TABLE_THEMES.map((t) => ({
+                label: t.label,
+                checked: () => s().tableTheme === t.id,
+                action: () => app.settings.update({ tableTheme: t.id }),
+              })),
+              {
+                label: 'Custom…',
+                checked: () => s().tableTheme === CUSTOM_ID,
+                action: () => void themeDialog(app.settings, 'table'),
+              },
+            ],
           },
           sep,
           { label: 'Se&ttings…', action: () => void this.settings() },
