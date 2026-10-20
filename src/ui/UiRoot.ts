@@ -114,7 +114,7 @@ export class UiRoot {
   /** Puts up the interface in the given style, replacing the current one. */
   private mount(style: UiStyle): void {
     // Someone switching with the keyboard keeps their place on the switch.
-    const onSwitch = document.activeElement?.closest('.ui-switch') !== null;
+    const onSwitch = Boolean(document.activeElement?.closest('.ui-switch'));
     this.shell?.dispose();
     this.mounted?.abort();
     this.mounted = new AbortController();
