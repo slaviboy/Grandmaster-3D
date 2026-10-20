@@ -125,6 +125,11 @@ export class ChessGame {
     return this.chess.isCheck();
   }
 
+  /** Whether `by` attacks `square` in the current position. */
+  isAttacked(square: Square, by: Color): boolean {
+    return this.chess.isAttacked(square, by);
+  }
+
   kingSquare(color: Color): Square | undefined {
     const [square] = this.chess.findPiece({ type: 'k', color });
     return square as Square | undefined;

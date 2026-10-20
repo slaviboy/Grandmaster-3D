@@ -28,6 +28,11 @@ export interface HighlightState {
   readonly hint?: { readonly from: Square; readonly to: Square };
   readonly cursor?: Square;
   readonly dropTarget?: Square;
+  /** Chess Coach aids: tinted squares, spots for captures and checks, circled pawns. */
+  readonly zones?: readonly Square[];
+  readonly zoneColour?: string;
+  readonly spots?: readonly Square[];
+  readonly pawnMarks?: readonly Square[];
 }
 
 const SIZE = 1024;
@@ -104,6 +109,14 @@ export class Highlights {
     const s = this.state;
     ctx.clearRect(0, 0, SIZE, SIZE);
 
+    if (s.zones?.length && s.zoneColour) {
+      ctx.fillStyle = s.zoneColour;
+      for (const square of s.zones) {
+        const { file, rank } = squareIndices(square);
+        ctx.fillRect(file * CELL, (7 - rank) * CELL, CELL, CELL);
+      }
+    }
+
     if (s.check) {
       const [x, y] = this.centre(s.check);
       const glow = ctx.createRadialGradient(x, y, CELL * 0.05, x, y, CELL * 0.62);
@@ -156,6 +169,9 @@ export class Highlights {
         }
       }
     }
+
+    for (const square of s.spots ?? []) this.ring(square, 'rgba(255,150,40,0.9)', 0.3, 0.06);
+    for (const square of s.pawnMarks ?? []) this.ring(square, 'rgba(255,225,90,0.95)', 0.42, 0.05);
 
     if (s.cursor) {
       const { file, rank } = squareIndices(s.cursor);
