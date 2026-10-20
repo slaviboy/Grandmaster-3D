@@ -1,0 +1,249 @@
+/*
+ * Copyright (C) 2026 Stanislav Georgiev
+ * https://github.com/slaviboy
+ *
+ * This file is part of Grandmaster 3D.
+ *
+ * Grandmaster 3D is free software: you can redistribute it and/or modify it under the terms of the
+ * GNU General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version. See the LICENSE file for the full terms.
+ */
+
+// Builds the game: the scene and camera, the Blender pieces, the board marks and animations, the
+// engine, the controller and the interface, and wires them together. URL parameters for testing:
+// ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no computer, ?seed=<n>,
+// ?difficulty=<id>, ?debug=1 installs window.__chessDebug.
+
+import { Raycaster, Vector3 } from 'three';
+import { SoundManager } from '../audio/SoundManager.ts';
+import { Store } from '../core/Store.ts';
+import { checkConsistency } from '../dev/ConsistencyChecker.ts';
+import { WorkerTransport } from '../engine/EngineTransport.ts';
+import { isDifficultyId } from '../engine/difficulty.ts';
+import { StockfishAdapter } from '../engine/StockfishAdapter.ts';
+import { GameController } from '../game/GameController.ts';
+import { loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
+import { AnimationController } from '../scene/AnimationController.ts';
+import { Tweener } from '../scene/animation/tween.ts';
+import { BoardView } from '../scene/BoardView.ts';
+import { CameraController } from '../scene/CameraController.ts';
+import { ChessScene } from '../scene/ChessScene.ts';
+import { isSquare, squareToWorld, type Square } from '../scene/coords.ts';
+import { Highlights } from '../scene/Highlights.ts';
+import { InteractionController } from '../scene/InteractionController.ts';
+import { PieceAssetManager } from '../scene/PieceAssetManager.ts';
+import { PieceManager } from '../scene/PieceManager.ts';
+import { askPromotion } from '../ui/PromotionDialog.ts';
+
+export class App {
+  readonly settings: Store<Settings>;
+  readonly scene: ChessScene;
+  readonly camera: CameraController;
+  readonly tweener = new Tweener();
+  readonly assets = new PieceAssetManager();
+  readonly pieces: PieceManager;
+  readonly highlights: Highlights;
+  readonly animations: AnimationController;
+  readonly view: BoardView;
+  readonly interaction: InteractionController;
+  readonly engine: StockfishAdapter | null;
+  readonly sound: SoundManager;
+  readonly controller: GameController;
+  readonly ready: Promise<void>;
+  private readonly params = new URLSearchParams(location.search);
+
+  constructor(readonly root: HTMLElement) {
+    const initial = loadSettings();
+    const difficultyParam = this.params.get('difficulty');
+    this.settings = new Store<Settings>(
+      difficultyParam && isDifficultyId(difficultyParam)
+        ? { ...initial, difficulty: difficultyParam }
+        : initial,
+    );
+
+    this.scene = new ChessScene(root);
+    const requestRender = () => this.scene.requestRender();
+    const canvas = this.scene.renderer.domElement;
+    this.camera = new CameraController(this.scene.camera, canvas, requestRender);
+    this.scene.onResize((w, h) => this.camera.resize(w, h));
+    if (this.params.get('anim') === '0') this.tweener.speed = 0;
+
+    this.pieces = new PieceManager(this.assets);
+    this.scene.scene.add(this.pieces.group);
+    this.highlights = new Highlights(requestRender);
+    this.scene.scene.add(this.highlights.mesh);
+    this.animations = new AnimationController(this.tweener, this.pieces, this.assets, () =>
+      this.settings.get(),
+    );
+    this.view = new BoardView(this.pieces, this.animations, this.highlights, requestRender);
+
+    this.engine =
+      this.params.get('engine') === 'off'
+        ? null
+        : new StockfishAdapter(
+            () =>
+              new WorkerTransport(`${import.meta.env.BASE_URL}engine/stockfish-19-lite-single.js`),
+          );
+    this.sound = new SoundManager(this.settings.get().sound);
+    const seed = Number(this.params.get('seed') ?? Date.now());
+
+    this.controller = new GameController({
+      engine: this.engine,
+      view: this.view,
+      ui: { askPromotion },
+      sound: this.sound,
+      settings: this.settings.get(),
+      seed,
+    });
+
+    this.interaction = new InteractionController(
+      canvas,
+      this.scene.camera,
+      this.camera,
+      this.pieces,
+      this.highlights,
+      this.tweener,
+      {
+        canPick: (square) => this.controller.canPick(square),
+        legalTargets: (square) => this.controller.legalTargets(square),
+        isCapture: (from, to) =>
+          this.controller.game.legalMoves(from).some((m) => m.to === to && m.capture),
+        move: (input, dropped) => {
+          if (dropped) this.view.noteDrop(input.from, input.to, dropped);
+          return this.controller.playerMove(input);
+        },
+      },
+      requestRender,
+    );
+    this.view.interaction = this.interaction;
+
+    // A press on a piece or square is a move; only the bare frame belongs to the camera.
+    const raycaster = new Raycaster();
+    this.camera.setZoneProvider((x, y) => {
+      if (this.interaction.isOverBoard(x, y)) return null;
+      raycaster.setFromCamera(this.camera.toNdc(x, y), this.scene.camera);
+      const hit = raycaster.intersectObject(this.scene.board.frame, false)[0];
+      return hit ? this.scene.board.frameZone(hit.point) : null;
+    });
+
+    let labelSide = this.camera.side;
+    this.scene.addUpdater((delta) => {
+      const moving = this.camera.update(delta);
+      if (this.camera.side !== labelSide) {
+        labelSide = this.camera.side;
+        this.scene.board.setLabels({ side: labelSide });
+      }
+      const animating = this.tweener.update(delta);
+      this.controller.tick();
+      return moving || animating;
+    });
+
+    this.settings.subscribe((s) => {
+      saveSettings(s);
+      this.sound.enabled = s.sound;
+      if (this.params.get('anim') !== '0') this.tweener.speed = s.animationSpeed;
+      this.highlights.setOptions({
+        showLegalMoves: s.showLegalMoves,
+        showLastMove: s.showLastMove,
+      });
+      this.scene.board.setLabels({ visible: s.showCoordinates });
+      this.controller.updateSettings(s);
+    });
+
+    this.ready = this.start();
+    if (import.meta.env.DEV || this.params.has('debug')) this.installDebugHook();
+  }
+
+  private async start(): Promise<void> {
+    const engineReady = this.engine?.init().catch((error: Error) => {
+      console.error('engine failed to start:', error.message);
+    });
+    await this.assets.load(import.meta.env.BASE_URL);
+    await engineReady;
+    const s = this.settings.get();
+    await this.camera.setOrientation(
+      s.mode === 'computer' && s.humanColor === 'b' ? 'black' : 'white',
+      false,
+    );
+    await this.controller.newGame(this.params.get('fen') ?? undefined);
+  }
+
+  /** Starts a new game with the given settings (side, mode, time, difficulty). */
+  async newGame(patch: Partial<Settings> = {}, fen?: string): Promise<void> {
+    const next = { ...this.settings.get(), ...patch };
+    this.settings.set(next);
+    const side = next.mode === 'computer' && next.humanColor === 'b' ? 'black' : 'white';
+    void this.camera.setOrientation(side);
+    await this.controller.newGame(fen);
+  }
+
+  /** Development and test helpers on window.__chessDebug. */
+  private installDebugHook(): void {
+    const scene = () => {
+      const pieces = this.pieces.snapshot();
+      const positions: Partial<Record<Square, { x: number; y: number; z: number }>> = {};
+      for (const square of Object.keys(pieces) as Square[]) {
+        const p = this.pieces.get(square)!.mesh.position;
+        positions[square] = { x: p.x, y: p.y, z: p.z };
+      }
+      return { pieces, positions, meshCount: this.pieces.group.children.length };
+    };
+    (window as unknown as { __chessDebug: unknown }).__chessDebug = {
+      app: this,
+      ready: this.ready,
+      fen: () => this.controller.game.fen(),
+      state: () => this.controller.state.get(),
+      phase: () => this.controller.currentPhase,
+      history: () => this.controller.game.history().map((m) => m.san),
+      pieceCount: () => this.pieces.group.children.length,
+      snapshot: () => this.pieces.snapshot(),
+      whenIdle: async () => {
+        await this.controller.whenIdle();
+        while (this.tweener.running) await new Promise((r) => setTimeout(r, 30));
+      },
+      squareToScreen: (square: string) => {
+        if (!isSquare(square)) throw new Error(`bad square ${square}`);
+        const { x, z } = squareToWorld(square);
+        return this.camera.projectToClient(new Vector3(x, 0.05, z));
+      },
+      worldToScreen: (x: number, y: number, z: number) =>
+        this.camera.projectToClient(new Vector3(x, y, z)),
+      /** A screen point that picks the given square: on its piece, or on the open square. */
+      clickPoint: (square: string) => {
+        if (!isSquare(square)) throw new Error(`bad square ${square}`);
+        const { x, z } = squareToWorld(square);
+        const view = this.pieces.get(square);
+        const tries: Array<[number, number, number]> = [];
+        if (view) {
+          const h = this.assets.height(view.kind);
+          for (const f of [0.55, 0.75, 0.35, 0.9, 0.2]) tries.push([x, h * f, z]);
+        }
+        for (const [dx, dz] of [
+          [0, 0],
+          [0, 0.3],
+          [-0.3, 0.3],
+          [0.3, 0.3],
+          [0, -0.3],
+          [-0.3, 0],
+          [0.3, 0],
+        ]) {
+          tries.push([x + dx!, 0.01, z + dz!]);
+        }
+        for (const [px, py, pz] of tries) {
+          const point = this.camera.projectToClient(new Vector3(px, py, pz));
+          if (this.interaction.squareAt(point.x, point.y) === square) return point;
+        }
+        return null;
+      },
+      consistency: () =>
+        checkConsistency(this.controller.game.board(), scene(), {
+          humanColor:
+            this.settings.get().mode === 'computer' ? this.settings.get().humanColor : undefined,
+          moves: this.controller.moveAudit(),
+        }),
+      newGame: (patch: Partial<Settings>, fen?: string) => this.newGame(patch, fen),
+      setSettings: (patch: Partial<Settings>) => this.settings.update(patch),
+      render: () => this.scene.renderNow(),
+    };
+  }
+}
