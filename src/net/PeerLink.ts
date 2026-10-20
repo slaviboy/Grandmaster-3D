@@ -97,10 +97,10 @@ class PeerLink implements LinkPort {
     this.handlers = handlers;
   }
 
-  send(message: Message): void {
-    if (!this.partner || this.closed) return;
+  send(message: Message): Promise<void> {
+    if (!this.partner || this.closed) return Promise.resolve();
     // Sending can fail if the connection drops mid-way; the session notices through leave().
-    this.channel
+    return this.channel
       .send(message as unknown as JsonValue, { target: this.partner })
       .catch(() => undefined);
   }

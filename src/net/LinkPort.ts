@@ -32,7 +32,8 @@ export interface LinkPort {
   /** True while the other player is connected. */
   readonly connected: boolean;
   setHandlers(handlers: LinkHandlers): void;
-  send(message: Message): void;
+  /** Resolves once the message is on its way (it may still be lost if the connection drops). */
+  send(message: Message): Promise<void>;
   /** The round trip to the other player in milliseconds. */
   ping(): Promise<number>;
   /** Sends the local camera and microphone to the other player, now and after a reconnect. */
