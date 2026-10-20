@@ -1,0 +1,162 @@
+/*
+ * Copyright (C) 2026 Stanislav Georgiev
+ * https://github.com/slaviboy
+ *
+ * This file is part of Grandmaster 3D.
+ *
+ * Grandmaster 3D is free software: you can redistribute it and/or modify it under the terms of the
+ * GNU General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version. See the LICENSE file for the full terms.
+ */
+
+/*
+ * Online play's dialogs in both interfaces: the warning before connecting, with a real checkbox
+ * (not a switch) for the age confirmation, and the invitation link.
+ */
+:root[data-ui='modern'],
+:root[data-ui='retro'] {
+  .online-dialog {
+    max-width: min(94vw, 52rem);
+  }
+
+  .online-dialog .dialog-body {
+    gap: 1.2rem;
+  }
+
+  .online-warning ul {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0.6rem 0 0;
+    padding-left: 1.8rem;
+  }
+
+  .online-warning-title {
+    font-weight: 700;
+  }
+
+  .online-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .online-link {
+    display: flex;
+    gap: 0.8rem;
+  }
+
+  .online-link input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .online-link .btn {
+    flex: none;
+    width: auto;
+  }
+
+  .online-status:empty {
+    display: none;
+  }
+}
+
+:root[data-ui='modern'] {
+  .online-intro,
+  .online-reminder,
+  .online-status {
+    color: var(--m-muted);
+  }
+
+  .online-warning {
+    padding: 1.2rem 1.4rem;
+    border: 1px solid var(--m-gold-line);
+    border-radius: 1.2rem;
+    background: var(--m-gold-soft);
+    color: var(--m-text);
+    font-size: 1.25rem;
+    line-height: 1.45;
+  }
+
+  .online-warning-title {
+    color: var(--m-gold-hi);
+  }
+
+  .online-consent {
+    color: var(--m-text);
+    font-size: 1.3rem;
+  }
+
+  /* A plain square checkbox here, never the switch the modern dialogs use elsewhere. */
+  .dialog .online-consent input[type='checkbox'] {
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    margin: 0.1rem 0 0;
+    border: 1.5px solid var(--m-gold);
+    border-radius: 0.4rem;
+    background: transparent;
+    appearance: none;
+  }
+
+  .dialog .online-consent input[type='checkbox']::after {
+    content: '';
+    position: absolute;
+    top: 0.2rem;
+    left: 0.55rem;
+    width: 0.55rem;
+    height: 1rem;
+    border: solid var(--m-gold-ink);
+    border-width: 0 0.22rem 0.22rem 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    opacity: 0;
+    transform: rotate(45deg);
+  }
+
+  .dialog .online-consent input[type='checkbox']:checked {
+    background: var(--m-gold);
+  }
+
+  .dialog .online-consent input[type='checkbox']:checked::after {
+    opacity: 1;
+    transform: rotate(45deg);
+  }
+
+  .dialog .online-consent input[type='checkbox']:focus-visible {
+    outline: 2px solid var(--m-gold-hi);
+    outline-offset: 2px;
+  }
+
+  .online-error {
+    color: var(--m-danger);
+  }
+}
+
+:root[data-ui='retro'] {
+  .online-warning {
+    padding: 0.8rem 1rem;
+    border: 1px solid #ffd48a;
+    border-radius: 0.4rem;
+    background: rgba(255, 212, 138, 0.12);
+    line-height: 1.4;
+  }
+
+  .online-warning-title {
+    color: #ffd48a;
+  }
+
+  .dialog .online-consent input[type='checkbox'] {
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    margin-top: 0.1rem;
+  }
+
+  .online-error {
+    color: #ffb3a6;
+  }
+}
