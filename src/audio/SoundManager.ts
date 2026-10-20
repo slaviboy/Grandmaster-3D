@@ -82,6 +82,12 @@ export class SoundManager implements SoundPort {
       case 'illegal':
         this.tone(t, 180, 0.12, 0.12, 'square');
         break;
+      case 'shatter':
+        // Splintering wood: a sharp crack and a scatter of smaller knocks.
+        this.clack(t, 1.4, 0.7);
+        for (let i = 1; i < 6; i++)
+          this.clack(t + 0.03 * i + Math.random() * 0.03, 0.5 / i, 1.2 + Math.random() * 0.6);
+        break;
       case 'gameEnd':
         [523, 659, 784].forEach((f, i) => this.tone(t + i * 0.09, f, 0.9, 0.12));
         break;

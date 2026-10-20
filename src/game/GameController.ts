@@ -70,7 +70,7 @@ export interface UiPort {
 }
 
 export type SoundEffect =
-  'move' | 'capture' | 'castle' | 'check' | 'promote' | 'illegal' | 'gameEnd';
+  'move' | 'capture' | 'castle' | 'check' | 'promote' | 'illegal' | 'gameEnd' | 'shatter';
 
 export interface SoundPort {
   play(effect: SoundEffect): void;

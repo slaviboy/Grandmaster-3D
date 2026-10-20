@@ -25,6 +25,7 @@ import { GameController } from '../game/GameController.ts';
 import { loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
 import { Tweener } from '../scene/animation/tween.ts';
+import { FragmentLibrary, ShatterEffect } from '../scene/effects/ShatterEffect.ts';
 import { BoardView } from '../scene/BoardView.ts';
 import { CameraController } from '../scene/CameraController.ts';
 import { ChessScene } from '../scene/ChessScene.ts';
@@ -45,6 +46,8 @@ export class App {
   readonly highlights: Highlights;
   readonly animations: AnimationController;
   readonly view: BoardView;
+  readonly fragments = new FragmentLibrary();
+  readonly shatter: ShatterEffect;
   readonly interaction: InteractionController;
   readonly engine: StockfishAdapter | null;
   readonly sound: SoundManager;
@@ -76,6 +79,9 @@ export class App {
       this.settings.get(),
     );
     this.view = new BoardView(this.pieces, this.animations, this.highlights, requestRender);
+    this.shatter = new ShatterEffect(this.fragments, 99, () => this.sound.play('shatter'));
+    this.scene.scene.add(this.shatter.group);
+    this.animations.effect = this.shatter;
 
     this.engine =
       this.params.get('engine') === 'off'
@@ -134,8 +140,9 @@ export class App {
         this.scene.board.setLabels({ side: labelSide });
       }
       const animating = this.tweener.update(delta);
+      const shattering = this.shatter.update(delta);
       this.controller.tick();
-      return moving || animating;
+      return moving || animating || shattering;
     });
 
     this.settings.subscribe((s) => {
@@ -159,6 +166,10 @@ export class App {
       console.error('engine failed to start:', error.message);
     });
     await this.assets.load(import.meta.env.BASE_URL);
+    // The fragments are only needed for the optional Demolish animation; load them in the background.
+    void this.fragments.load(import.meta.env.BASE_URL).catch((error: Error) => {
+      console.warn('fragments unavailable, captures will simply vanish:', error.message);
+    });
     await engineReady;
     const s = this.settings.get();
     await this.camera.setOrientation(
