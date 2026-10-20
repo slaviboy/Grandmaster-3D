@@ -1731,8 +1731,8 @@
 
   /* New Game sheet: opponents by portrait, then the side and the time control. */
   .new-game-sheet {
-    width: min(94vw, 56rem);
-    max-width: min(94vw, 56rem);
+    width: min(94vw, 68rem);
+    max-width: min(94vw, 68rem);
   }
 
   .m-section {
@@ -1760,6 +1760,7 @@
   }
 
   .m-level {
+    position: relative;
     display: grid;
     padding: 0;
     overflow: hidden;
@@ -1775,13 +1776,14 @@
       transform 0.15s;
   }
 
+  /* Big portraits framed on the face: the whole head shows, hair to chin. */
   .m-level img,
   .m-level-art {
     display: block;
     width: 100%;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 6 / 5;
     object-fit: cover;
-    object-position: 50% 18%;
+    object-position: 50% 28%;
   }
 
   .m-level-art {
@@ -1796,26 +1798,32 @@
   }
 
   .m-level-art svg {
-    width: 4.4rem;
-    height: 4.4rem;
+    width: 5.6rem;
+    height: 5.6rem;
   }
 
+  /* The name and rating sit on the picture's lower edge, over a dark fade. */
   .m-level-text {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: grid;
     gap: 0.1rem;
     min-width: 0;
-    padding: 0.6rem 0.9rem 0.7rem;
-    font: 600 1.25rem/1.3 var(--m-font);
+    padding: 2.6rem 1rem 0.8rem;
+    background: linear-gradient(transparent, rgba(10, 11, 14, 0.9) 60%);
+    font: 600 1.3rem/1.25 var(--m-font);
+    text-shadow: 0 1px 0.2rem rgba(0, 0, 0, 0.6);
   }
 
+  /* Long names ("Maximum Strength") wrap rather than lose their end. */
   .m-level-name {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
   }
 
   .m-level-rating {
-    color: var(--m-muted);
+    color: #c9cad0;
     font: 500 1.1rem var(--m-font);
     font-variant-numeric: tabular-nums;
   }
@@ -1841,14 +1849,13 @@
     gap: 0.8rem;
   }
 
+  /* Compact chips: the king and the word side by side. */
   .m-side {
-    display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: 0.4rem;
-    width: 7.8rem;
-    height: 7.2rem;
-    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    height: 4.6rem;
+    padding: 0 1.6rem 0 1.1rem;
     border: 1px solid var(--m-line);
     border-radius: 1.3rem;
     background: var(--m-raised);
@@ -1862,8 +1869,8 @@
   }
 
   .m-side svg {
-    width: 3.4rem;
-    height: 3.4rem;
+    width: 2.6rem;
+    height: 2.6rem;
   }
 
   .m-side-pair {
@@ -1871,8 +1878,8 @@
   }
 
   .m-side-pair svg {
-    width: 2.8rem;
-    height: 2.8rem;
+    width: 2.3rem;
+    height: 2.3rem;
   }
 
   .m-side-pair svg + svg {
@@ -1931,6 +1938,28 @@
 
     .m-levels {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    /* Narrow cards: taller pictures and a smaller caption, so the faces stay clear. */
+    .m-level img,
+    .m-level-art {
+      aspect-ratio: 1;
+      object-position: 50% 24%;
+    }
+
+    .m-level-text {
+      padding: 1.8rem 0.7rem 0.6rem;
+      font-size: 1.15rem;
+    }
+
+    .m-level-rating {
+      font-size: 1rem;
+    }
+
+    .m-level-art svg {
+      width: 4rem;
+      height: 4rem;
+      margin-bottom: 2rem;
     }
   }
 
