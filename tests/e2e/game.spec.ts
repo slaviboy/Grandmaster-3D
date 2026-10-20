@@ -605,7 +605,12 @@ test.describe('modern interface', () => {
     const errors = await open(page, '', 'modern');
     await page.getByRole('button', { name: 'New game (Ctrl+N)' }).click();
     const sheet = page.getByRole('dialog', { name: 'New Game' });
-    await sheet.getByRole('radio', { name: /^Expert/ }).click();
+    // The compact grid shows every opponent at once.
+    await sheet.getByRole('radio', { name: 'Compact' }).click();
+    await sheet
+      .locator('.m-levels')
+      .getByRole('radio', { name: /^Expert/ })
+      .click();
     await sheet.getByRole('radio', { name: 'Black', exact: true }).click();
     await sheet.getByRole('radio', { name: '5 min', exact: true }).click();
     await sheet.getByRole('button', { name: 'Start Game' }).click();
@@ -621,6 +626,61 @@ test.describe('modern interface', () => {
     const card = page.locator('#match-card');
     await expect(card.locator('.m-player.bottom .m-name')).toHaveText('Player');
     await expect(card.locator('.m-player.top .m-rating')).toHaveText('2400');
+    expect(errors).toEqual([]);
+  });
+
+  test('picks the opponent from the endless slider, and remembers the chosen view', async ({
+    page,
+  }) => {
+    const errors = await open(page, '&engine=off', 'modern');
+    await page.getByRole('button', { name: 'New game (Ctrl+N)' }).click();
+    const sheet = page.getByRole('dialog', { name: 'New Game' });
+    const slider = sheet.locator('.m-carousel');
+    const centre = slider.locator('.m-carousel-card[data-pos="center"]');
+    const name = () => centre.locator('.m-level-name').textContent();
+    // The slider is the default view, with three cards in sight: the chosen one in the middle.
+    await expect(sheet.getByRole('radio', { name: 'Slider' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(sheet.locator('.m-levels')).toBeHidden();
+    await expect(slider.getByRole('radio')).toHaveCount(3);
+    await expect(centre).toHaveAttribute('aria-checked', 'true');
+    expect(await name()).toBe('Easy');
+
+    // The arrows go round without end: six steps on from Easy, past Custom, is Beginner.
+    const next = sheet.getByRole('button', { name: 'Next opponent' });
+    for (let i = 0; i < 6; i++) await next.click();
+    expect(await name()).toBe('Beginner');
+    await sheet.getByRole('button', { name: 'Previous opponent' }).click();
+    expect(await name()).toBe('Custom');
+    await expect(sheet.locator('.rating-field')).toBeVisible();
+
+    // A click on a neighbour brings it to the middle; so do the arrow keys.
+    await slider.getByRole('radio', { name: /^Maximum Strength/ }).click();
+    expect(await name()).toBe('Maximum Strength');
+    await centre.focus();
+    await page.keyboard.press('ArrowLeft');
+    expect(await name()).toBe('Expert');
+    await expect(centre).toBeFocused();
+
+    // The compact grid shows the same choice, and the view is remembered.
+    await sheet.getByRole('radio', { name: 'Compact' }).click();
+    await expect(slider).toBeHidden();
+    await expect(
+      sheet.locator('.m-levels').getByRole('radio', { name: /^Expert/ }),
+    ).toHaveAttribute('aria-checked', 'true');
+    await sheet.getByRole('button', { name: 'Start Game' }).click();
+    await expect(sheet).toHaveCount(0);
+    expect(await page.evaluate(() => window.__chessDebug.state().difficulty)).toBe('expert');
+    await page.getByRole('button', { name: 'New game (Ctrl+N)' }).click();
+    await expect(sheet.getByRole('radio', { name: 'Compact' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(sheet.locator('.m-levels')).toBeVisible();
+    await sheet.getByRole('radio', { name: 'Slider' }).click();
+    expect(await name()).toBe('Expert');
     expect(errors).toEqual([]);
   });
 
