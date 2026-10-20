@@ -33,12 +33,30 @@ const LEAKS = [
 ];
 
 test.skip(!!process.env.CI, 'needs the internet: public relays introduce the two players');
+// Chromium's own test camera and microphone, allowed without a prompt.
+test.use({
+  launchOptions: {
+    args: [
+      '--use-angle=swiftshader',
+      '--enable-unsafe-swiftshader',
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+    ],
+  },
+});
 test.describe.configure({ timeout: 180_000 });
 
 /** Counts peer connections and sockets from the first script on, before the game's own code. */
 async function countNetwork(page: Page) {
   await page.addInitScript(() => {
-    const counts = { peers: 0, sockets: 0 };
+    const counts = { peers: 0, sockets: 0, devices: 0 };
+    const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (ask) {
+      navigator.mediaDevices.getUserMedia = (constraints) => {
+        counts.devices++;
+        return ask(constraints);
+      };
+    }
     (window as unknown as { __testNetwork: typeof counts }).__testNetwork = counts;
     const Peer = window.RTCPeerConnection;
     window.RTCPeerConnection = class extends Peer {
@@ -58,9 +76,17 @@ async function countNetwork(page: Page) {
 }
 
 const network = (page: Page) =>
+  page.evaluate(() => {
+    const { peers, sockets } = (
+      window as unknown as { __testNetwork: { peers: number; sockets: number } }
+    ).__testNetwork;
+    return { peers, sockets };
+  });
+
+/** How many times the page asked for a camera or microphone. */
+const deviceRequests = (page: Page) =>
   page.evaluate(
-    () =>
-      (window as unknown as { __testNetwork: { peers: number; sockets: number } }).__testNetwork,
+    () => (window as unknown as { __testNetwork: { devices: number } }).__testNetwork.devices,
   );
 
 /** Where each square is in the top view, from White's and from Black's side. */
@@ -229,3 +255,71 @@ for (const ui of ['modern', 'retro'] as const) {
     }
   });
 }
+
+test.describe('video and voice', () => {
+  test('cameras and microphones are off until turned on, and show on the cards', async ({
+    browser,
+  }) => {
+    const host = await player(browser, 'modern');
+    const link = await createLink(host.page, 'modern');
+    const guest = await player(browser, 'modern', link);
+    await accept(guest.page, 'Join an Online Game', 'Ben', 'Join Game');
+    await expect(host.page.getByRole('dialog', { name: 'Invite a Friend' })).toHaveCount(0, {
+      timeout: 120_000,
+    });
+    const card = (p: Page, row: 'top' | 'bottom') => p.locator(`#match-card .m-player.${row}`);
+    const playing = (video: ReturnType<Page['locator']>) =>
+      expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 30_000 })
+        .toBeGreaterThan(0);
+
+    // Nothing starts by itself.
+    expect(await deviceRequests(host.page)).toBe(0);
+    expect(await deviceRequests(guest.page)).toBe(0);
+    await expect(card(host.page, 'bottom').locator('video')).toBeHidden();
+
+    // Ana turns her camera and microphone on: her own card shows her, mirrored.
+    await card(host.page, 'bottom').getByRole('button', { name: 'Turn your camera on' }).click();
+    await card(host.page, 'bottom')
+      .getByRole('button', { name: 'Turn your microphone on' })
+      .click();
+    const preview = card(host.page, 'bottom').locator('video.m-avatar-video');
+    await playing(preview);
+    await expect(preview).toHaveClass(/mirrored/);
+    expect(await deviceRequests(host.page)).toBe(2);
+
+    // Ben sees and hears her, and can mute her on his side only.
+    const friend = card(guest.page, 'top').locator('video.m-avatar-video');
+    await playing(friend);
+    await expect(card(guest.page, 'top')).toHaveClass(/video-on/);
+    const mute = card(guest.page, 'top').getByRole('button', { name: 'Mute Ana' });
+    await expect(mute).toBeVisible({ timeout: 30_000 });
+    await mute.click();
+    await expect(card(guest.page, 'top').getByRole('button', { name: 'Unmute Ana' })).toBeVisible();
+    expect(
+      await guest.page.evaluate(
+        () => document.querySelector<HTMLAudioElement>('body > audio')?.muted,
+      ),
+    ).toBe(true);
+
+    // Switching Ben's interface keeps the picture.
+    await guest.page.getByRole('radio', { name: 'Retro' }).click();
+    await playing(guest.page.locator('.player-card.top video.card-video'));
+    await guest.page.getByRole('radio', { name: 'Modern' }).click();
+
+    // Ana turns her microphone and camera off: Ben's card follows the real tracks.
+    await card(host.page, 'bottom')
+      .getByRole('button', { name: 'Turn your microphone off' })
+      .click();
+    await expect(
+      card(guest.page, 'top').getByRole('img', { name: "Ana's microphone is off" }),
+    ).toBeVisible({ timeout: 30_000 });
+    await card(host.page, 'bottom').getByRole('button', { name: 'Turn your camera off' }).click();
+    await expect(preview).toBeHidden();
+    await expect(card(guest.page, 'top').locator('video')).toBeHidden({ timeout: 30_000 });
+
+    // Ben never turned anything on, so nothing of his was ever asked for.
+    expect(await deviceRequests(guest.page)).toBe(0);
+    for (const side of [host, guest]) expect(side.errors).toEqual([]);
+  });
+});
