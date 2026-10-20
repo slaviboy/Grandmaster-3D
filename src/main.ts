@@ -11,11 +11,14 @@
 
 import './styles/base.css';
 import './styles/theme.css';
+import './styles/ui.css';
 import { App } from './app/App.ts';
+import { UiRoot } from './ui/UiRoot.ts';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('missing #app');
 const app = new App(root);
+new UiRoot(app);
 app.ready.catch((error: Error) => {
   console.error(error);
   const message = document.createElement('div');
