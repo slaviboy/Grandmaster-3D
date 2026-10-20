@@ -33,19 +33,30 @@ declare global {
   }
 }
 
-/** Opens the game in the given interface; most tests drive the retro one's menus and panels. */
-async function open(page: Page, query = '', ui: 'retro' | 'modern' = 'retro'): Promise<string[]> {
+/**
+ * Opens the game in the given interface; most tests drive the retro one's menus and panels, and
+ * null opens whatever the saved settings (or the default) choose.
+ */
+async function open(
+  page: Page,
+  query = '',
+  ui: 'retro' | 'modern' | null = 'retro',
+): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto(`/?debug=1&seed=7&ui=${ui}${query}`);
+  await page.goto(`/?debug=1&seed=7${ui ? `&ui=${ui}` : ''}${query}`);
+  await ready(page);
+  return errors;
+}
+
+async function ready(page: Page) {
   await page.waitForFunction(() => window.__chessDebug?.pieceCount() === 32, null, {
     timeout: 60_000,
   });
   await page.evaluate(() => window.__chessDebug.ready);
-  return errors;
 }
 
 async function point(page: Page, square: string) {
@@ -507,4 +518,201 @@ test('switches board, piece and table looks from the menu and the dialog', async
     table: 'blue-stone',
   });
   expect(errors).toEqual([]);
+});
+
+test.describe('modern interface', () => {
+  const dock = (page: Page) => page.getByRole('toolbar', { name: 'Game controls' });
+  const uiStyle = (page: Page) => page.evaluate(() => document.documentElement.dataset.ui);
+  const zones = (page: Page) =>
+    page.evaluate(
+      () =>
+        (
+          window.__chessDebug as unknown as {
+            app: { highlights: { state: { zones?: string[] } } };
+          }
+        ).app.highlights.state.zones?.length ?? 0,
+    );
+
+  test('is the interface a new player gets, and boots without errors', async ({ page }) => {
+    const errors = await open(page, '', null);
+    expect(await uiStyle(page)).toBe('modern');
+    for (const name of ['Game', 'View', 'Look', 'Options', 'Help']) {
+      await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
+    }
+    await expect(page.locator('#match-card')).toBeVisible();
+    await expect(page.locator('#coach-card')).toBeVisible();
+    await expect(dock(page)).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Modern' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.locator('.title-bar')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('follows a game against Stockfish in the Match card, the dock and the coach', async ({
+    page,
+  }) => {
+    const errors = await open(page, '&difficulty=beginner', 'modern');
+    await newGame(page, { mode: 'computer', humanColor: 'w', difficulty: 'beginner', minutes: 5 });
+    const status = dock(page).getByRole('status');
+    await expect(status).toHaveText('Your move.');
+    await move(page, 'e2', 'e4');
+    await expect.poll(() => history(page), { timeout: 30_000 }).toHaveLength(2);
+    await idle(page);
+    const card = page.locator('#match-card');
+    await expect(card.locator('.m-move-san').first()).toHaveText('e4');
+    await expect(card.locator('.m-move-san.current')).toHaveText((await history(page))[1]!);
+    await expect(card.locator('.m-player.top .m-name')).toHaveText('Stockfish');
+    await expect(card.locator('.m-player.bottom .m-name')).toHaveText('Player');
+    await expect(card.locator('.m-player.bottom .m-clock')).toHaveClass(/active/);
+    await expect(status).toHaveText('Your move.');
+    await expect(page.locator('#coach-card .m-feed')).toContainText('You played e4');
+    expect(await consistency(page)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('switches to retro and back from the top bar and remembers the choice', async ({ page }) => {
+    const errors = await open(page, '&engine=off', null);
+    await newGame(page, { mode: 'local', minutes: 0 });
+    await move(page, 'e2', 'e4');
+    await idle(page);
+
+    await page.getByRole('radio', { name: 'Retro' }).click();
+    expect(await uiStyle(page)).toBe('retro');
+    await expect(page.locator('#game-status')).toBeVisible();
+    await expect(page.locator('#match-card')).toHaveCount(0);
+    // The game and the coach's remarks carry over.
+    await expect(page.locator('.move-list')).toContainText('e4');
+    await expect(page.locator('.coach-log')).toContainText('e4');
+
+    await page.reload();
+    await ready(page);
+    expect(await uiStyle(page)).toBe('retro');
+
+    await page.getByRole('menuitem', { name: 'Preferences' }).click();
+    await page.locator('.menu-entry .menu-label', { hasText: /^Interface$/ }).hover();
+    await page.locator('.submenu .menu-entry', { hasText: 'Modern' }).click();
+    await expect(page.locator('#match-card')).toBeVisible();
+    await expect(page.locator('.title-bar')).toHaveCount(0);
+    await page.reload();
+    await ready(page);
+    expect(await uiStyle(page)).toBe('modern');
+    expect(errors).toEqual([]);
+  });
+
+  test('starts a game from the New Game sheet', async ({ page }) => {
+    const errors = await open(page, '', 'modern');
+    await page.getByRole('button', { name: 'New game (Ctrl+N)' }).click();
+    const sheet = page.getByRole('dialog', { name: 'New Game' });
+    await sheet.getByRole('radio', { name: /^Expert/ }).click();
+    await sheet.getByRole('radio', { name: 'Black', exact: true }).click();
+    await sheet.getByRole('radio', { name: '5 min', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Start Game' }).click();
+    await expect(sheet).toHaveCount(0);
+    expect(
+      await page.evaluate(() => {
+        const s = window.__chessDebug.state() as unknown as Record<string, unknown>;
+        return { difficulty: s.difficulty, humanColor: s.humanColor, minutes: s.minutes };
+      }),
+    ).toEqual({ difficulty: 'expert', humanColor: 'b', minutes: 5 });
+    // The computer opens as White, and the cards turn round with the board.
+    await expect.poll(() => history(page), { timeout: 30_000 }).toHaveLength(1);
+    const card = page.locator('#match-card');
+    await expect(card.locator('.m-player.bottom .m-name')).toHaveText('Player');
+    await expect(card.locator('.m-player.top .m-rating')).toHaveText('2400');
+    expect(errors).toEqual([]);
+  });
+
+  test('asks before resigning, and a stray Enter keeps the game', async ({ page }) => {
+    const errors = await open(page, '&engine=off', 'modern');
+    const resign = dock(page).getByRole('button', { name: 'Resign' });
+    const ask = page.getByRole('dialog', { name: 'Resign this game?' });
+    await resign.click();
+    await expect(ask).toContainText('Stockfish wins the game.');
+    await page.keyboard.press('Enter');
+    await expect(ask).toHaveCount(0);
+    expect((await page.evaluate(() => window.__chessDebug.state())).status.kind).toBe('playing');
+
+    await resign.click();
+    await ask.getByRole('button', { name: 'Resign' }).click();
+    await expect
+      .poll(() => page.evaluate(() => window.__chessDebug.state().status))
+      .toEqual({ kind: 'resigned', winner: 'b' });
+    await expect(page.getByRole('dialog', { name: 'Game Over' })).toBeVisible();
+    await expect(dock(page).getByRole('status')).toHaveText('White resigns. Black wins.');
+    expect(errors).toEqual([]);
+  });
+
+  test('changes the look from the Look menu and keeps the coach aids across a switch', async ({
+    page,
+  }) => {
+    const errors = await open(page, '&engine=off', 'modern');
+    await page.getByRole('menuitem', { name: 'Look' }).click();
+    await page.locator('.menu-entry .menu-label', { hasText: /^Looks$/ }).hover();
+    await page.locator('.submenu .menu-entry', { hasText: 'Console Mahogany' }).click();
+    expect(
+      await page.evaluate(
+        () =>
+          (window.__chessDebug as unknown as { theme(): { board: string; table: string } }).theme()
+            .board,
+      ),
+    ).toBe('mahogany');
+
+    await page.locator('#coach-card .m-coach-head').click();
+    await page.getByRole('radio', { name: 'Coverage' }).click();
+    const covered = await zones(page);
+    expect(covered).toBeGreaterThan(0);
+
+    await page.getByRole('radio', { name: 'Retro' }).click();
+    await expect(page.locator('input[name=coach-board][value=coverage]')).toBeChecked();
+    expect(await zones(page)).toBe(covered);
+    expect(errors).toEqual([]);
+  });
+
+  test('the menus work with the keyboard and hold back the board shortcuts', async ({ page }) => {
+    await open(page, '&engine=off', 'modern');
+    const topView = () =>
+      page.evaluate(
+        () =>
+          (window.__chessDebug as unknown as { app: { camera: { isTopView: boolean } } }).app.camera
+            .isTopView,
+      );
+    await page.keyboard.press('Alt+v');
+    await expect(page.getByRole('menu')).toBeVisible();
+    await page.keyboard.press('t');
+    expect(await topView()).toBe(false);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await page.keyboard.press('t');
+    expect(await topView()).toBe(true);
+    await expect(dock(page).getByRole('button', { name: 'Top view (T)' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  test('works on a phone-sized screen with touch', async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await open(page, '&engine=off', 'modern');
+    await newGame(page, { mode: 'local', minutes: 0 });
+    const a = await point(page, 'e2');
+    await page.touchscreen.tap(a.x, a.y);
+    const b = await point(page, 'e4');
+    await page.touchscreen.tap(b.x, b.y);
+    await expect.poll(() => history(page)).toEqual(['e4']);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    const box = (await dock(page).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.y + box.height).toBeLessThanOrEqual(780);
+    await context.close();
+  });
 });
