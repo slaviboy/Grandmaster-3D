@@ -23,6 +23,7 @@
     "test:arch": "vitest run tests/architecture",
     "test:e2e": "playwright test",
     "models": "node scripts/build-models.mjs",
+    "portraits": "node scripts/build-portraits.mjs",
     "ladder": "node --experimental-transform-types --no-warnings scripts/strength-ladder.ts"
   },
   "dependencies": {
