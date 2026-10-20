@@ -27,6 +27,29 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 
+def save_blend(path):
+    """Saves the .blend for publishing: without the folders the interface remembers.
+
+    The file browsers kept in the workspaces remember a local folder (the home folder, with its
+    user name), and the string buffers behind them still hold older paths after their end. Each
+    is filled with spaces before it is cleared, so no stale bytes reach the saved file.
+    """
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            for space in area.spaces:
+                if space.type != "FILE_BROWSER" or not space.params:
+                    continue
+                for field in ("directory", "filename", "filter_glob", "filter_search"):
+                    if not hasattr(space.params, field):
+                        continue
+                    length = space.params.bl_rna.properties[field].length_max or 1024
+                    blank = type(getattr(space.params, field))
+                    filler = " " * (length - 1)
+                    setattr(space.params, field, filler.encode() if blank is bytes else filler)
+                    setattr(space.params, field, b"" if blank is bytes else "")
+    bpy.ops.wm.save_as_mainfile(filepath=path, compress=True)
+
+
 def script_args():
     """Arguments given after `--` on the Blender command line."""
     return sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

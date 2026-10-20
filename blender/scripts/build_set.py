@@ -118,7 +118,7 @@ def main():
     for spec in SETS:
         build(spec, woods)
     blend = os.path.join(common.ROOT, "blender", "chess_set.blend")
-    bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
+    common.save_blend(blend)
     print("saved", blend)
 
 
