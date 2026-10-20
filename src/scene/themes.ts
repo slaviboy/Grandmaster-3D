@@ -41,6 +41,8 @@ export interface BoardTheme {
   /** Multiplier on the frame's side walls. */
   readonly edgeTint: readonly [number, number, number];
   readonly roughness: number;
+  /** How the board is built: a framed wooden board (the default) or a thin glass sheet. */
+  readonly construction?: 'wood' | 'glass';
 }
 
 /** wood, lacquer, metal and stone are opaque; glass is clear and lets light through; gloss is
@@ -205,6 +207,18 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     ...WARM_LABEL,
     edgeTint: [1.12, 1.06, 1.15],
     roughness: 0.6,
+  },
+  {
+    id: 'glass',
+    label: 'Glass Board',
+    light: plain('#f4f5f3', '220,222,220', '255,255,255'),
+    dark: plain('#0b0c0e', '0,0,0', '40,42,46'),
+    frame: plain('#e6efeb', '170,200,188', '255,255,255'),
+    labelColour: 'rgba(40,44,48,0.7)',
+    labelShadow: 'rgba(255,255,255,0)',
+    edgeTint: [1, 1, 1],
+    roughness: 0.1,
+    construction: 'glass',
   },
 ];
 

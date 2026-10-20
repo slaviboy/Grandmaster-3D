@@ -157,7 +157,10 @@ export class App {
         pieces: `${s.pieceTheme}|${s.pieceTheme === 'custom' ? custom : ''}`,
         table: `${s.tableTheme}|${s.tableTheme === 'custom' ? custom : ''}`,
       };
-      if (next.board !== looks.board) this.scene.board.setTheme(boardTheme(s.boardTheme, s.custom));
+      if (next.board !== looks.board) {
+        this.scene.setBoardTheme(boardTheme(s.boardTheme, s.custom));
+        this.shatter.clothY = this.scene.board.bottomY;
+      }
       if (next.table !== looks.table) this.scene.setTable(tableTheme(s.tableTheme, s.custom));
       if (next.pieces !== looks.pieces) {
         this.assets.setTheme(pieceTheme(s.pieceTheme, s.custom));

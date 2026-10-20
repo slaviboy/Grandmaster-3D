@@ -58,8 +58,6 @@ const GRAVITY = 22;
 const LIFETIME = 2;
 const FADE_FROM = 1.3;
 const MAX_BURSTS = 4;
-/** Height of the cloth the board rests on, relative to the playing surface. */
-const CLOTH_Y = FRAME_LIP - BOARD_THICKNESS;
 
 /** Loads the fragment models: one GLB per piece type, one node per chunk. */
 export class FragmentLibrary {
@@ -106,6 +104,8 @@ export class ShatterEffect implements CaptureEffect {
   private readonly rng: Rng;
   private readonly spinStep = new Quaternion();
   private readonly axis = new Vector3();
+  /** Height of the table the board rests on, relative to the playing surface. */
+  clothY = FRAME_LIP - BOARD_THICKNESS;
 
   constructor(
     private readonly library: FragmentLibrary,
@@ -211,7 +211,7 @@ export class ShatterEffect implements CaptureEffect {
     // captured piece's square, so convert to board coordinates first).
     const x = o.position.x + root.position.x;
     const z = o.position.z + root.position.z;
-    const floor = Math.abs(x) <= 4.5 && Math.abs(z) <= 4.5 ? 0.015 : CLOTH_Y;
+    const floor = Math.abs(x) <= 4.5 && Math.abs(z) <= 4.5 ? 0.015 : this.clothY;
     if (o.position.y - chunk.radius < floor && chunk.velocity.y < 0) {
       o.position.y = floor + chunk.radius;
       chunk.velocity.y *= -0.32;

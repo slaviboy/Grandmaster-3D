@@ -22,8 +22,10 @@ import {
   PlaneGeometry,
   Shape,
   type CanvasTexture,
+  type Texture,
   type Vector3,
 } from 'three';
+import { GlassBoard } from './GlassBoard.ts';
 import { boardTheme, type BoardTheme } from './themes.ts';
 import { createFrameTexture, createSquaresTexture, type FrameLabels } from './woodTextures.ts';
 
@@ -42,17 +44,20 @@ export type FrameZone = 'corner' | 'edge';
 
 export class ChessBoard {
   readonly group = new Group();
-  readonly frame: Mesh;
+  /** The wooden (or marble) board: a frame around a recessed playing surface. */
+  private readonly woodGroup = new Group();
+  private readonly woodFrame: Mesh;
   readonly surface: Mesh;
-  /** y of the underside, where the board rests on the cloth. */
-  readonly bottomY = FRAME_LIP - BOARD_THICKNESS;
+  /** The glass board, built the first time a glass theme is chosen. */
+  private glass: GlassBoard | null = null;
+  private reflections = true;
   private readonly frameMaterial: MeshStandardMaterial;
   private readonly edgeMaterial: MeshStandardMaterial;
   private readonly surfaceMaterial: MeshStandardMaterial;
   private labels: FrameLabels = { side: 'white', visible: true };
   private theme: BoardTheme = boardTheme('classic');
 
-  constructor() {
+  constructor(private readonly environment: Texture | null = null) {
     this.group.name = 'board';
 
     const surfaceMaterial = new MeshStandardMaterial({
@@ -76,21 +81,56 @@ export class ChessBoard {
     this.edgeMaterial = this.frameMaterial.clone();
     this.edgeMaterial.color.setRGB(...this.theme.edgeTint);
     this.edgeMaterial.vertexColors = true;
-    this.frame = new Mesh(createFrameGeometry(), [this.frameMaterial, this.edgeMaterial]);
-    this.frame.name = 'frame';
-    this.frame.castShadow = true;
-    this.frame.receiveShadow = true;
+    this.woodFrame = new Mesh(createFrameGeometry(), [this.frameMaterial, this.edgeMaterial]);
+    this.woodFrame.name = 'frame';
+    this.woodFrame.castShadow = true;
+    this.woodFrame.receiveShadow = true;
 
-    this.group.add(this.surface, this.frame);
+    this.woodGroup.add(this.surface, this.woodFrame);
+    this.group.add(this.woodGroup);
+  }
+
+  private get isGlass(): boolean {
+    return this.theme.construction === 'glass';
+  }
+
+  /** The board's outer frame (the glass sheet for a glass board), for camera drag zones. */
+  get frame(): Mesh {
+    return this.isGlass && this.glass ? this.glass.slab : this.woodFrame;
+  }
+
+  /** y of the underside, where the board rests on the table. */
+  get bottomY(): number {
+    return this.isGlass && this.glass ? this.glass.bottomY : FRAME_LIP - BOARD_THICKNESS;
+  }
+
+  /** Real reflections in a glass board's black squares, or plain glossy black (cheaper). */
+  setReflections(on: boolean): void {
+    this.reflections = on;
+    this.glass?.setReflections(on);
   }
 
   get currentTheme(): BoardTheme {
     return this.theme;
   }
 
-  /** Repaints the squares and frame in another board theme. */
+  /** Repaints the squares and frame in another board theme, switching construction if needed. */
   setTheme(theme: BoardTheme): void {
     this.theme = theme;
+    if (theme.construction === 'glass') {
+      if (!this.glass) {
+        this.glass = new GlassBoard(this.environment);
+        this.glass.setReflections(this.reflections);
+        this.group.add(this.glass.group);
+      }
+      this.glass.setTheme(theme);
+      this.glass.setLabels(this.labels);
+      this.glass.group.visible = true;
+      this.woodGroup.visible = false;
+      return;
+    }
+    if (this.glass) this.glass.group.visible = false;
+    this.woodGroup.visible = true;
     this.surfaceMaterial.map?.dispose();
     this.surfaceMaterial.map = createSquaresTexture(theme);
     this.surfaceMaterial.roughness = theme.roughness;
@@ -106,7 +146,8 @@ export class ChessBoard {
     const next = { ...this.labels, ...labels };
     if (next.side === this.labels.side && next.visible === this.labels.visible) return;
     this.labels = next;
-    this.repaintFrame();
+    if (this.isGlass) this.glass?.setLabels(next);
+    else this.repaintFrame();
   }
 
   private repaintFrame(): void {
@@ -135,7 +176,8 @@ export class ChessBoard {
   }
 
   dispose(): void {
-    this.frame.geometry.dispose();
+    this.glass?.dispose();
+    this.woodFrame.geometry.dispose();
     this.surface.geometry.dispose();
     this.frameMaterial.map?.dispose();
     this.frameMaterial.dispose();

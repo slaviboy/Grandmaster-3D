@@ -33,7 +33,7 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ChessBoard } from './ChessBoard.ts';
-import { tableTheme, type TableTheme } from './themes.ts';
+import { tableTheme, type BoardTheme, type TableTheme } from './themes.ts';
 import { createTableTexture } from './woodTextures.ts';
 
 /** Called every frame with the elapsed seconds; returns true while it still needs frames. */
@@ -48,6 +48,8 @@ export class ChessScene {
   readonly board: ChessBoard;
   readonly keyLight: DirectionalLight;
   private readonly clothMaterial: MeshStandardMaterial;
+  private readonly cloth: Mesh;
+  private readonly contactShadow: Mesh;
   private readonly updaters = new Set<FrameUpdater>();
   private readonly resizeListeners = new Set<(width: number, height: number) => void>();
   private readonly timer = new Timer();
@@ -100,7 +102,7 @@ export class ChessScene {
     front.position.set(-2, 5, 14);
     this.scene.add(front);
 
-    this.board = new ChessBoard();
+    this.board = new ChessBoard(this.scene.environment);
     this.scene.add(this.board.group);
 
     const clothTexture = createTableTexture(tableTheme('teal'));
@@ -111,12 +113,14 @@ export class ChessScene {
       metalness: 0,
     });
     const cloth = new Mesh(new PlaneGeometry(120, 120), this.clothMaterial);
+    this.cloth = cloth;
     cloth.name = 'cloth';
     cloth.rotation.x = -Math.PI / 2;
     cloth.position.y = this.board.bottomY - 0.001;
     cloth.receiveShadow = true;
     this.scene.add(cloth);
-    this.scene.add(this.createContactShadow());
+    this.contactShadow = this.createContactShadow();
+    this.scene.add(this.contactShadow);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -124,6 +128,17 @@ export class ChessScene {
 
     this.timer.connect(document);
     this.renderer.setAnimationLoop((time) => this.tick(time));
+  }
+
+  /** Changes the board's look; a different construction moves the table to the new underside. */
+  setBoardTheme(theme: BoardTheme): void {
+    this.board.setTheme(theme);
+    this.cloth.position.y = this.board.bottomY - 0.001;
+    this.contactShadow.position.y = this.board.bottomY + 0.002;
+    // A glass sheet casts a much lighter shadow than a wooden board.
+    (this.contactShadow.material as MeshBasicMaterial).opacity =
+      theme.construction === 'glass' ? 0.3 : 1;
+    this.requestRender();
   }
 
   /** Changes the table under the board: its texture and the colour of everything beyond it. */
