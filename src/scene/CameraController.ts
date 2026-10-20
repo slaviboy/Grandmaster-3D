@@ -80,6 +80,8 @@ export class CameraController {
   private readonly ground = new Plane(new Vector3(0, 1, 0), 0);
   private readonly settleListeners: Array<() => void> = [];
   private hoverZone: DragZone | null = null;
+  /** Width in pixels covered by panels along the right edge. */
+  private reservedRight = 0;
   enabled = true;
 
   constructor(
@@ -123,6 +125,13 @@ export class CameraController {
     if (this.hoverZone === 'corner') return ROTATE_CURSOR;
     if (this.hoverZone === 'edge') return PAN_CURSOR;
     return null;
+  }
+
+  /** Tells the camera how much of the right edge the side panels cover. */
+  setReservedRight(pixels: number): void {
+    if (Math.abs(pixels - this.reservedRight) < 0.5) return;
+    this.reservedRight = pixels;
+    this.apply();
   }
 
   resize(width: number, height: number): void {
@@ -233,10 +242,20 @@ export class CameraController {
     const v = this.current;
     const aspect = this.width / this.height;
     this.camera.aspect = aspect;
-    // Keep the reference framing: same vertical field of view when the window is at least as wide
-    // as the reference, and the same horizontal coverage when it is narrower.
+    // Keep the reference framing: the same vertical field of view while the board still fits, and
+    // a wider one on narrow screens so the whole board stays in view.
+    // Keep the reference framing when the window is at least as wide as the reference (4:3). On
+    // narrower windows, fit the board (frame included, about 0.85 of the height wide at the
+    // reference view) into the part of the screen not covered by the side panels, and centre it
+    // there.
     const halfTan = Math.tan((REFERENCE_VIEW.fov * DEG) / 2);
-    const fit = aspect < REFERENCE_VIEW.aspect ? REFERENCE_VIEW.aspect / aspect : 1;
+    let fit = 1;
+    let shiftX = -REFERENCE_VIEW.offsetX;
+    if (aspect < 1.3) {
+      const available = Math.max(1, this.width - this.reservedRight);
+      fit = Math.max(1, (0.854 * this.height) / (0.94 * available));
+      shiftX = -((available - this.width) / 2) / this.width;
+    }
     this.camera.fov = (2 * Math.atan(halfTan * fit)) / DEG;
     const cosE = Math.cos(v.elevation);
     this.camera.position.set(
@@ -245,9 +264,6 @@ export class CameraController {
       v.targetZ + Math.cos(v.azimuth) * cosE * v.distance,
     );
     this.camera.lookAt(v.targetX, 0, v.targetZ);
-    // Shift the principal point as in the reference, so the board sits left of the side panel. On
-    // narrow screens the panel moves away, so the board centres.
-    const shiftX = aspect >= 1.1 ? -REFERENCE_VIEW.offsetX : 0;
     const shiftY = -REFERENCE_VIEW.offsetY;
     this.camera.setViewOffset(
       this.width,

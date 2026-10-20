@@ -136,6 +136,16 @@ export class UiRoot {
       this.captured.panel.setCollapsed(true);
     }
 
+    // Keep the board clear of the right-hand panels on narrower windows.
+    const reserve = () => {
+      const open = [this.status.panel, this.captured.panel].some((p) => p.visible && !p.collapsed);
+      const width = open && window.innerWidth >= 760 ? right.getBoundingClientRect().width : 0;
+      app.camera.setReservedRight(width);
+    };
+    for (const panel of this.panels()) panel.onChange(reserve);
+    window.addEventListener('resize', reserve);
+    reserve();
+
     app.controller.state.subscribe((state) => this.render(state));
     app.settings.subscribe((settings) => {
       this.coach.syncLegalMoves(settings.showLegalMoves);
