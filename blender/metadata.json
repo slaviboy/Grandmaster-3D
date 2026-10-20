@@ -1,0 +1,38 @@
+{
+  "pawn": {
+    "height": 0.87,
+    "baseRadius": 0.26,
+    "maxRadius": 0.26,
+    "triangles": 5376
+  },
+  "rook": {
+    "height": 1.15,
+    "baseRadius": 0.33,
+    "maxRadius": 0.33,
+    "triangles": 7902
+  },
+  "knight": {
+    "height": 1.2952,
+    "baseRadius": 0.31,
+    "maxRadius": 0.3524,
+    "triangles": 12506
+  },
+  "bishop": {
+    "height": 1.36,
+    "baseRadius": 0.31,
+    "maxRadius": 0.31,
+    "triangles": 9528
+  },
+  "queen": {
+    "height": 1.63,
+    "baseRadius": 0.36,
+    "maxRadius": 0.36,
+    "triangles": 13440
+  },
+  "king": {
+    "height": 1.745,
+    "baseRadius": 0.37,
+    "maxRadius": 0.37,
+    "triangles": 10094
+  }
+}
