@@ -12,3 +12,5 @@ public/engine/
 *.log
 # Reference screenshots of the original game: local only, never published.
 docs/reference/
+__pycache__/
+*.pyc
