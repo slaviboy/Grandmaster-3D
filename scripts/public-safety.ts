@@ -107,6 +107,11 @@ const LOCAL_PATH = new RegExp(
     String.raw`\b[A-Za-z]:\\` + String.raw`(?:Users|Documents and Settings)\\`,
   ].join('|'),
 );
+/**
+ * Paths that look local but name no computer: Emscripten's virtual home folder, compiled into the
+ * unmodified Stockfish engine the site ships.
+ */
+const VIRTUAL_PATHS: readonly string[] = ['/home/web_user'];
 const COPYRIGHT = /\bcopyright\s*(?:\(c\)|©)/i;
 
 /** Things found in a text: each with the rule it broke and the offending text. */
@@ -124,7 +129,9 @@ export function scanText(text: string, { secrets = true } = {}): Finding[] {
   const lines = text.split('\n');
   for (const line of lines) {
     const path = LOCAL_PATH.exec(line);
-    if (path) findings.push({ rule: 'local path', match: path[0].trim().slice(0, 80) });
+    const local = path?.[0].trim().replace(/^["'(=:]/, '');
+    if (local && !VIRTUAL_PATHS.some((p) => local === p || local.startsWith(`${p}/`)))
+      findings.push({ rule: 'local path', match: local.slice(0, 80) });
     if (COPYRIGHT.test(line) && !COPYRIGHT_HOLDERS.some((h) => line.includes(h))) {
       findings.push({ rule: 'copyright holder not credited', match: line.trim().slice(0, 100) });
     }

@@ -6,6 +6,10 @@
 # The build's URLs are relative (vite.config.ts sets base './'), so it serves
 # from the repository's subpath as well as from a domain's root. The visual
 # regression suite needs a real GPU and runs locally, not here.
+#
+# Nothing is published unless the audits pass: every commit in the history (authors, messages and
+# every version of every file) and the built site are checked for secrets, private data and the
+# reference's name (scripts/audit.ts).
 
 name: Deploy to GitHub Pages
 
@@ -30,6 +34,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # The whole history, for the audit.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -49,9 +56,15 @@ jobs:
       - name: Unit and architecture tests
         run: npm test
 
+      - name: Audit the history
+        run: npm run audit
+
       # Typechecks, then builds into dist/.
       - name: Build
         run: npm run build
+
+      - name: Audit the built site
+        run: npm run audit:dist
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
