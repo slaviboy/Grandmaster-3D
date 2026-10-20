@@ -302,6 +302,22 @@ export function downloadText(name: string, content: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/**
+ * Asks before something that cannot be undone. The confirming button is marked as dangerous, and
+ * Cancel comes first so the dialog focuses it: a stray Enter keeps things as they are.
+ */
+export function confirmDialog(title: string, message: string, confirm: string): Promise<boolean> {
+  return openDialog<boolean>(title, false, ({ body, close }) => {
+    const no = button('Cancel', () => close(false));
+    no.classList.add('btn-quiet');
+    const yes = button(confirm, () => close(true));
+    yes.classList.add('btn-danger');
+    const actions = el('div', 'dialog-actions');
+    actions.append(no, yes);
+    body.append(el('p', '', message), actions);
+  });
+}
+
 export type GameOverChoice = 'new' | 'review' | 'save';
 
 export function gameOverDialog(message: string, detail: string): Promise<GameOverChoice> {

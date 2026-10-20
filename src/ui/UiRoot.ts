@@ -22,6 +22,7 @@ import type { Color } from '../game/types.ts';
 import { dialogOpen } from './Dialog.ts';
 import {
   aboutDialog,
+  confirmDialog,
   downloadText,
   gameOverDialog,
   importExportDialog,
@@ -306,9 +307,22 @@ export class UiRoot {
   }
 
   private async resign(): Promise<void> {
-    if (this.app.controller.state.get().status.kind !== 'playing') return;
-    if (!window.confirm('Resign this game?')) return;
+    const state = this.app.controller.state.get();
+    if (state.status.kind !== 'playing') return;
+    const ok =
+      this.style === 'modern'
+        ? await confirmDialog('Resign this game?', this.resignation(state), 'Resign')
+        : window.confirm('Resign this game?');
+    if (!ok) return;
     await this.app.controller.resign();
+  }
+
+  /** Who gives up and who wins: the player against the computer, else the side to move. */
+  private resignation(state: GameState): string {
+    if (state.mode === 'computer') return 'Stockfish wins the game.';
+    const loser = state.turn === 'w' ? 'White' : 'Black';
+    const winner = state.turn === 'w' ? 'Black' : 'White';
+    return `${loser} gives up and ${winner} wins the game.`;
   }
 
   private hint(): void {

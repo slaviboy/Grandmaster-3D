@@ -1249,6 +1249,29 @@
     background: linear-gradient(180deg, #ecd294, #d2ad62);
   }
 
+  /* A choice that cannot be undone, and the safe way out beside it. */
+  .dialog .btn.btn-danger {
+    border-color: rgba(229, 115, 107, 0.5);
+    background: rgba(229, 115, 107, 0.16);
+    color: #ffc2bc;
+    box-shadow: none;
+  }
+
+  .dialog .btn.btn-danger:hover {
+    background: rgba(229, 115, 107, 0.26);
+  }
+
+  .dialog .btn.btn-quiet {
+    border-color: var(--m-line-strong);
+    background: var(--m-raised);
+    color: var(--m-text);
+    box-shadow: none;
+  }
+
+  .dialog .btn.btn-quiet:hover {
+    background: var(--m-hover);
+  }
+
   /* The main choice sits at the right end of the row. */
   .dialog-actions {
     display: flex;
