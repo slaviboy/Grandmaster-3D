@@ -18,6 +18,7 @@
 import {
   Group,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Quaternion,
   Vector3,
@@ -32,7 +33,7 @@ import type { CaptureEffect } from '../AnimationController.ts';
 import { BOARD_THICKNESS, FRAME_LIP } from '../ChessBoard.ts';
 import { SHAPE_FOLDERS } from '../PieceAssetManager.ts';
 import type { PieceView } from '../PieceManager.ts';
-import type { PieceShape } from '../themes.ts';
+import type { PieceShape, PieceStyle } from '../themes.ts';
 
 interface ChunkTemplate {
   /** Centre of the chunk relative to the piece's base. */
@@ -128,7 +129,8 @@ export class ShatterEffect implements CaptureEffect {
   constructor(
     private readonly library: FragmentLibrary,
     seed = 99,
-    private readonly onBreak?: () => void,
+    /** Called as a piece bursts; `glass` tells glass from the other finishes. */
+    private readonly onBreak?: (glass: boolean) => void,
   ) {
     this.group.name = 'effects';
     this.rng = createRng(seed);
@@ -156,10 +158,24 @@ export class ShatterEffect implements CaptureEffect {
     while (this.bursts.length >= MAX_BURSTS) this.dispose(this.bursts.shift()!);
 
     const outer = source.material as Material;
-    // The cut faces show the inside of the piece: end grain for wood, raw stone or metal.
-    const endGrain =
-      (outer.userData.style as { endGrain?: string } | undefined)?.endGrain ?? '#dcbb92';
-    const inner = new MeshStandardMaterial({ color: endGrain, roughness: 0.85, metalness: 0 });
+    const style = outer.userData.style as PieceStyle | undefined;
+    const glass = style?.finish === 'glass' || style?.finish === 'gloss';
+    // The cut faces show the inside of the piece: end grain for wood, raw stone or metal, and for
+    // glass the same glass, a little frosted where it broke.
+    let inner: Material;
+    if (glass && outer instanceof MeshPhysicalMaterial) {
+      const frosted = outer.clone();
+      frosted.roughness = Math.min(1, outer.roughness + 0.25);
+      inner = frosted;
+    } else {
+      inner = new MeshStandardMaterial({
+        color: style?.endGrain ?? '#dcbb92',
+        roughness: 0.85,
+        metalness: 0,
+      });
+    }
+    // Clear glass shards throw no solid shadows, like the whole pieces.
+    const castShadow = style?.finish !== 'glass';
     const root = new Group();
     root.position.copy(source.position);
     root.rotation.copy(source.rotation);
@@ -170,7 +186,7 @@ export class ShatterEffect implements CaptureEffect {
       object.position.copy(template.offset);
       for (const part of template.parts) {
         const mesh = new Mesh(part.geometry, part.inner ? inner : outer);
-        mesh.castShadow = true;
+        mesh.castShadow = castShadow;
         mesh.receiveShadow = true;
         object.add(mesh);
       }
@@ -191,7 +207,7 @@ export class ShatterEffect implements CaptureEffect {
     }
     this.group.add(root);
     this.bursts.push({ root, chunks, materials: [outer, inner], age: 0 });
-    this.onBreak?.();
+    this.onBreak?.(glass);
   }
 
   /** Steps the fragments; returns true while any are still visible. */
