@@ -136,7 +136,10 @@ export class ShatterEffect implements CaptureEffect {
     while (this.bursts.length >= MAX_BURSTS) this.dispose(this.bursts.shift()!);
 
     const outer = source.material as Material;
-    const inner = new MeshStandardMaterial({ color: '#dcbb92', roughness: 0.85, metalness: 0 });
+    // The cut faces show the inside of the piece: end grain for wood, raw stone or metal.
+    const endGrain =
+      (outer.userData.style as { endGrain?: string } | undefined)?.endGrain ?? '#dcbb92';
+    const inner = new MeshStandardMaterial({ color: endGrain, roughness: 0.85, metalness: 0 });
     const root = new Group();
     root.position.copy(source.position);
     root.rotation.copy(source.rotation);

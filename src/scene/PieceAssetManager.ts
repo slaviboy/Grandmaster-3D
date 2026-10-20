@@ -16,13 +16,15 @@
 import { Mesh, type BufferGeometry } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { COLOR_NAMES, PIECE_NAMES, type Color, type PieceKind } from '../game/types.ts';
-import { createWoodMaterial } from './woodMaterial.ts';
+import { createPieceMaterial } from './pieceMaterial.ts';
+import { pieceTheme, type PieceStyle, type PieceTheme } from './themes.ts';
 
 const KINDS: readonly PieceKind[] = ['p', 'n', 'b', 'r', 'q', 'k'];
 
 export class PieceAssetManager {
   private readonly geometries = new Map<PieceKind, BufferGeometry>();
   private created = 0;
+  private theme: PieceTheme = pieceTheme('classic');
 
   /** Loads every model; rejects with a readable message if any file is missing or malformed. */
   async load(baseUrl: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
@@ -73,8 +75,26 @@ export class PieceAssetManager {
     return this.geometry(kind).boundingBox?.max.y ?? 1;
   }
 
+  /** The piece set new pieces are made in (promotions included). */
+  setTheme(theme: PieceTheme): void {
+    this.theme = theme;
+  }
+
+  get currentTheme(): PieceTheme {
+    return this.theme;
+  }
+
+  style(color: Color): PieceStyle {
+    return this.theme[color];
+  }
+
+  /** A fresh material in the current set for one side. */
+  material(color: Color) {
+    return createPieceMaterial(this.theme[color], ++this.created);
+  }
+
   create(color: Color, kind: PieceKind): Mesh {
-    const mesh = new Mesh(this.geometry(kind), createWoodMaterial(color, ++this.created));
+    const mesh = new Mesh(this.geometry(kind), this.material(color));
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = `${COLOR_NAMES[color]}-${PIECE_NAMES[kind]}`;

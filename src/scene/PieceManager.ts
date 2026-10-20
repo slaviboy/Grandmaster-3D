@@ -117,6 +117,14 @@ export class PieceManager {
     for (const [square, view] of this.views) this.placeMesh(view.mesh, square);
   }
 
+  /** Gives every piece on the board a material from the asset manager's current set. */
+  restyle(): void {
+    for (const view of this.views.values()) {
+      this.assets.release(view.mesh);
+      view.mesh.material = this.assets.material(view.color);
+    }
+  }
+
   /** Compact description of the scene for consistency checks: square -> "wP" etc. */
   snapshot(): Partial<Record<Square, string>> {
     const out: Partial<Record<Square, string>> = {};

@@ -31,6 +31,7 @@ function fakeAssets(): PieceAssetManager {
       return mesh;
     },
     release: (mesh: Mesh) => (mesh.material as MeshBasicMaterial).dispose(),
+    material: () => new MeshBasicMaterial(),
     height: () => 1,
   } as unknown as PieceAssetManager;
 }
@@ -53,6 +54,21 @@ describe('PieceManager', () => {
     expect(pieces.group.children).toHaveLength(32);
     expect(pieces.snapshot().e1).toBe('wK');
     expect(pieces.snapshot().d8).toBe('bQ');
+    expect(checkConsistency(game.board(), sceneOf(pieces))).toEqual([]);
+  });
+
+  it('restyles every piece in place without disturbing the position', () => {
+    const pieces = new PieceManager(fakeAssets());
+    const game = new ChessGame();
+    pieces.sync(game.board());
+    const king = pieces.get('e1')!.mesh;
+    const before = king.material as MeshBasicMaterial;
+    let disposed = false;
+    before.addEventListener('dispose', () => (disposed = true));
+    pieces.restyle();
+    expect(pieces.get('e1')!.mesh).toBe(king);
+    expect(king.material).not.toBe(before);
+    expect(disposed).toBe(true);
     expect(checkConsistency(game.board(), sceneOf(pieces))).toEqual([]);
   });
 
