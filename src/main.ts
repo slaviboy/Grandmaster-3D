@@ -11,8 +11,13 @@
 
 import { Raycaster } from 'three';
 import './styles/base.css';
+import { boardFromFen } from './game/types.ts';
 import { CameraController } from './scene/CameraController.ts';
 import { ChessScene } from './scene/ChessScene.ts';
+import { PieceAssetManager } from './scene/PieceAssetManager.ts';
+import { PieceManager } from './scene/PieceManager.ts';
+
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('missing #app');
@@ -39,3 +44,15 @@ chessScene.addUpdater((delta) => {
   }
   return moving;
 });
+
+const assets = new PieceAssetManager();
+const pieces = new PieceManager(assets);
+chessScene.scene.add(pieces.group);
+const params = new URLSearchParams(location.search);
+assets
+  .load(import.meta.env.BASE_URL)
+  .then(() => {
+    pieces.sync(boardFromFen(params.get('fen') ?? START_FEN));
+    chessScene.requestRender();
+  })
+  .catch((error: Error) => console.error(error));

@@ -66,14 +66,14 @@ export class ChessScene {
 
     const pmrem = new PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.35;
+    this.scene.environmentIntensity = 0.15;
     pmrem.dispose();
 
     // Warm sky fill from above, cool bounce from the cloth below.
-    this.scene.add(new HemisphereLight('#fff3e2', '#1d4a5c', 1.1));
+    this.scene.add(new HemisphereLight('#fff3e2', '#1d4a5c', 0.66));
 
     // Key light from the front right and above: shadows fall toward the back left.
-    this.keyLight = new DirectionalLight('#fff6ea', 2.4);
+    this.keyLight = new DirectionalLight('#fff6ea', 3.3);
     this.keyLight.position.set(8, 17, 5);
     this.keyLight.target.position.set(0, 0, 0);
     this.keyLight.castShadow = true;
