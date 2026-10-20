@@ -22,7 +22,8 @@
     "test:watch": "vitest",
     "test:arch": "vitest run tests/architecture",
     "test:e2e": "playwright test",
-    "models": "node scripts/build-models.mjs"
+    "models": "node scripts/build-models.mjs",
+    "ladder": "node --experimental-transform-types --no-warnings scripts/strength-ladder.ts"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
