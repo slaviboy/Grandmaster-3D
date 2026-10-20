@@ -19,6 +19,8 @@ export class Clock {
   private running: Color | null = null;
   private since = 0;
   private flagged = false;
+  /** Extra time before a side's flag falls; online, it covers the network delay. */
+  private grace: Record<Color, number> = { w: 0, b: 0 };
   private readonly flagListeners = new Set<(color: Color) => void>();
 
   constructor(
@@ -39,6 +41,7 @@ export class Clock {
     this.used = { w: 0, b: 0 };
     this.running = null;
     this.flagged = false;
+    this.grace = { w: 0, b: 0 };
   }
 
   /** Starts (or switches) the clock for the given side. */
@@ -64,6 +67,29 @@ export class Clock {
     return this.limitMs === null ? Infinity : Math.max(0, this.limitMs - this.elapsed(color));
   }
 
+  /** Each side's time used so far, for saving or sending. */
+  usedTimes(): Record<Color, number> {
+    return { w: this.elapsed('w'), b: this.elapsed('b') };
+  }
+
+  /** Sets the time each side has used, as when an interrupted game is restored. */
+  restore(used: Record<Color, number>): void {
+    const running = this.running;
+    this.pause();
+    this.used = { w: Math.max(0, used.w), b: Math.max(0, used.b) };
+    if (running) this.start(running);
+  }
+
+  /** Gives a side back time it was charged, never more than it has used. */
+  refund(color: Color, ms: number): void {
+    this.used[color] -= Math.min(Math.max(0, ms), this.elapsed(color));
+  }
+
+  /** Lets a side's flag fall only this many milliseconds after its time reaches zero. */
+  setGrace(color: Color, ms: number): void {
+    this.grace[color] = Math.max(0, ms);
+  }
+
   onFlag(listener: (color: Color) => void): () => void {
     this.flagListeners.add(listener);
     return () => this.flagListeners.delete(listener);
@@ -73,7 +99,7 @@ export class Clock {
   tick(): void {
     const color = this.running;
     if (!color || this.flagged || this.limitMs === null) return;
-    if (this.remaining(color) <= 0) {
+    if (this.limitMs - this.elapsed(color) + this.grace[color] <= 0) {
       this.flagged = true;
       this.pause();
       for (const listener of this.flagListeners) listener(color);

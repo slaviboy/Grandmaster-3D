@@ -31,7 +31,8 @@ import {
 } from '../scene/themes.ts';
 import type { Color } from './types.ts';
 
-export type GameMode = 'computer' | 'local';
+/** Against Stockfish, two players at one device, or a friend online (never saved: see sanitize). */
+export type GameMode = 'computer' | 'local' | 'online';
 
 /** The interface around the board: the modern design, or the retro one of the reference. */
 export type UiStyle = 'modern' | 'retro';
@@ -110,6 +111,7 @@ export function sanitize(raw: unknown): Settings {
     difficulty: isDifficultyId(s.difficulty) ? s.difficulty : DEFAULT_SETTINGS.difficulty,
     customRating: clampRating(s.customRating),
     humanColor: s.humanColor === 'b' ? 'b' : 'w',
+    // An online game needs a live connection, so a reload never comes back to one by itself.
     mode: s.mode === 'local' ? 'local' : 'computer',
     minutes: TIME_CONTROLS.includes(s.minutes) ? s.minutes : DEFAULT_SETTINGS.minutes,
     animationSpeed: Math.min(2, Math.max(0, s.animationSpeed)),

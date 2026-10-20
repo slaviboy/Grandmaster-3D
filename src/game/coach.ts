@@ -129,6 +129,15 @@ export function describeResult(status: GameStatus): string {
       return `${capital(COLOR_NAMES[opposite(status.winner)])} resigns. ${capital(COLOR_NAMES[status.winner])} wins.`;
     case 'timeout':
       return `${capital(COLOR_NAMES[opposite(status.winner)])} ran out of time. ${capital(COLOR_NAMES[status.winner])} wins.`;
+    case 'forfeit': {
+      const loser = capital(COLOR_NAMES[opposite(status.winner)]);
+      const why: Record<string, string> = {
+        'invalid-move': `${loser}'s app sent an invalid move`,
+        'invalid-data': `${loser}'s app sent invalid game data`,
+        abandoned: `${loser} left the game`,
+      };
+      return `${why[status.reason] ?? `${loser} forfeits`}. ${capital(COLOR_NAMES[status.winner])} wins.`;
+    }
     case 'draw': {
       const reasons: Record<string, string> = {
         stalemate: 'Stalemate.',

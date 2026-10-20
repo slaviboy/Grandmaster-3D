@@ -52,12 +52,16 @@ export interface MoveRecord {
 export type DrawReason =
   'stalemate' | 'fifty-moves' | 'threefold' | 'insufficient' | 'timeout' | 'agreement';
 
+/** Why an online game was awarded to the honest player. */
+export type ForfeitReason = 'invalid-move' | 'invalid-data' | 'abandoned';
+
 export type GameStatus =
   | { readonly kind: 'playing' }
   | { readonly kind: 'checkmate'; readonly winner: Color }
   | { readonly kind: 'resigned'; readonly winner: Color }
   | { readonly kind: 'timeout'; readonly winner: Color }
-  | { readonly kind: 'draw'; readonly reason: DrawReason };
+  | { readonly kind: 'draw'; readonly reason: DrawReason }
+  | { readonly kind: 'forfeit'; readonly winner: Color; readonly reason: ForfeitReason };
 
 export type LoadResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
 
@@ -236,7 +240,7 @@ export class ChessGame {
     return this.moves.at(-1);
   }
 
-  /** Records a result chess.js cannot see: resignation, flag fall or an agreed draw. */
+  /** Records a result chess.js cannot see: resignation, flag fall, an agreed draw or a forfeit. */
   setResult(result: GameStatus): void {
     this.result = result;
   }

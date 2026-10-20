@@ -16,6 +16,10 @@
 // Every change of position bumps a generation number. Anything asynchronous (an engine search, an
 // animation, the computer's thinking pause) checks the generation when it finishes and drops its
 // result if the game has moved on, so a late engine reply can never land on the wrong position.
+//
+// Online, the other player's moves arrive through applyRemoteMove and pass the same rules as the
+// engine's. The controller reports the local player's own actions (moves, resigning, a falling
+// flag) to whoever listens through onLocalAction, and never takes the other side's word for time.
 
 import { createRng, type Rng } from '../core/rng.ts';
 import { Store } from '../core/Store.ts';
@@ -27,6 +31,7 @@ import type { Square } from '../scene/coords.ts';
 import {
   ChessGame,
   parseUci,
+  type ForfeitReason,
   type GameStatus,
   type LoadResult,
   type MoveInput,
@@ -43,7 +48,24 @@ import {
 } from './types.ts';
 
 export type Phase =
-  'loading' | 'playerTurn' | 'awaitingPromotion' | 'animating' | 'engineThinking' | 'gameOver';
+  | 'loading'
+  | 'playerTurn'
+  | 'awaitingPromotion'
+  | 'animating'
+  | 'engineThinking'
+  /** Online: waiting for the other player's move. */
+  | 'remoteTurn'
+  | 'gameOver';
+
+/** Something the player at this device did in an online game, for the other player to hear of. */
+export type LocalAction =
+  | { readonly kind: 'move'; readonly record: MoveRecord; readonly ply: number }
+  | { readonly kind: 'resign' }
+  /** The player's own flag fell. */
+  | { readonly kind: 'flag' };
+
+/** What became of a move from the other player. */
+export type RemoteMoveResult = 'played' | 'rejected' | 'late';
 
 export interface MoveMarks {
   readonly lastMove?: { readonly from: Square; readonly to: Square };
@@ -140,7 +162,8 @@ export class GameController {
   private readonly delay: (ms: number) => Promise<void>;
   private readonly offFlag: () => void;
   /** Who made each move in the history, for the development consistency check. */
-  private sources: Array<'player' | 'engine'> = [];
+  private sources: Array<'player' | 'engine' | 'remote'> = [];
+  private readonly localListeners = new Set<(action: LocalAction) => void>();
   /** Resolves when the current asynchronous step (animation, engine turn) is over. */
   private idle: Promise<void> = Promise.resolve();
 
@@ -181,6 +204,12 @@ export class GameController {
     }
     this.settle();
     return result;
+  }
+
+  /** Hears of the local player's moves, resignation and falling flag; returns an unsubscribe. */
+  onLocalAction(listener: (action: LocalAction) => void): () => void {
+    this.localListeners.add(listener);
+    return () => this.localListeners.delete(listener);
   }
 
   /** Applies new settings; the side, mode and clock take effect from the next game. */
@@ -235,13 +264,104 @@ export class GameController {
     const record = this.game.tryMove(move);
     if (!record) return false;
     this.sources.push('player');
+    this.emit({ kind: 'move', record, ply: this.game.history().length - 1 });
     this.track(this.afterMove(record));
+    return true;
+  }
+
+  /**
+   * A move from the other player in an online game, as UCI with its index in the game. It must be
+   * their turn, the next move in order, and legal, exactly as chess.js sees it; otherwise nothing
+   * changes and the result is 'rejected'. A move that arrives after the game ended is 'late'.
+   * `lagMs` gives the other side back time the network took from its clock.
+   */
+  async applyRemoteMove(uci: string, ply: number, lagMs = 0): Promise<RemoteMoveResult> {
+    if (this.settings.mode !== 'online') return 'rejected';
+    // The player's own move may still be animating; the reply waits its turn.
+    if (this.phase === 'animating') await this.whenIdle();
+    if (this.game.isOver()) return 'late';
+    const remote = opposite(this.settings.humanColor);
+    if (this.phase !== 'remoteTurn' || this.game.turn() !== remote) return 'rejected';
+    if (ply !== this.game.history().length) return 'rejected';
+    const input = parseUci(uci);
+    if (!input || !this.game.isLegal(input)) return 'rejected';
+    // A promotion piece on a move that is not a promotion is not a move chess.js would make.
+    if (input.promotion && !this.game.needsPromotion(input.from, input.to)) return 'rejected';
+    this.clock.refund(remote, lagMs);
+    const record = this.game.tryMove(input);
+    if (!record) return 'rejected';
+    this.hint = null;
+    this.sources.push('remote');
+    this.track(this.afterMove(record));
+    return 'played';
+  }
+
+  /** Online: the other player resigned. */
+  async remoteResigned(): Promise<void> {
+    await this.endOnline({ kind: 'resigned', winner: this.settings.humanColor });
+  }
+
+  /** Online: the other player says their own flag fell. */
+  async remoteFlagged(): Promise<void> {
+    if (this.settings.mode !== 'online' || this.game.isOver()) return;
+    await this.interrupt();
+    this.game.timeout(opposite(this.settings.humanColor));
+    this.settle();
+  }
+
+  /** Online: both players agreed to a draw. */
+  async agreeDraw(): Promise<void> {
+    await this.endOnline({ kind: 'draw', reason: 'agreement' });
+  }
+
+  /** Online: the other player's app broke the rules, or they left; the local player wins. */
+  async forfeit(reason: ForfeitReason): Promise<void> {
+    await this.endOnline({ kind: 'forfeit', winner: this.settings.humanColor, reason });
+  }
+
+  /**
+   * Online: how long the other player's flag may stay down before it falls, to allow for the
+   * network. The session keeps this at the measured delay, capped.
+   */
+  setLagAllowance(ms: number): void {
+    this.clock.setGrace(opposite(this.settings.humanColor), ms);
+  }
+
+  /**
+   * Online: brings the game to the given moves from the standard start, when the other player's
+   * copy is ahead (a rejoin). Every move must be legal, and the game here must be the start of it,
+   * so history can only grow, never change. Clocks are taken only when this side had no moves at
+   * all (after a reload); otherwise this side keeps its own timing. Returns false, changing
+   * nothing, when the moves do not qualify.
+   */
+  async restoreOnline(moves: readonly string[], clocks?: Record<Color, number>): Promise<boolean> {
+    if (this.settings.mode !== 'online' || this.game.isOver()) return false;
+    const own = this.game.history().map((m) => m.lan);
+    if (moves.length < own.length || own.some((lan, i) => moves[i] !== lan)) return false;
+    const copy = new ChessGame();
+    for (const uci of moves) {
+      const input = parseUci(uci);
+      if (!input || (input.promotion && !copy.needsPromotion(input.from, input.to))) return false;
+      if (!copy.tryMove(input)) return false;
+    }
+    if (moves.length === own.length) return true;
+    const fresh = own.length === 0;
+    await this.interrupt();
+    this.game.reset();
+    for (const uci of moves) this.game.tryUci(uci);
+    this.sources = this.game
+      .history()
+      .map((m) => (m.color === this.settings.humanColor ? 'player' : 'remote'));
+    if (fresh && clocks) this.clock.restore(clocks);
+    this.hint = null;
+    this.options.view.sync(this.game.board());
+    this.settle();
     return true;
   }
 
   /** Takes back the last move (against the computer: the computer's reply and your move). */
   async undo(): Promise<void> {
-    if (!this.game.canUndo() || this.phase === 'loading') return;
+    if (!this.game.canUndo() || this.phase === 'loading' || this.online) return;
     const engineTurn = this.isEngineTurn();
     await this.interrupt();
     const plies = this.settings.mode === 'computer' && !engineTurn ? 2 : 1;
@@ -255,7 +375,7 @@ export class GameController {
 
   /** Replays moves that were taken back. */
   async redo(): Promise<void> {
-    if (!this.game.canRedo() || this.phase === 'loading') return;
+    if (!this.game.canRedo() || this.phase === 'loading' || this.online) return;
     await this.interrupt();
     const plies = this.settings.mode === 'computer' ? 2 : 1;
     for (let i = 0; i < plies && this.game.canRedo(); i++) {
@@ -270,17 +390,20 @@ export class GameController {
   /** The player gives up (in a two-player game, the side to move resigns). */
   async resign(): Promise<void> {
     if (this.game.isOver()) return;
-    const loser = this.settings.mode === 'computer' ? this.settings.humanColor : this.game.turn();
+    const loser = this.settings.mode === 'local' ? this.game.turn() : this.settings.humanColor;
     await this.interrupt();
     this.game.setResult({ kind: 'resigned', winner: opposite(loser) });
+    if (this.online) this.emit({ kind: 'resign' });
     this.settle();
   }
 
   async loadFen(fen: string): Promise<LoadResult> {
+    if (this.online) return { ok: false, error: 'not during an online game' };
     return this.newGame(fen);
   }
 
   async loadPgn(pgn: string): Promise<LoadResult> {
+    if (this.online) return { ok: false, error: 'not during an online game' };
     const copy = new ChessGame();
     const check = copy.loadPgn(pgn);
     if (!check.ok) return check;
@@ -296,7 +419,8 @@ export class GameController {
   /** Asks the engine for a good move for the player and marks it on the board. */
   async requestHint(): Promise<GameState['hint']> {
     const engine = this.options.engine;
-    if (!engine || !this.canHumanMove()) return null;
+    // No engine help against a person.
+    if (!engine || !this.canHumanMove() || this.online) return null;
     const generation = this.generation;
     const result = await engine.search({
       position: this.game.uciPosition(),
@@ -341,6 +465,22 @@ export class GameController {
     return this.settings.minutes > 0 ? this.settings.minutes * 60000 : null;
   }
 
+  private get online(): boolean {
+    return this.settings.mode === 'online';
+  }
+
+  private emit(action: LocalAction): void {
+    for (const listener of this.localListeners) listener(action);
+  }
+
+  /** Ends an online game with a result the rules cannot see. */
+  private async endOnline(result: GameStatus): Promise<void> {
+    if (!this.online || this.game.isOver()) return;
+    await this.interrupt();
+    this.game.setResult(result);
+    this.settle();
+  }
+
   private canHumanMove(): boolean {
     if (this.phase !== 'playerTurn' || this.game.isOver()) return false;
     return this.settings.mode === 'local' || this.game.turn() === this.settings.humanColor;
@@ -371,7 +511,10 @@ export class GameController {
     const generation = ++this.generation;
     this.setPhase('animating');
     this.options.view.setInteractive(null);
-    this.clock.pause();
+    // Online, the other side's time starts the moment a move is made or received, not after the
+    // animation: animation speeds differ between the two players' screens.
+    if (this.online && !this.game.isOver()) this.clock.start(this.game.turn());
+    else this.clock.pause();
     this.pushMarks();
     await this.options.view.playMove(record);
     if (generation !== this.generation) return;
@@ -396,11 +539,18 @@ export class GameController {
       this.options.sound.play('gameEnd');
       return;
     }
-    if (this.game.history().length > 0 || this.game.turn() !== this.settings.humanColor) {
+    // Online, the clocks start with the first move, so both players' clocks agree on when.
+    const started = this.game.history().length > 0;
+    if (started || (!this.online && this.game.turn() !== this.settings.humanColor)) {
       this.clock.start(this.game.turn());
     }
     if (this.isEngineTurn()) {
       this.track(this.engineTurn());
+      return;
+    }
+    if (this.online && this.game.turn() !== this.settings.humanColor) {
+      this.setPhase('remoteTurn');
+      this.options.view.setInteractive(null);
       return;
     }
     this.setPhase('playerTurn');
@@ -491,6 +641,7 @@ export class GameController {
     if (this.game.isOver()) return;
     await this.interrupt();
     this.game.timeout(color);
+    if (this.online && color === this.settings.humanColor) this.emit({ kind: 'flag' });
     this.settle();
   }
 
@@ -526,8 +677,8 @@ export class GameController {
       status: this.game.status(),
       inCheck: this.game.inCheck(),
       captured: this.game.captured(),
-      canUndo: this.game.canUndo() && this.phase !== 'loading',
-      canRedo: this.game.canRedo() && this.phase !== 'loading',
+      canUndo: this.game.canUndo() && this.phase !== 'loading' && !this.online,
+      canRedo: this.game.canRedo() && this.phase !== 'loading' && !this.online,
       difficulty: this.settings.difficulty,
       rating: difficulty(this.settings.difficulty, this.settings.customRating).rating,
       minutes: this.settings.minutes,
