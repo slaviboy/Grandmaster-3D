@@ -29,7 +29,8 @@
   "dependencies": {
     "chess.js": "^1.4.0",
     "stockfish": "^19.0.1",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "trystero": "0.26.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

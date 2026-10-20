@@ -26,6 +26,17 @@ Copyright © 2010–2026 three.js authors. https://github.com/mrdoob/three.js �
 
 Copyright © 2025 Jeff Hlywa. https://github.com/jhlywa/chess.js — BSD 2-Clause License.
 
+## Trystero — MIT
+
+Copyright © 2021 Dan Motzenbecker. https://github.com/dmotz/trystero — MIT License. It connects
+two players' browsers for online games: it finds the other player through public Nostr relays and
+then opens a direct WebRTC connection.
+
+## noble-secp256k1 — MIT
+
+Copyright © 2019 Paul Miller. https://github.com/paulmillr/noble-secp256k1 — MIT License. Trystero
+uses it to sign its Nostr messages.
+
 ## Assets
 
 The chess pieces were modelled for this project with the Blender scripts in `blender/scripts/`. The
