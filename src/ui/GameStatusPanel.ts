@@ -13,6 +13,7 @@
 // large clock, time control) with the move list between them, as in the reference layout. The
 // player whose clock runs gets the white box around it.
 
+import { CardMedia, type MediaCommands, type MediaView } from './cardMedia.ts';
 import { formatClock } from '../game/Clock.ts';
 import type { GameState } from '../game/GameController.ts';
 import type { Color } from '../game/types.ts';
@@ -46,6 +47,7 @@ interface Card {
   readonly clock: HTMLElement;
   readonly control: HTMLElement;
   readonly note: HTMLElement;
+  readonly media: CardMedia;
 }
 
 export class GameStatusPanel {
@@ -57,8 +59,12 @@ export class GameStatusPanel {
   private renderedMoves = '';
   private bottomColor: Color = 'w';
   private portraits = '';
+  private media: MediaView | null = null;
 
-  constructor(actions: MoveListActions) {
+  constructor(
+    actions: MoveListActions,
+    private readonly mediaCommands: MediaCommands,
+  ) {
     this.panel = new Panel({ id: 'game-status', title: 'Game Status' });
     this.top = this.card('top');
     this.bottom = this.card('bottom');
@@ -102,10 +108,25 @@ export class GameStatusPanel {
   private card(position: 'top' | 'bottom'): Card {
     const root = document.createElement('div');
     root.className = `player-card ${position}`;
-    root.innerHTML = `<div class="portrait"></div><div class="player-info"><div class="player-line"><span class="king-icon"></span><span class="player-name"></span></div><div class="clock"></div><div class="time-control"></div><div class="player-note" aria-live="polite"></div></div>`;
+    root.innerHTML = `<div class="portrait-wrap"><div class="portrait"></div></div><div class="player-info"><div class="player-line"><span class="king-icon"></span><span class="player-name"></span></div><div class="clock"></div><div class="time-control"></div><div class="player-note" aria-live="polite"></div></div>`;
     const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const media = new CardMedia(
+      this.mediaCommands,
+      (icon, label, onClick) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.innerHTML = icon;
+        button.setAttribute('aria-label', label);
+        button.addEventListener('click', onClick);
+        return button;
+      },
+      'card-video',
+    );
+    q('.portrait-wrap').append(media.video);
+    q('.player-info').append(media.controls);
     return {
       root,
+      media,
       portrait: q('.portrait'),
       icon: q('.king-icon'),
       name: q('.player-name'),
@@ -157,7 +178,20 @@ export class GameStatusPanel {
       }
     }
     this.portraits = portraitsKey;
+    this.renderMedia();
     this.renderMoves(state);
+  }
+
+  /** Video and voice for an online game; null takes them away. */
+  setMedia(view: MediaView | null): void {
+    this.media = view;
+    this.renderMedia();
+  }
+
+  private renderMedia(): void {
+    const topColor: Color = this.bottomColor === 'w' ? 'b' : 'w';
+    this.top.media.render(this.media, topColor);
+    this.bottom.media.render(this.media, this.bottomColor);
   }
 
   /** Called a few times a second with each side's remaining (or used) time. */

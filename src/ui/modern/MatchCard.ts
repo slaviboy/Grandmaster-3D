@@ -16,6 +16,7 @@
 import { formatClock } from '../../game/Clock.ts';
 import type { GameState } from '../../game/GameController.ts';
 import type { Color, PieceKind } from '../../game/types.ts';
+import { CardMedia, type MediaView } from '../cardMedia.ts';
 import { el } from '../Dialog.ts';
 import type { PlayerInfo } from '../GameStatusPanel.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
@@ -40,6 +41,7 @@ interface Row {
   readonly captures: HTMLElement;
   readonly lead: HTMLElement;
   readonly clock: HTMLElement;
+  readonly media: CardMedia;
 }
 
 export class MatchCard {
@@ -53,11 +55,13 @@ export class MatchCard {
   private readonly listeners = new Set<() => void>();
   private bottomColor: Color = 'w';
   private timed = false;
+  private media: MediaView | null = null;
+  private videos = '';
   private portraits = '';
   /** The moves last drawn; null until the first render, so an empty game shows its hint. */
   private renderedMoves: string | null = null;
 
-  constructor(commands: Commands) {
+  constructor(private readonly commands: Commands) {
     this.element = el('aside', 'm-card m-match');
     this.element.id = 'match-card';
     this.element.setAttribute('aria-label', 'Match');
@@ -149,12 +153,37 @@ export class MatchCard {
       if (portraitsKey !== this.portraits) this.renderAvatar(row, info, color);
     }
     this.portraits = portraitsKey;
+    this.renderMedia();
     this.nav.first.disabled = !state.canUndo;
     this.nav.back.disabled = !state.canUndo;
     this.nav.forward.disabled = !state.canRedo;
     this.nav.last.disabled = !state.canRedo;
     this.nav.now.disabled = state.phase !== 'engineThinking';
     this.renderMoves(state);
+  }
+
+  /** Video and voice for an online game; null takes them away. */
+  setMedia(view: MediaView | null): void {
+    this.media = view;
+    this.renderMedia();
+  }
+
+  /** A row with a live picture grows to show it; the card's size changes, so listeners hear. */
+  private renderMedia(): void {
+    const shown: string[] = [];
+    for (const [row, color] of [
+      [this.top, other(this.bottomColor)],
+      [this.bottom, this.bottomColor],
+    ] as const) {
+      const video = row.media.render(this.media, color);
+      row.root.classList.toggle('video-on', video);
+      shown.push(String(video));
+    }
+    const key = shown.join();
+    if (key !== this.videos) {
+      this.videos = key;
+      this.notify();
+    }
   }
 
   renderClocks(times: Record<Color, number>, running: Color | null): void {
@@ -173,8 +202,16 @@ export class MatchCard {
     const root = el('div', `m-player ${position}`);
     root.innerHTML = `<div class="m-avatar"><div class="m-avatar-img"></div><span class="m-avatar-color"></span></div><div class="m-player-name"><span class="m-name"></span></div><div class="m-clock" role="timer"></div><div class="m-player-sub"><span class="m-rating"></span><span class="m-note" aria-live="polite"></span><span class="m-captures"></span><span class="m-lead"></span></div>`;
     const q = (s: string) => root.querySelector<HTMLElement>(s)!;
+    const media = new CardMedia(
+      this.commands,
+      (icon, label, onClick) => iconButton(icon, label, onClick, 'm-icon-btn m-media-btn'),
+      'm-avatar-video',
+    );
+    q('.m-avatar').append(media.video);
+    q('.m-player-sub').append(media.controls);
     return {
       root,
+      media,
       avatar: q('.m-avatar-img'),
       badge: q('.m-avatar-color'),
       name: q('.m-name'),

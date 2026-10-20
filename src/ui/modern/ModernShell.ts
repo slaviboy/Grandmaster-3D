@@ -15,6 +15,7 @@
 // retro layout, and the dock with the status and game buttons at the bottom centre.
 
 import type { Color } from '../../game/types.ts';
+import type { MediaView } from '../cardMedia.ts';
 import { el } from '../Dialog.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
@@ -92,6 +93,10 @@ export class ModernShell implements Shell {
     this.coach.syncLegalMoves(settings.showLegalMoves);
     this.match.render(state, players, bottomColor);
     this.dock.render(state, status);
+  }
+
+  setMedia(view: MediaView | null): void {
+    this.match.setMedia(view);
   }
 
   renderClocks(times: Record<Color, number>, running: Color | null): void {

@@ -14,6 +14,7 @@
 // the turn tab and round buttons at the bottom and a status line.
 
 import type { Color } from '../game/types.ts';
+import type { MediaView } from './cardMedia.ts';
 import { BottomBar } from './BottomBar.ts';
 import { CapturedPanel } from './CapturedPanel.ts';
 import { CoachPanel } from './CoachPanel.ts';
@@ -66,13 +67,16 @@ export class RetroShell implements Shell {
       },
       ctx.coachAids(),
     );
-    this.status = new GameStatusPanel({
-      first: () => commands.undoAll(),
-      back: () => commands.undo(),
-      pause: () => commands.moveNow(),
-      forward: () => commands.redo(),
-      last: () => commands.redoAll(),
-    });
+    this.status = new GameStatusPanel(
+      {
+        first: () => commands.undoAll(),
+        back: () => commands.undo(),
+        pause: () => commands.moveNow(),
+        forward: () => commands.redo(),
+        last: () => commands.redoAll(),
+      },
+      commands,
+    );
     this.captured = new CapturedPanel(() => this.captured.toggleMaterial());
     const right = document.createElement('div');
     right.className = 'right-column';
@@ -126,6 +130,10 @@ export class RetroShell implements Shell {
 
   renderClocks(times: Record<Color, number>, running: Color | null): void {
     this.status.renderClocks(times, running);
+  }
+
+  setMedia(view: MediaView | null): void {
+    this.status.setMedia(view);
   }
 
   say(text: string): void {

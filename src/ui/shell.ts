@@ -18,6 +18,7 @@ import type { CoachOptions } from '../game/coach.ts';
 import type { GameState } from '../game/GameController.ts';
 import type { Settings } from '../game/Settings.ts';
 import type { Color } from '../game/types.ts';
+import type { MediaCommands, MediaView } from './cardMedia.ts';
 import type { PlayerInfo } from './GameStatusPanel.ts';
 import type { MenuItem } from './MenuBar.ts';
 
@@ -36,7 +37,7 @@ export interface ShellView {
 }
 
 /** The player's commands, the same in every interface. */
-export interface Commands {
+export interface Commands extends MediaCommands {
   newGame(): void;
   undo(): void;
   redo(): void;
@@ -102,6 +103,8 @@ export interface Shell {
   render(view: ShellView): void;
   /** Called a few times a second with each side's remaining (or used) time. */
   renderClocks(times: Record<Color, number>, running: Color | null): void;
+  /** Video and voice on the players' cards in an online game; null takes them away. */
+  setMedia(view: MediaView | null): void;
   /** Adds a line to the coach's commentary. */
   say(text: string): void;
   clearLog(): void;

@@ -160,3 +160,165 @@
     color: #ffb3a6;
   }
 }
+
+/* Video and voice on the players' cards. */
+:root[data-ui='modern'],
+:root[data-ui='retro'] {
+  .card-media {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .card-media[hidden],
+  .card-media [hidden],
+  .m-avatar-video[hidden],
+  .card-video[hidden] {
+    display: none;
+  }
+
+  .m-avatar-video,
+  .card-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+  }
+
+  .mirrored {
+    transform: scaleX(-1);
+  }
+
+  .card-media-silent {
+    display: grid;
+    place-items: center;
+  }
+}
+
+:root[data-ui='modern'] {
+  .m-player .card-media {
+    margin-left: auto;
+  }
+
+  .m-media-btn.m-icon-btn {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.9rem;
+  }
+
+  .m-media-btn.m-icon-btn svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .m-media-btn[aria-pressed='true'] {
+    background: var(--m-gold-soft);
+    color: var(--m-gold-hi);
+  }
+
+  .m-media-btn.blocked {
+    color: var(--m-danger);
+  }
+
+  .card-media-silent {
+    color: var(--m-faint);
+  }
+
+  .card-media-silent svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .m-avatar-video {
+    border-radius: 1.2rem;
+  }
+
+  /* With a picture, the row opens up like a call window: the video full width on top. */
+  .m-player.video-on {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  .m-player.video-on .m-avatar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 10;
+  }
+
+  .m-player.video-on .m-player-name {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .m-player.video-on .m-clock {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .m-player.video-on .m-player-sub {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+:root[data-ui='retro'] {
+  .portrait-wrap {
+    position: relative;
+    width: 6.6rem;
+    height: 8.2rem;
+  }
+
+  .card-video {
+    box-sizing: border-box;
+    border: 0.28rem solid #c5e9f5;
+    border-radius: 0.7rem;
+  }
+
+  .player-info .card-media {
+    margin-top: 0.3rem;
+  }
+
+  .card-media-btn {
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .card-media-btn svg,
+  .card-media-silent svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .card-media-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .card-media-btn[aria-pressed='true'] {
+    background: #5aa7bb;
+  }
+
+  .card-media-btn.blocked {
+    color: #ffb3a6;
+  }
+
+  .card-media-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .card-media-silent {
+    color: var(--text-dim);
+  }
+}

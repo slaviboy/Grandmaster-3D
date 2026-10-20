@@ -18,6 +18,7 @@ import { DIFFICULTIES, difficulty } from '../engine/difficulty.ts';
 import { coachMarks, describeMove, describeResult } from '../game/coach.ts';
 import type { GameState } from '../game/GameController.ts';
 import type { OnlineSession, OnlineState, SessionEvent } from '../net/OnlineSession.ts';
+import type { MediaView } from './cardMedia.ts';
 import { TIME_CONTROLS, type Settings, type UiStyle } from '../game/Settings.ts';
 import type { Color } from '../game/types.ts';
 import { dialogOpen } from './Dialog.ts';
@@ -97,7 +98,13 @@ export class UiRoot {
     topView: () => this.app.camera.topView(),
     settings: () => void this.settings(),
     toggleFullscreen: () => this.toggleFullscreen(),
+    toggleMic: () => void this.session?.media.toggleMic(),
+    toggleCam: () => void this.session?.media.toggleCam(),
+    toggleSpeaker: () => this.session?.media.toggleSpeaker(),
   };
+  /** The other player's voice: one element outside the shells, so a switch does not cut it. */
+  private readonly voice = document.createElement('audio');
+  private lastMediaError: string | null = null;
 
   constructor(private readonly app: App) {
     // Keep the reference proportions: the layout is designed for a 1024x768 window.
@@ -124,6 +131,9 @@ export class UiRoot {
     window.addEventListener('keydown', (event) => this.onKey(event));
     this.renderClocks();
 
+    this.voice.autoplay = true;
+    this.voice.hidden = true;
+    document.body.append(this.voice);
     app.online.subscribe((session) => this.follow(session));
     app.onInvite(() => void this.checkInvitation());
     void app.ready.then(() => this.checkInvitation());
@@ -153,6 +163,7 @@ export class UiRoot {
     const shell = style === 'modern' ? new ModernShell(context) : new RetroShell(context);
     for (const line of this.log) shell.say(line);
     this.shell = shell;
+    shell.setMedia(this.mediaView());
     if (onSwitch)
       shell.element.querySelector<HTMLElement>('.ui-switch [aria-checked="true"]')?.focus();
     this.renderClocks();
@@ -196,6 +207,40 @@ export class UiRoot {
     return state.humanColor === 'w' ? { w: human, b: computer } : { w: computer, b: human };
   }
 
+  /** What the cards show of video and voice; null outside an online game. */
+  private mediaView(): MediaView | null {
+    const session = this.session;
+    const state = this.app.controller.state.get();
+    if (!session || session.closed || state.mode !== 'online') return null;
+    const online = session.state.get();
+    const media = session.media.state.get();
+    return {
+      me: online.myColor ?? state.humanColor,
+      friendName: online.friendName,
+      mic: media.mic,
+      cam: media.cam,
+      preview: media.preview,
+      friendVideo: media.friendVideo,
+      friendSound: media.friendAudio !== null,
+      speakerMuted: media.speakerMuted,
+    };
+  }
+
+  private renderMedia(): void {
+    const session = this.session;
+    const media = session && !session.closed ? session.media.state.get() : null;
+    const sound = media?.friendAudio ?? null;
+    if (this.voice.srcObject !== sound) {
+      this.voice.srcObject = sound;
+      if (sound) void this.voice.play().catch(() => undefined);
+    }
+    this.voice.muted = media?.speakerMuted ?? false;
+    const error = media?.error ?? null;
+    if (error && error !== this.lastMediaError) this.say(error);
+    this.lastMediaError = error;
+    this.shell?.setMedia(this.mediaView());
+  }
+
   private render(state: GameState): void {
     this.shownSide = this.app.camera.side === 'black' ? 'b' : 'w';
     this.shell?.render({
@@ -207,6 +252,7 @@ export class UiRoot {
     });
     this.narrate(state);
     this.refreshCoachMarks();
+    this.renderMedia();
   }
 
   private statusText(state: GameState): string {
@@ -565,6 +611,7 @@ export class UiRoot {
         if (!online.canClaimWin) this.claimOffered = false;
       }),
       session.onEvent((event) => void this.onSessionEvent(session, event)),
+      session.media.state.subscribe(() => this.renderMedia()),
     );
   }
 
