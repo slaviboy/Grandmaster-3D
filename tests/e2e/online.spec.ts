@@ -17,6 +17,8 @@
 // squares are in the top view; a separate page with the hook measures those points first.
 
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import jsQR from 'jsqr';
+import { PNG } from 'pngjs';
 
 type Ui = 'modern' | 'retro';
 type Point = { x: number; y: number };
@@ -134,6 +136,12 @@ async function player(browser: Browser, ui: Ui, url = `/?ui=${ui}&anim=0&engine=
   return { page, errors, logs, status: page.locator(STATUS[ui]) };
 }
 
+/** The invitation opened with the test's settings (interface, no animation, no engine). */
+function withTestSettings(link: string, ui: Ui): string {
+  const url = new URL(link);
+  return `${url.pathname}?ui=${ui}&anim=0&engine=off${url.hash}`;
+}
+
 async function accept(page: Page, title: string, name: string, button: string) {
   const dialog = page.getByRole('dialog', { name: title });
   await expect(dialog).toBeVisible({ timeout: 60_000 });
@@ -161,13 +169,14 @@ async function createLink(page: Page, ui: Ui): Promise<string> {
     await sheet.getByLabel('You play').selectOption('w');
     await sheet.getByLabel('Time control').selectOption('5');
   }
+  const before = await network(page);
   await sheet.getByRole('button', { name: 'Create Link' }).click();
-  // Nothing may connect while the warning is up.
+  // Nothing new may connect while the warning is up.
   await expect(page.getByRole('dialog', { name: 'Play a Friend Online' })).toBeVisible();
-  expect(await network(page)).toEqual({ peers: 0, sockets: 0 });
+  expect(await network(page)).toEqual(before);
   await accept(page, 'Play a Friend Online', 'Ana', 'Create Link');
   const field = page.getByRole('textbox', { name: 'Game link' });
-  await expect(field).toHaveValue(/#play=[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/);
+  await expect(field).toHaveValue(/^http:\/\/localhost:4173\/#g=[A-Za-z0-9_-]{22}$/);
   return field.inputValue();
 }
 
@@ -183,9 +192,9 @@ for (const ui of ['modern', 'retro'] as const) {
     const grid = await measureGrid(browser, ui);
     const host = await player(browser, ui);
     const link = await createLink(host.page, ui);
-    expect(new URL(link).search).toBe(`?ui=${ui}&anim=0&engine=off`);
-
-    const guest = await player(browser, ui, link);
+    // The link carries the page and the secret only; the test adds its own settings for the guest.
+    expect(new URL(link).search).toBe('');
+    const guest = await player(browser, ui, withTestSettings(link, ui));
     // The link leaves the address bar at once, and nothing connects before the warning is accepted.
     await expect(guest.page.getByRole('dialog', { name: 'Join an Online Game' })).toBeVisible({
       timeout: 60_000,
@@ -262,7 +271,7 @@ test.describe('video and voice', () => {
   }) => {
     const host = await player(browser, 'modern');
     const link = await createLink(host.page, 'modern');
-    const guest = await player(browser, 'modern', link);
+    const guest = await player(browser, 'modern', withTestSettings(link, 'modern'));
     await accept(guest.page, 'Join an Online Game', 'Ben', 'Join Game');
     await expect(host.page.getByRole('dialog', { name: 'Invite a Friend' })).toHaveCount(0, {
       timeout: 120_000,
@@ -322,4 +331,87 @@ test.describe('video and voice', () => {
     expect(await deviceRequests(guest.page)).toBe(0);
     for (const side of [host, guest]) expect(side.errors).toEqual([]);
   });
+});
+
+/** RGBA pixels resampled smoothly to a fraction of their size, as a camera further away sees them. */
+function shrink(data: Uint8ClampedArray, w: number, h: number, factor: number) {
+  const W = Math.round(w * factor);
+  const H = Math.round(h * factor);
+  const out = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const sx = Math.min(w - 1.001, (x + 0.5) / factor - 0.5);
+      const sy = Math.min(h - 1.001, (y + 0.5) / factor - 0.5);
+      const x0 = Math.max(0, Math.floor(sx));
+      const y0 = Math.max(0, Math.floor(sy));
+      const fx = sx - x0;
+      const fy = sy - y0;
+      for (let c = 0; c < 4; c++) {
+        const at = (dx: number, dy: number) => data[((y0 + dy) * w + x0 + dx) * 4 + c]!;
+        out[(y * W + x) * 4 + c] =
+          at(0, 0) * (1 - fx) * (1 - fy) +
+          at(1, 0) * fx * (1 - fy) +
+          at(0, 1) * (1 - fx) * fy +
+          at(1, 1) * fx * fy;
+      }
+    }
+  return { data: out, width: W, height: H };
+}
+
+/** A 3x3 box blur, as a slightly unfocused camera would see the code. */
+function blur(data: Uint8ClampedArray, w: number, h: number) {
+  const out = new Uint8ClampedArray(data.length);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      for (let c = 0; c < 4; c++) {
+        let sum = 0;
+        let n = 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const X = x + dx;
+            const Y = y + dy;
+            if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+            sum += data[(Y * w + X) * 4 + c]!;
+            n++;
+          }
+        out[(y * w + x) * 4 + c] = sum / n;
+      }
+  return { data: out, width: w, height: h };
+}
+
+test('every invitation shows its own QR code, which scans reliably to its own link', async ({
+  browser,
+}) => {
+  const host = await player(browser, 'modern');
+  const dialog = host.page.getByRole('dialog', { name: 'Invite a Friend' });
+  /** Reads the code as drawn on screen: as shown, at 60% and blurred; each must give the link. */
+  const scan = async () => {
+    // Let the dialog finish appearing before taking its picture.
+    await dialog.evaluate((d) =>
+      Promise.all(d.getAnimations({ subtree: true }).map((a) => a.finished)),
+    );
+    const png = PNG.sync.read(await host.page.locator('.online-qr-code').screenshot());
+    const shown = { data: new Uint8ClampedArray(png.data), width: png.width, height: png.height };
+    const results: Array<string | null> = [];
+    for (const image of [
+      shown,
+      shrink(shown.data, shown.width, shown.height, 0.6),
+      blur(shown.data, shown.width, shown.height),
+    ]) {
+      const started = performance.now();
+      results.push(jsQR(image.data, image.width, image.height)?.data ?? null);
+      expect(performance.now() - started, 'decoding time in ms').toBeLessThan(500);
+    }
+    return results;
+  };
+
+  const first = await createLink(host.page, 'modern');
+  await expect(host.page.getByRole('img', { name: 'QR code of the game link' })).toBeVisible();
+  expect(await scan()).toEqual([first, first, first]);
+
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  const second = await createLink(host.page, 'modern');
+  expect(second).not.toBe(first);
+  expect(await scan()).toEqual([second, second, second]);
+  expect(host.errors).toEqual([]);
 });
