@@ -43,6 +43,7 @@ import {
 } from '../scene/themes.ts';
 import type { MenuItem } from './MenuBar.ts';
 import { ModernShell } from './modern/ModernShell.ts';
+import { newGameSheet } from './modern/newGameSheet.ts';
 import { RetroShell } from './RetroShell.ts';
 import type { CoachAids, Commands, MenuCatalog, Shell } from './shell.ts';
 
@@ -270,7 +271,8 @@ export class UiRoot {
   // --- commands ------------------------------------------------------------------------------
 
   private async newGame(): Promise<void> {
-    const patch = await newGameDialog(this.app.settings.get());
+    const ask = this.style === 'modern' ? newGameSheet : newGameDialog;
+    const patch = await ask(this.app.settings.get());
     if (!patch) return;
     this.clearLog();
     this.seenMoves = 0;

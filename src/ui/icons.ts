@@ -69,6 +69,7 @@ export const LINE_ICONS = {
   chevronDown: line('M6 9.5l6 6 6-6'),
   chevronRight: line('M9.5 6l6 6-6 6'),
   check: line('M5 12.5l4.5 4.5L19 7.5'),
+  sliders: line('M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5'),
   coach: line(
     'M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 10h8M8 13h5',
   ),

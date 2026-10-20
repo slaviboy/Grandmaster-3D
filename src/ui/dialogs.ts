@@ -67,7 +67,7 @@ function nearestLevel(rating: number): string {
 }
 
 /** A rating slider with a live readout; returns the field and a getter for the value. */
-function ratingSlider(value: number): [HTMLElement, () => number] {
+export function ratingSlider(value: number): [HTMLElement, () => number] {
   const wrap = el('div', 'field rating-field');
   const label = el('span', '');
   const input = el('input');

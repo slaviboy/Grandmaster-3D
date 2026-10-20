@@ -9,8 +9,8 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// Small controls of the modern interface: icon buttons with tooltips, switches and segmented
-// choices. The segmented choice is a radio group: arrow keys move the choice, as with radios.
+// Small controls of the modern interface: icon buttons with tooltips, switches, and groups of
+// choices (segmented pills or cards) that behave like radio buttons.
 
 import { el } from '../Dialog.ts';
 
@@ -46,19 +46,30 @@ export function switchRow(
   return [row, input];
 }
 
-export interface Segmented<T extends string> {
-  readonly element: HTMLElement;
-  value: T;
+export interface Choice<T extends string> {
+  readonly value: T;
+  /** Text, or markup when the choice is drawn (a portrait card, a piece). */
+  readonly label: string;
+  readonly html?: string;
 }
 
-/** A row of mutually exclusive choices. */
-export function segmented<T extends string>(
+export interface ChoiceGroup<T extends string> {
+  readonly element: HTMLElement;
+  readonly value: T;
+}
+
+/**
+ * A row (or grid) of mutually exclusive choices that behaves like radio buttons: one is checked,
+ * the arrow keys move the choice and Tab enters the group at the checked one.
+ */
+export function choiceGroup<T extends string>(
   label: string,
-  choices: ReadonlyArray<readonly [T, string]>,
+  choices: ReadonlyArray<Choice<T>>,
   current: T,
   onChange: (value: T) => void,
-  className = 'm-segmented',
-): Segmented<T> {
+  className: string,
+  itemClass: string,
+): ChoiceGroup<T> {
   const group = el('div', className);
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', label);
@@ -79,13 +90,19 @@ export function segmented<T extends string>(
     }
     if (focus) buttons.find((b) => b.dataset.value === next)?.focus();
   };
-  choices.forEach(([v, text], index) => {
-    const button = el('button', 'm-segment', text);
+  choices.forEach((choice, index) => {
+    const button = el('button', itemClass);
     button.type = 'button';
     button.setAttribute('role', 'radio');
-    button.title = text;
-    button.dataset.value = v;
-    button.addEventListener('click', () => choose(v));
+    button.dataset.value = choice.value;
+    if (choice.html) {
+      button.innerHTML = choice.html;
+      button.setAttribute('aria-label', choice.label);
+    } else {
+      button.textContent = choice.label;
+      button.title = choice.label;
+    }
+    button.addEventListener('click', () => choose(choice.value));
     button.addEventListener('keydown', (event) => {
       const step =
         event.key === 'ArrowRight' || event.key === 'ArrowDown'
@@ -96,8 +113,7 @@ export function segmented<T extends string>(
       if (!step) return;
       event.preventDefault();
       event.stopPropagation();
-      const next = choices[(index + step + choices.length) % choices.length]!;
-      choose(next[0], true);
+      choose(choices[(index + step + choices.length) % choices.length]!.value, true);
     });
     buttons.push(button);
     group.append(button);
@@ -108,9 +124,23 @@ export function segmented<T extends string>(
     get value() {
       return value;
     },
-    set value(next: T) {
-      value = next;
-      mark();
-    },
   };
+}
+
+/** A segmented control: a pill of short text choices. */
+export function segmented<T extends string>(
+  label: string,
+  choices: ReadonlyArray<readonly [T, string]>,
+  current: T,
+  onChange: (value: T) => void,
+  className = 'm-segmented',
+): ChoiceGroup<T> {
+  return choiceGroup(
+    label,
+    choices.map(([value, text]) => ({ value, label: text })),
+    current,
+    onChange,
+    className,
+    'm-segment',
+  );
 }
