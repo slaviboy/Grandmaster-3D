@@ -33,11 +33,35 @@ your opponent at six difficulty levels.
     one more, lifting over pieces in its way.
   - *Demolish captures*: the captured piece shatters into wooden fragments that were pre-fractured
     in Blender.
+- **Looks you can change** under Preferences → Board and Pieces:
+  - 6 boards, 7 piece sets and 5 tables
+  - a Custom choice for each, using your own colours
 - Sounds synthesised with Web Audio, so there are no audio files.
 
 | Chess Coach and move list | Rotated and zoomed |
 | --- | --- |
 | ![Coach](docs/screenshots/coach.jpg) | ![Rotated](docs/screenshots/rotated.jpg) |
+
+## Looks
+
+![Six of the looks](docs/screenshots/themes.jpg)
+
+| Category | Presets |
+| --- | --- |
+| Boards | Classic Maple, Mahogany, Marble, Walnut & Birch, Ebony & Boxwood, Tournament Green |
+| Piece sets | Boxwood & Rosewood, Red Lacquer & Silver, Ebony & Boxwood, Walnut & Maple, Ivory & Onyx, Gold & Silver, Marble |
+| Tables | Teal Cloth, Blue Stone, Slate, Green Felt, Burgundy |
+
+The Custom choices take your own colours:
+
+| Custom | You pick |
+| --- | --- |
+| Board | Light squares, dark squares and frame, in wood, marble or a plain finish |
+| Pieces | A colour for each side, in wood, lacquer, metal or stone |
+| Table | One colour |
+
+Changes show on the board straight away, even mid-game, and are remembered. Everything is painted
+procedurally at runtime, so no texture files are needed.
 
 ## Getting started
 
