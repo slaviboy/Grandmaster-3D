@@ -30,7 +30,9 @@ import { createRng, range, type Rng } from '../../core/rng.ts';
 import { PIECE_NAMES, type PieceKind } from '../../game/types.ts';
 import type { CaptureEffect } from '../AnimationController.ts';
 import { BOARD_THICKNESS, FRAME_LIP } from '../ChessBoard.ts';
+import { SHAPE_FOLDERS } from '../PieceAssetManager.ts';
 import type { PieceView } from '../PieceManager.ts';
+import type { PieceShape } from '../themes.ts';
 
 interface ChunkTemplate {
   /** Centre of the chunk relative to the piece's base. */
@@ -61,14 +63,29 @@ const MAX_BURSTS = 4;
 
 /** Loads the fragment models: one GLB per piece type, one node per chunk. */
 export class FragmentLibrary {
-  private readonly templates = new Map<PieceKind, ChunkTemplate[]>();
+  private readonly templates = new Map<PieceShape, Map<PieceKind, ChunkTemplate[]>>();
+  private readonly loading = new Map<PieceShape, Promise<void>>();
 
-  async load(baseUrl: string): Promise<void> {
+  /** Loads one set's fragments once; later calls share the request. */
+  load(baseUrl: string, shape: PieceShape = 'staunton'): Promise<void> {
+    let job = this.loading.get(shape);
+    if (!job) {
+      job = this.fetch(baseUrl, shape).catch((error: unknown) => {
+        this.loading.delete(shape);
+        throw error;
+      });
+      this.loading.set(shape, job);
+    }
+    return job;
+  }
+
+  private async fetch(baseUrl: string, shape: PieceShape): Promise<void> {
     const loader = new GLTFLoader();
+    const set = new Map<PieceKind, ChunkTemplate[]>();
     await Promise.all(
       (Object.keys(PIECE_NAMES) as PieceKind[]).map(async (kind) => {
         const gltf = await loader.loadAsync(
-          `${baseUrl}models/chess/fragments/${PIECE_NAMES[kind]}.glb`,
+          `${baseUrl}models/chess/fragments/${SHAPE_FOLDERS[shape]}${PIECE_NAMES[kind]}.glb`,
         );
         const chunks: ChunkTemplate[] = [];
         const root = gltf.scene.children[0] ?? gltf.scene;
@@ -88,13 +105,14 @@ export class FragmentLibrary {
           }
           chunks.push({ offset: node.position.clone(), parts, radius });
         }
-        this.templates.set(kind, chunks);
+        set.set(kind, chunks);
       }),
     );
+    this.templates.set(shape, set);
   }
 
-  get(kind: PieceKind): ChunkTemplate[] | undefined {
-    return this.templates.get(kind);
+  get(kind: PieceKind, shape: PieceShape = 'staunton'): ChunkTemplate[] | undefined {
+    return this.templates.get(shape)?.get(kind);
   }
 }
 
@@ -120,13 +138,15 @@ export class ShatterEffect implements CaptureEffect {
     return this.bursts.length > 0;
   }
 
-  /** Whether fragments for a piece type are available. */
-  canShatter(kind: PieceKind): boolean {
-    return !!this.library.get(kind)?.length;
+  /** Whether fragments for a piece type (of a carved set) are available. */
+  canShatter(kind: PieceKind, shape: PieceShape = 'staunton'): boolean {
+    return !!this.library.get(kind, shape)?.length;
   }
 
   shatter(view: PieceView, direction: { x: number; z: number }): void {
-    const templates = this.library.get(view.kind);
+    // Each set has its own fragments; the piece's geometry says which set it was carved in.
+    const shape = (view.mesh.geometry.userData.shape as PieceShape | undefined) ?? 'staunton';
+    const templates = this.library.get(view.kind, shape);
     const source = view.mesh;
     source.removeFromParent();
     if (!templates?.length) {

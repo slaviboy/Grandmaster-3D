@@ -19,10 +19,12 @@ import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const TYPES = ['pawn', 'rook', 'knight', 'bishop', 'queen', 'king'] as const;
-const metadata = JSON.parse(readFileSync(join(root, 'blender', 'metadata.json'), 'utf8')) as Record<
-  string,
-  { height: number; triangles: number }
->;
+type Metadata = Record<string, { height: number; triangles: number }>;
+/** Each carved set: its folder under models/chess/ and the metadata Blender wrote for it. */
+const SETS = [
+  { name: 'Staunton', folder: '', metadata: 'metadata.json' },
+  { name: 'Bell', folder: 'bell/', metadata: 'metadata-bell.json' },
+] as const;
 
 interface Gltf {
   asset: { version: string };
@@ -41,45 +43,54 @@ function readGlb(path: string): Gltf {
   return JSON.parse(data.toString('utf8', 20, 20 + jsonLength)) as Gltf;
 }
 
-describe('piece models', () => {
-  for (const kind of TYPES) {
-    it(`${kind}: one mesh at the measured height, identical for both sides`, () => {
-      const white = readGlb(join(root, 'public/models/chess', `white-${kind}.glb`));
-      const black = readGlb(join(root, 'public/models/chess', `black-${kind}.glb`));
-      expect(white.asset.version).toBe('2.0');
-      expect(white.meshes).toHaveLength(1);
-      const primitive = white.meshes[0]!.primitives[0]!;
-      const position = white.accessors[primitive.attributes.POSITION]!;
-      expect(position.min![1]).toBeCloseTo(0, 4);
-      expect(position.max![1]).toBeCloseTo(metadata[kind]!.height, 3);
-      // Centred on its axis.
-      expect(Math.abs(position.min![0]! + position.max![0]!)).toBeLessThan(0.12);
-      const triangles = white.accessors[primitive.indices!]!.count / 3;
-      expect(triangles).toBeLessThanOrEqual(15000);
-      const blackPosition = black.accessors[black.meshes[0]!.primitives[0]!.attributes.POSITION]!;
-      expect(blackPosition.count).toBe(position.count);
-    });
+for (const set of SETS) {
+  const metadata = JSON.parse(
+    readFileSync(join(root, 'blender', set.metadata), 'utf8'),
+  ) as Metadata;
+  const models = join(root, 'public/models/chess', set.folder);
 
-    it(`${kind}: fragments for the Demolish animation`, () => {
-      const fragments = readGlb(join(root, 'public/models/chess/fragments', `${kind}.glb`));
-      expect(fragments.meshes.length).toBeGreaterThanOrEqual(10);
-    });
-  }
+  describe(`${set.name} piece models`, () => {
+    for (const kind of TYPES) {
+      it(`${kind}: one mesh at the measured height, identical for both sides`, () => {
+        const white = readGlb(join(models, `white-${kind}.glb`));
+        const black = readGlb(join(models, `black-${kind}.glb`));
+        expect(white.asset.version).toBe('2.0');
+        expect(white.meshes).toHaveLength(1);
+        const primitive = white.meshes[0]!.primitives[0]!;
+        const position = white.accessors[primitive.attributes.POSITION]!;
+        expect(position.min![1]).toBeCloseTo(0, 4);
+        expect(position.max![1]).toBeCloseTo(metadata[kind]!.height, 3);
+        // Centred on its axis.
+        expect(Math.abs(position.min![0]! + position.max![0]!)).toBeLessThan(0.12);
+        const triangles = white.accessors[primitive.indices!]!.count / 3;
+        expect(triangles).toBeLessThanOrEqual(15000);
+        const blackPosition = black.accessors[black.meshes[0]!.primitives[0]!.attributes.POSITION]!;
+        expect(blackPosition.count).toBe(position.count);
+      });
 
-  it('keeps the classic height order: king, queen, bishop, knight, rook, pawn', () => {
-    const heights = TYPES.map((t) => metadata[t]!.height);
-    const [pawn, rook, knight, bishop, queen, king] = heights as [
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-    ];
-    expect(king).toBeGreaterThan(queen);
-    expect(queen).toBeGreaterThan(bishop);
-    expect(bishop).toBeGreaterThan(knight);
-    expect(knight).toBeGreaterThan(rook);
-    expect(rook).toBeGreaterThan(pawn);
+      it(`${kind}: fragments for the Demolish animation`, () => {
+        const fragments = readGlb(
+          join(root, 'public/models/chess/fragments', set.folder, `${kind}.glb`),
+        );
+        expect(fragments.meshes.length).toBeGreaterThanOrEqual(10);
+      });
+    }
+
+    it('keeps the classic height order: king, queen, bishop, knight, rook, pawn', () => {
+      const heights = TYPES.map((t) => metadata[t]!.height);
+      const [pawn, rook, knight, bishop, queen, king] = heights as [
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+      ];
+      expect(king).toBeGreaterThan(queen);
+      expect(queen).toBeGreaterThan(bishop);
+      expect(bishop).toBeGreaterThan(knight);
+      expect(knight).toBeGreaterThan(rook);
+      expect(rook).toBeGreaterThan(pawn);
+    });
   });
-});
+}

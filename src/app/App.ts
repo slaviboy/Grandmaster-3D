@@ -163,8 +163,13 @@ export class App {
       }
       if (next.table !== looks.table) this.scene.setTable(tableTheme(s.tableTheme, s.custom));
       if (next.pieces !== looks.pieces) {
-        this.assets.setTheme(pieceTheme(s.pieceTheme, s.custom));
-        if (this.assets.ready) this.pieces.restyle();
+        // A differently carved set loads first; restyle once its models are in use.
+        void this.assets.setTheme(pieceTheme(s.pieceTheme, s.custom)).then(() => {
+          if (!this.assets.ready) return;
+          this.pieces.restyle();
+          this.loadFragments();
+          this.scene.requestRender();
+        });
       }
       looks = next;
       this.scene.requestRender();
@@ -183,15 +188,20 @@ export class App {
     if (import.meta.env.DEV || this.params.has('debug')) this.installDebugHook();
   }
 
+  /** The fragments are only needed for the optional Demolish animation; load them in the background. */
+  private loadFragments(): void {
+    const shape = this.assets.currentShape;
+    void this.fragments.load(import.meta.env.BASE_URL, shape).catch((error: Error) => {
+      console.warn(`${shape} fragments unavailable, captures will simply vanish:`, error.message);
+    });
+  }
+
   private async start(): Promise<void> {
     const engineReady = this.engine?.init().catch((error: Error) => {
       console.error('engine failed to start:', error.message);
     });
     await this.assets.load(import.meta.env.BASE_URL);
-    // The fragments are only needed for the optional Demolish animation; load them in the background.
-    void this.fragments.load(import.meta.env.BASE_URL).catch((error: Error) => {
-      console.warn('fragments unavailable, captures will simply vanish:', error.message);
-    });
+    this.loadFragments();
     await engineReady;
     const s = this.settings.get();
     await this.camera.setOrientation(

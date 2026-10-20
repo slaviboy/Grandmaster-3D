@@ -9,67 +9,60 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// Loads the twelve Blender-made GLBs once and hands out piece meshes. Both sides of a piece type
-// share one geometry (the files carry identical shapes; that is checked on load), and every mesh
-// gets its own wood material so each piece's grain differs.
+// Loads the twelve Blender-made GLBs of a carved set once and hands out piece meshes. Both sides of
+// a piece type share one geometry (the files carry identical shapes; that is checked on load), and
+// every mesh gets its own wood material so each piece's grain differs. The Staunton set loads at
+// start; another set (the Bell set) loads the first time a piece theme asks for it.
 
 import { Mesh, type BufferGeometry } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { COLOR_NAMES, PIECE_NAMES, type Color, type PieceKind } from '../game/types.ts';
 import { attachContactBlob, detachContactBlob, type GlassOptions } from './glass.ts';
 import { createPieceMaterial } from './pieceMaterial.ts';
-import { pieceTheme, type PieceStyle, type PieceTheme } from './themes.ts';
+import { pieceTheme, type PieceShape, type PieceStyle, type PieceTheme } from './themes.ts';
 
 const KINDS: readonly PieceKind[] = ['p', 'n', 'b', 'r', 'q', 'k'];
 
+/** Folder of each set under models/chess/. */
+export const SHAPE_FOLDERS: Record<PieceShape, string> = { staunton: '', bell: 'bell/' };
+
+type GeometrySet = Map<PieceKind, BufferGeometry>;
+
 export class PieceAssetManager {
-  private readonly geometries = new Map<PieceKind, BufferGeometry>();
+  private readonly sets = new Map<PieceShape, GeometrySet>();
+  private readonly loading = new Map<PieceShape, Promise<GeometrySet>>();
+  /** The set new and restyled pieces are carved in; it changes once the wanted set has loaded. */
+  private shape: PieceShape = 'staunton';
+  private baseUrl: string | null = null;
   private created = 0;
   private theme: PieceTheme = pieceTheme('classic');
   private glass: GlassOptions = { transmission: true };
 
-  /** Loads every model; rejects with a readable message if any file is missing or malformed. */
+  /**
+   * Loads the models of the current theme's set; rejects with a readable message if a file is
+   * missing or malformed. If another set than Staunton fails, it falls back to Staunton.
+   */
   async load(baseUrl: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
-    const loader = new GLTFLoader();
-    const jobs = KINDS.flatMap((kind) => (['w', 'b'] as const).map((color) => ({ kind, color })));
-    let loaded = 0;
-    const results = await Promise.all(
-      jobs.map(async ({ kind, color }) => {
-        const url = `${baseUrl}models/chess/${COLOR_NAMES[color]}-${PIECE_NAMES[kind]}.glb`;
-        let geometry: BufferGeometry | null = null;
-        try {
-          const gltf = await loader.loadAsync(url);
-          gltf.scene.traverse((node) => {
-            if (!geometry && (node as Mesh).isMesh) geometry = (node as Mesh).geometry;
-          });
-        } catch (error) {
-          throw new Error(`Could not load ${url}: ${(error as Error).message}`, { cause: error });
-        }
-        if (!geometry) throw new Error(`${url} contains no mesh`);
-        onProgress?.(++loaded, jobs.length);
-        return { kind, color, geometry: geometry as BufferGeometry };
-      }),
-    );
-
-    for (const kind of KINDS) {
-      const white = results.find((r) => r.kind === kind && r.color === 'w')!.geometry;
-      const black = results.find((r) => r.kind === kind && r.color === 'b')!.geometry;
-      const count = (g: BufferGeometry) => g.getAttribute('position').count;
-      if (count(white) !== count(black)) {
-        throw new Error(`white and black ${PIECE_NAMES[kind]} models differ`);
-      }
-      black.dispose();
-      white.computeBoundingBox();
-      // Stand the piece on y = 0 with its axis on the origin, whatever the exporter did.
-      const box = white.boundingBox!;
-      if (Math.abs(box.min.y) > 1e-4) white.translate(0, -box.min.y, 0);
-      white.computeBoundingSphere();
-      this.geometries.set(kind, white);
+    this.baseUrl = baseUrl;
+    const wanted = this.wantedShape;
+    try {
+      await this.fetchSet(wanted, onProgress);
+      if (wanted === this.wantedShape || !this.ready) this.shape = wanted;
+    } catch (error) {
+      if (wanted === 'staunton') throw error;
+      console.warn(`${wanted} pieces unavailable, using Staunton:`, (error as Error).message);
+      await this.fetchSet('staunton', onProgress);
+      this.shape = 'staunton';
     }
   }
 
   get ready(): boolean {
-    return this.geometries.size === KINDS.length;
+    return this.sets.has(this.shape);
+  }
+
+  /** The carved set pieces currently use. */
+  get currentShape(): PieceShape {
+    return this.shape;
   }
 
   /** Height of a piece type in squares. */
@@ -77,9 +70,51 @@ export class PieceAssetManager {
     return this.geometry(kind).boundingBox?.max.y ?? 1;
   }
 
-  /** The piece set new pieces are made in (promotions included). */
-  setTheme(theme: PieceTheme): void {
+  private get wantedShape(): PieceShape {
+    return this.theme.shape ?? 'staunton';
+  }
+
+  /** Loads one set once; concurrent callers share the request, and a failed load can be retried. */
+  private fetchSet(
+    shape: PieceShape,
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<GeometrySet> {
+    let job = this.loading.get(shape);
+    if (!job) {
+      job = loadSet(this.baseUrl ?? '', shape, onProgress).then(
+        (set) => {
+          this.sets.set(shape, set);
+          return set;
+        },
+        (error: unknown) => {
+          this.loading.delete(shape);
+          throw error;
+        },
+      );
+      this.loading.set(shape, job);
+    }
+    return job;
+  }
+
+  /**
+   * The piece set new pieces are made in (promotions included). Materials follow at once; if the
+   * set is carved differently, the returned promise resolves once those models are loaded and in
+   * use. Restyle the pieces after it. A set that fails to load keeps the current models.
+   */
+  async setTheme(theme: PieceTheme): Promise<void> {
     this.theme = theme;
+    if (this.baseUrl === null) return; // load() has not run yet; it picks the set.
+    const wanted = this.wantedShape;
+    try {
+      await this.fetchSet(wanted);
+    } catch (error) {
+      console.warn(
+        `${wanted} pieces unavailable, keeping ${this.shape}:`,
+        (error as Error).message,
+      );
+      return;
+    }
+    if (wanted === this.wantedShape) this.shape = wanted;
   }
 
   get currentTheme(): PieceTheme {
@@ -131,14 +166,64 @@ export class PieceAssetManager {
     else material.dispose();
   }
 
-  private geometry(kind: PieceKind): BufferGeometry {
-    const geometry = this.geometries.get(kind);
+  /** The shared geometry of a piece type in the current set (tagged with its set in userData). */
+  geometry(kind: PieceKind): BufferGeometry {
+    const geometry = this.sets.get(this.shape)?.get(kind);
     if (!geometry) throw new Error('piece models are not loaded yet');
     return geometry;
   }
 
   dispose(): void {
-    for (const geometry of this.geometries.values()) geometry.dispose();
-    this.geometries.clear();
+    for (const set of this.sets.values()) for (const geometry of set.values()) geometry.dispose();
+    this.sets.clear();
+    this.loading.clear();
   }
+}
+
+async function loadSet(
+  baseUrl: string,
+  shape: PieceShape,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<GeometrySet> {
+  const loader = new GLTFLoader();
+  const jobs = KINDS.flatMap((kind) => (['w', 'b'] as const).map((color) => ({ kind, color })));
+  let loaded = 0;
+  const results = await Promise.all(
+    jobs.map(async ({ kind, color }) => {
+      const file = `${COLOR_NAMES[color]}-${PIECE_NAMES[kind]}.glb`;
+      const url = `${baseUrl}models/chess/${SHAPE_FOLDERS[shape]}${file}`;
+      let geometry: BufferGeometry | null = null;
+      try {
+        const gltf = await loader.loadAsync(url);
+        gltf.scene.traverse((node) => {
+          if (!geometry && (node as Mesh).isMesh) geometry = (node as Mesh).geometry;
+        });
+      } catch (error) {
+        throw new Error(`Could not load ${url}: ${(error as Error).message}`, { cause: error });
+      }
+      if (!geometry) throw new Error(`${url} contains no mesh`);
+      onProgress?.(++loaded, jobs.length);
+      return { kind, color, geometry: geometry as BufferGeometry };
+    }),
+  );
+
+  const set: GeometrySet = new Map();
+  for (const kind of KINDS) {
+    const white = results.find((r) => r.kind === kind && r.color === 'w')!.geometry;
+    const black = results.find((r) => r.kind === kind && r.color === 'b')!.geometry;
+    const count = (g: BufferGeometry) => g.getAttribute('position').count;
+    if (count(white) !== count(black)) {
+      throw new Error(`white and black ${PIECE_NAMES[kind]} models differ`);
+    }
+    black.dispose();
+    white.computeBoundingBox();
+    // Stand the piece on y = 0 with its axis on the origin, whatever the exporter did.
+    const box = white.boundingBox!;
+    if (Math.abs(box.min.y) > 1e-4) white.translate(0, -box.min.y, 0);
+    white.computeBoundingSphere();
+    // The shatter effect picks the matching fragments by this tag.
+    white.userData.shape = shape;
+    set.set(kind, white);
+  }
+  return set;
 }

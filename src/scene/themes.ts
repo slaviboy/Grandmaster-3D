@@ -67,9 +67,14 @@ export interface PieceStyle {
   readonly endGrain: string;
 }
 
+/** The carved set: the classic Staunton pieces, or the chunkier bell-based set. */
+export type PieceShape = 'staunton' | 'bell';
+
 export interface PieceTheme {
   readonly id: string;
   readonly label: string;
+  /** Which carved set the pieces use (default 'staunton'). */
+  readonly shape?: PieceShape;
   readonly w: PieceStyle;
   readonly b: PieceStyle;
 }
@@ -260,6 +265,7 @@ export const PIECE_THEMES: readonly PieceTheme[] = [
   {
     id: 'lacquer-silver',
     label: 'Red Lacquer & Silver',
+    shape: 'bell',
     w: {
       finish: 'metal',
       light: '#97abbd',

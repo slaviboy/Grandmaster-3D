@@ -121,6 +121,8 @@ export class PieceManager {
   restyle(): void {
     for (const view of this.views.values()) {
       this.assets.release(view.mesh);
+      // Geometry is shared per set, so swapping it frees nothing.
+      view.mesh.geometry = this.assets.geometry(view.kind);
       view.mesh.material = this.assets.material(view.color);
       this.assets.dressShadow(view.mesh, view.color, view.kind);
     }
