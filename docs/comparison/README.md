@@ -26,7 +26,9 @@ pieces the solve uses the far rim of the top, not its centre.
 
 ## Colour, round 1
 
-![Our render at the reference size](round-1-587x440.jpg)
+![The right half of our render at the reference size](round-1-ours.jpg)
+
+Only our side is published; the reference stays in `docs/reference/`.
 
 | Region | Ours | Reference | ΔE |
 | --- | --- | --- | --- |
