@@ -30,6 +30,7 @@ import {
   gameOverDialog,
   importExportDialog,
   newGameDialog,
+  ratingDialog,
   settingsDialog,
   shortcutsDialog,
 } from './dialogs.ts';
@@ -167,8 +168,7 @@ export class UiRoot {
   }
 
   private players(state: GameState): Record<Color, PlayerInfo> {
-    const level = difficulty(state.difficulty);
-    const computer: PlayerInfo = { name: 'Stockfish', rating: level.rating, computer: true };
+    const computer: PlayerInfo = { name: 'Stockfish', rating: state.rating, computer: true };
     if (state.mode === 'local') {
       return { w: { name: 'White', computer: false }, b: { name: 'Black', computer: false } };
     }
@@ -294,7 +294,7 @@ export class UiRoot {
     const state = this.app.controller.state.get();
     this.coach.say(
       state.mode === 'computer'
-        ? `New game against Stockfish (${difficulty(state.difficulty).label}). You play ${state.humanColor === 'w' ? 'White' : 'Black'}.`
+        ? `New game against Stockfish (${state.difficulty === 'custom' ? `rated ${state.rating}` : difficulty(state.difficulty).label}). You play ${state.humanColor === 'w' ? 'White' : 'Black'}.`
         : 'New two-player game. White moves first.',
     );
   }
@@ -464,12 +464,22 @@ export class UiRoot {
           sep,
           {
             label: '&Difficulty',
-            submenu: () =>
-              DIFFICULTIES.map((d) => ({
+            submenu: () => [
+              ...DIFFICULTIES.map((d) => ({
                 label: d.label,
                 checked: () => s().difficulty === d.id,
                 action: () => app.settings.update({ difficulty: d.id }),
               })),
+              {
+                label: `Custom (${s().customRating})…`,
+                checked: () => s().difficulty === 'custom',
+                action: () =>
+                  void ratingDialog(s().customRating).then((rating) => {
+                    if (rating !== null)
+                      app.settings.update({ difficulty: 'custom', customRating: rating });
+                  }),
+              },
+            ],
           },
           {
             label: '&Time Control',

@@ -363,6 +363,30 @@ test('Glass Studio: glass board and pieces, glass shards, and the reflections sw
   expect(errors).toEqual([]);
 });
 
+test('plays a computer at a custom rating chosen with the slider', async ({ page }) => {
+  const errors = await open(page);
+  await page.keyboard.press('Control+n');
+  const dialog = page.locator('.dialog');
+  await expect(dialog.locator('.rating-field')).toBeHidden();
+  await dialog.locator('select').nth(2).selectOption('custom');
+  await expect(dialog.locator('.rating-field')).toBeVisible();
+  await dialog.locator('.rating-field input[type=range]').evaluate((el: HTMLInputElement) => {
+    el.value = '800';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(dialog.locator('.rating-field > span')).toHaveText(
+    'Rating 800 (between Beginner and Easy)',
+  );
+  await dialog.locator('select').nth(1).selectOption('b');
+  await dialog.getByRole('button', { name: 'Start Game' }).click();
+  // The computer plays White's first move at the chosen strength.
+  await expect.poll(() => history(page), { timeout: 30_000 }).toHaveLength(1);
+  await idle(page);
+  await expect(page.locator('#game-status')).toContainText('Stockfish (800)');
+  expect(await consistency(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test('works on a phone-sized screen with touch', async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 780 },

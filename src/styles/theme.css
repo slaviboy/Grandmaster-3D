@@ -177,6 +177,19 @@
   color: var(--text-dim);
 }
 
+/* The Custom difficulty's rating slider, in the panel colours. */
+.rating-field input[type='range'] {
+  width: 100%;
+  accent-color: #5ba9c8;
+}
+
+.rating-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  color: var(--text-dim);
+}
+
 .field select,
 .field input[type='text'],
 .dialog textarea {

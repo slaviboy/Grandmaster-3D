@@ -11,7 +11,7 @@
 
 // The game's dialogs: New Game, Settings, Import/Export, Game Over, Keyboard & Mouse and About.
 
-import { DIFFICULTIES, type DifficultyId } from '../engine/difficulty.ts';
+import { CUSTOM_RATING, DIFFICULTIES, type DifficultyId } from '../engine/difficulty.ts';
 import type { LoadResult } from '../game/ChessGame.ts';
 import { TIME_CONTROLS, type Settings } from '../game/Settings.ts';
 import { el, openDialog } from './Dialog.ts';
@@ -53,6 +53,58 @@ function button(label: string, onClick: () => void, primary = false): HTMLButton
   return node;
 }
 
+/** Puts a custom rating in context: "as Medium", "near Hard" or "between Easy and Medium". */
+function nearestLevel(rating: number): string {
+  const exact = DIFFICULTIES.find((d) => d.rating === rating);
+  if (exact) return `as ${exact.label}`;
+  const below = [...DIFFICULTIES].reverse().find((d) => d.rating < rating);
+  const above = DIFFICULTIES.find((d) => d.rating > rating);
+  if (!below) return `weaker than ${above!.label}`;
+  if (!above) return `near ${below.label}`;
+  if (rating - below.rating <= 100) return `near ${below.label}`;
+  if (above.rating - rating <= 100) return `near ${above.label}`;
+  return `between ${below.label} and ${above.label}`;
+}
+
+/** A rating slider with a live readout; returns the field and a getter for the value. */
+function ratingSlider(value: number): [HTMLElement, () => number] {
+  const wrap = el('div', 'field rating-field');
+  const label = el('span', '');
+  const input = el('input');
+  input.type = 'range';
+  input.min = String(CUSTOM_RATING.min);
+  input.max = String(CUSTOM_RATING.max);
+  input.step = String(CUSTOM_RATING.step);
+  input.value = String(value);
+  input.setAttribute('aria-label', 'Computer rating');
+  const scale = el('div', 'rating-scale');
+  scale.append(
+    el('span', '', `${CUSTOM_RATING.min} weaker`),
+    el('span', '', `stronger ${CUSTOM_RATING.max}`),
+  );
+  const show = () => {
+    const rating = Number(input.value);
+    label.textContent = `Rating ${rating} (${nearestLevel(rating)})`;
+  };
+  input.addEventListener('input', show);
+  show();
+  wrap.append(label, input, scale);
+  return [wrap, () => Number(input.value)];
+}
+
+/** Picks the computer's rating for the Custom difficulty; resolves with it, or null on cancel. */
+export function ratingDialog(current: number): Promise<number | null> {
+  return openDialog<number | null>('Custom Strength', null, ({ body, close }) => {
+    const [slider, rating] = ratingSlider(current);
+    const actions = el('div', 'dialog-actions');
+    actions.append(
+      button('OK', () => close(rating()), true),
+      button('Cancel', () => close(null)),
+    );
+    body.append(slider, actions);
+  });
+}
+
 const timeLabel = (m: number) => (m === 0 ? 'Untimed' : `${m} minutes per player`);
 
 export function newGameDialog(current: Settings): Promise<Partial<Settings> | null> {
@@ -73,9 +125,16 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
       current.humanColor,
     );
     const level = select<DifficultyId>(
-      DIFFICULTIES.map((d) => [d.id, `${d.label} (about ${d.rating})`]),
+      [
+        ...DIFFICULTIES.map((d): [DifficultyId, string] => [
+          d.id,
+          `${d.label} (about ${d.rating})`,
+        ]),
+        ['custom', 'Custom rating…'],
+      ],
       current.difficulty,
     );
+    const [ratingField, rating] = ratingSlider(current.customRating);
     const time = select<number>(
       TIME_CONTROLS.map((m) => [m, timeLabel(m)]),
       current.minutes,
@@ -86,8 +145,10 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
       const local = mode.value === 'local';
       sideField.hidden = local;
       levelField.hidden = local;
+      ratingField.hidden = local || level.value !== 'custom';
     };
     mode.addEventListener('change', update);
+    level.addEventListener('change', update);
     update();
     const actions = el('div', 'dialog-actions');
     actions.append(
@@ -100,6 +161,7 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
             mode: mode.value as Settings['mode'],
             humanColor: chosen,
             difficulty: level.value as DifficultyId,
+            customRating: rating(),
             minutes: Number(time.value),
           });
         },
@@ -111,6 +173,7 @@ export function newGameDialog(current: Settings): Promise<Partial<Settings> | nu
       field('Opponent', mode),
       sideField,
       levelField,
+      ratingField,
       field('Time control', time),
       actions,
     );
