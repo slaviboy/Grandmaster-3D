@@ -103,6 +103,8 @@ export interface TableTheme {
   readonly surface: SurfaceStyle;
   /** Colour behind and beyond the table (clear colour and fog). */
   readonly background: string;
+  /** Light bounced up from the table onto the undersides of things (default a dark teal). */
+  readonly bounce?: string;
 }
 
 /** The player's own colours for the Custom choices. */
@@ -537,6 +539,23 @@ export const TABLE_THEMES: readonly TableTheme[] = [
       waviness: 0,
     },
     background: '#4a141c',
+  },
+  {
+    // A photo studio: a seamless light grey sweep under the board, white beyond it.
+    id: 'white-studio',
+    label: 'White Studio',
+    pattern: 'felt',
+    surface: {
+      pattern: 'plain',
+      base: '#dce2ea',
+      line: '170,174,178',
+      highlight: '250,252,254',
+      density: 0,
+      contrast: 0.25,
+      waviness: 0,
+    },
+    background: '#f3f4f5',
+    bounce: '#c8cacc',
   },
 ];
 

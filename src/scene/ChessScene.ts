@@ -41,6 +41,8 @@ import { createTableTexture } from './woodTextures.ts';
 export type FrameUpdater = (deltaSeconds: number) => boolean;
 
 const CLOTH_COLOUR = new Color('#154458');
+/** Light bounced up from the default teal cloth. */
+const DEFAULT_BOUNCE = '#1d4a5c';
 
 export class ChessScene {
   readonly renderer: WebGLRenderer;
@@ -53,6 +55,7 @@ export class ChessScene {
   private boardLook: BoardTheme = boardTheme('classic');
   private tableLook: TableTheme = tableTheme('teal');
   private readonly clothMaterial: MeshStandardMaterial;
+  private readonly hemisphere: HemisphereLight;
   private readonly cloth: Mesh;
   private readonly contactShadow: Mesh;
   private readonly updaters = new Set<FrameUpdater>();
@@ -84,7 +87,8 @@ export class ChessScene {
     this.surroundings.update(this.boardLook, this.tableLook);
 
     // Warm sky fill from above, cool bounce from the cloth below.
-    this.scene.add(new HemisphereLight('#fff3e2', '#1d4a5c', 0.66));
+    this.hemisphere = new HemisphereLight('#fff3e2', DEFAULT_BOUNCE, 0.66);
+    this.scene.add(this.hemisphere);
 
     // Key light from the front right and above: shadows fall toward the back left.
     this.keyLight = new DirectionalLight('#fff6ea', 3.3);
@@ -161,6 +165,7 @@ export class ChessScene {
     const colour = new Color(theme.background);
     (this.scene.background as Color).copy(colour);
     this.scene.fog?.color.copy(colour);
+    this.hemisphere.groundColor.set(theme.bounce ?? DEFAULT_BOUNCE);
     this.tableLook = theme;
     this.surroundings.update(this.boardLook, this.tableLook);
     this.requestRender();
