@@ -73,7 +73,7 @@ export class App {
     this.scene.onResize((w, h) => this.camera.resize(w, h));
     if (this.params.get('anim') === '0') this.tweener.speed = 0;
 
-    setPieceEnvironment(this.scene.scene.environment);
+    setPieceEnvironment(this.scene.scene.environment, this.scene.surroundings.texture);
     this.pieces = new PieceManager(this.assets);
     this.scene.scene.add(this.pieces.group);
     this.highlights = new Highlights(requestRender);

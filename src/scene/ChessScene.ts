@@ -33,7 +33,8 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ChessBoard } from './ChessBoard.ts';
-import { tableTheme, type BoardTheme, type TableTheme } from './themes.ts';
+import { Surroundings } from './surroundings.ts';
+import { boardTheme, tableTheme, type BoardTheme, type TableTheme } from './themes.ts';
 import { createTableTexture } from './woodTextures.ts';
 
 /** Called every frame with the elapsed seconds; returns true while it still needs frames. */
@@ -47,6 +48,10 @@ export class ChessScene {
   readonly camera = new PerspectiveCamera(30, 1, 0.5, 200);
   readonly board: ChessBoard;
   readonly keyLight: DirectionalLight;
+  /** Reflection of the board and table, for pieces that mirror their surroundings. */
+  readonly surroundings: Surroundings;
+  private boardLook: BoardTheme = boardTheme('classic');
+  private tableLook: TableTheme = tableTheme('teal');
   private readonly clothMaterial: MeshStandardMaterial;
   private readonly cloth: Mesh;
   private readonly contactShadow: Mesh;
@@ -74,6 +79,9 @@ export class ChessScene {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.15;
     pmrem.dispose();
+    this.surroundings = new Surroundings(this.renderer);
+    // Painted now so the map exists before any theme is set; later updates reuse it in place.
+    this.surroundings.update(this.boardLook, this.tableLook);
 
     // Warm sky fill from above, cool bounce from the cloth below.
     this.scene.add(new HemisphereLight('#fff3e2', '#1d4a5c', 0.66));
@@ -133,6 +141,8 @@ export class ChessScene {
   /** Changes the board's look; a different construction moves the table to the new underside. */
   setBoardTheme(theme: BoardTheme): void {
     this.board.setTheme(theme);
+    this.boardLook = theme;
+    this.surroundings.update(this.boardLook, this.tableLook);
     this.cloth.position.y = this.board.bottomY - 0.001;
     this.contactShadow.position.y = this.board.bottomY + 0.002;
     // A glass sheet casts a much lighter shadow than a wooden board.
@@ -151,6 +161,8 @@ export class ChessScene {
     const colour = new Color(theme.background);
     (this.scene.background as Color).copy(colour);
     this.scene.fog?.color.copy(colour);
+    this.tableLook = theme;
+    this.surroundings.update(this.boardLook, this.tableLook);
     this.requestRender();
   }
 
@@ -233,6 +245,7 @@ export class ChessScene {
     this.resizeObserver.disconnect();
     this.timer.dispose();
     this.board.dispose();
+    this.surroundings.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

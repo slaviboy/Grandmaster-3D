@@ -35,17 +35,20 @@ const PATTERN: Record<PieceFinish, number> = {
 };
 
 let environment: Texture | null = null;
+let surroundings: Texture | null = null;
 
 /**
  * The room reflection used by polished finishes. A material's envMapIntensity only applies to its
  * own envMap, not to the scene-wide environment, so glass, metal and stone get it explicitly.
  */
-export function setPieceEnvironment(texture: Texture | null): void {
+export function setPieceEnvironment(texture: Texture | null, around: Texture | null = null): void {
   environment = texture;
+  surroundings = around;
 }
 
-function polish<T extends MeshPhysicalMaterial>(material: T): T {
-  if (environment) material.envMap = environment;
+function polish<T extends MeshPhysicalMaterial>(material: T, style: PieceStyle): T {
+  const map = style.reflects === 'surroundings' ? (surroundings ?? environment) : environment;
+  if (map) material.envMap = map;
   return material;
 }
 
@@ -117,8 +120,8 @@ export function createPieceMaterial(
   glass: GlassOptions = { transmission: true },
 ): MeshPhysicalMaterial {
   // Glass has no grain: plain physical materials, no shader changes.
-  if (style.finish === 'glass') return polish(clearGlassMaterial(style, glass));
-  if (style.finish === 'gloss') return polish(glossGlassMaterial(style));
+  if (style.finish === 'glass') return polish(clearGlassMaterial(style, glass), style);
+  if (style.finish === 'gloss') return polish(glossGlassMaterial(style), style);
   const material = new MeshPhysicalMaterial({
     color: '#ffffff',
     roughness: style.roughness,
@@ -143,7 +146,9 @@ export function createPieceMaterial(
       ),
     },
   };
-  if (style.finish === 'metal' || style.finish === 'stone') polish(material);
+  if (style.finish === 'metal' || style.finish === 'stone' || style.reflects === 'surroundings') {
+    polish(material, style);
+  }
   material.userData.wood = uniforms;
   material.userData.style = style;
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {

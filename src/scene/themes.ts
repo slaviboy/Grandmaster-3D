@@ -65,6 +65,8 @@ export interface PieceStyle {
   readonly clearcoat: number;
   /** Colour of the inside, shown on the cut faces when a piece shatters. */
   readonly endGrain: string;
+  /** What polished pieces mirror: a neutral room (default) or the board and table around them. */
+  readonly reflects?: 'room' | 'surroundings';
 }
 
 /** The carved set: the classic Staunton pieces, or the chunkier bell-based set. */
