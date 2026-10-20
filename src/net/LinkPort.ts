@@ -24,8 +24,8 @@ export interface LinkHandlers {
   leave(): void;
   /** No connection could be made; the text is for the player. */
   error(text: string): void;
-  /** The other player's camera and microphone. */
-  stream?(stream: MediaStream): void;
+  /** A camera or microphone track from the other player. */
+  track?(track: MediaStreamTrack, stream: MediaStream): void;
 }
 
 export interface LinkPort {
@@ -36,8 +36,10 @@ export interface LinkPort {
   send(message: Message): Promise<void>;
   /** The round trip to the other player in milliseconds. */
   ping(): Promise<number>;
-  /** Sends the local camera and microphone to the other player, now and after a reconnect. */
-  setStream?(stream: MediaStream | null): void;
+  /** Sends a local camera or microphone track to the other player, now and after a reconnect. */
+  addTrack(track: MediaStreamTrack, stream: MediaStream): void;
+  /** Stops sending a track. */
+  removeTrack(track: MediaStreamTrack): void;
   /** Drops the other player for good: they cannot come back on this link. */
   kick(): void;
   close(): Promise<void>;

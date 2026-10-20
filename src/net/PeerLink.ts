@@ -45,7 +45,8 @@ class PeerLink implements LinkPort {
   private partner: string | null = null;
   /** Peers turned away for good: a kicked partner, or a second player. */
   private readonly refused = new Set<string>();
-  private stream: MediaStream | null = null;
+  /** The local camera and microphone tracks being sent, to send again after a reconnect. */
+  private readonly tracks = new Map<MediaStreamTrack, MediaStream>();
   private closed = false;
 
   constructor(invite: Invite) {
@@ -75,8 +76,7 @@ class PeerLink implements LinkPort {
         return;
       }
       this.partner = peerId;
-      if (this.stream)
-        void Promise.allSettled(this.room.addStream(this.stream, { target: peerId }));
+      for (const [track, stream] of this.tracks) this.sendTrack(track, stream);
       this.handlers.join();
     };
     this.room.onPeerLeave = (peerId) => {
@@ -84,8 +84,8 @@ class PeerLink implements LinkPort {
       this.partner = null;
       this.handlers.leave();
     };
-    this.room.onPeerStream = (stream, peerId) => {
-      if (peerId === this.partner) this.handlers.stream?.(stream);
+    this.room.onPeerTrack = (track, stream, peerId) => {
+      if (peerId === this.partner) this.handlers.track?.(track, stream);
     };
   }
 
@@ -109,12 +109,14 @@ class PeerLink implements LinkPort {
     return this.partner ? this.room.ping(this.partner) : Promise.reject(new Error('not connected'));
   }
 
-  setStream(stream: MediaStream | null): void {
-    const previous = this.stream;
-    this.stream = stream;
-    if (!this.partner) return;
-    if (previous) this.room.removeStream(previous, { target: this.partner });
-    if (stream) void Promise.allSettled(this.room.addStream(stream, { target: this.partner }));
+  addTrack(track: MediaStreamTrack, stream: MediaStream): void {
+    this.tracks.set(track, stream);
+    this.sendTrack(track, stream);
+  }
+
+  removeTrack(track: MediaStreamTrack): void {
+    this.tracks.delete(track);
+    if (this.partner && !this.closed) this.room.removeTrack(track, { target: this.partner });
   }
 
   kick(): void {
@@ -131,6 +133,11 @@ class PeerLink implements LinkPort {
     this.partner = null;
     this.handlers = NO_HANDLERS;
     await this.room.leave();
+  }
+
+  private sendTrack(track: MediaStreamTrack, stream: MediaStream): void {
+    if (!this.partner || this.closed) return;
+    void Promise.allSettled(this.room.addTrack(track, stream, { target: this.partner }));
   }
 
   private disconnect(peerId: string): void {

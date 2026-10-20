@@ -51,6 +51,17 @@ export class MemoryLink implements LinkPort {
     });
   }
 
+  /** Tracks this end is sending. */
+  readonly tracks = new Map<MediaStreamTrack, MediaStream>();
+
+  addTrack(track: MediaStreamTrack, stream: MediaStream): void {
+    this.tracks.set(track, stream);
+  }
+
+  removeTrack(track: MediaStreamTrack): void {
+    this.tracks.delete(track);
+  }
+
   ping(): Promise<number> {
     return this.connected ? Promise.resolve(this.rtt) : Promise.reject(new Error('not connected'));
   }

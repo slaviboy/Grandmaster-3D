@@ -24,6 +24,7 @@ import type { ForfeitReason } from '../game/ChessGame.ts';
 import type { GameController, LocalAction } from '../game/GameController.ts';
 import { opposite, type Color } from '../game/types.ts';
 import type { LinkPort } from './LinkPort.ts';
+import { OnlineMedia, type MediaOptions } from './OnlineMedia.ts';
 import { PeerGuard } from './PeerGuard.ts';
 import { PROTOCOL_VERSION, cleanName, createToken, type Invite, type Message } from './protocol.ts';
 
@@ -128,6 +129,8 @@ interface CommonOptions {
   readonly timers?: Timers;
   readonly now?: () => number;
   readonly storage?: SessionStorage;
+  /** Camera and microphone access; tests pass stand-ins. */
+  readonly media?: MediaOptions;
 }
 
 export interface HostOptions extends CommonOptions {
@@ -145,6 +148,8 @@ const median = (values: readonly number[]) => {
 export class OnlineSession {
   readonly state: Store<OnlineState>;
   readonly invite: Invite;
+  /** Video and voice for this game; everything starts off. */
+  readonly media: OnlineMedia;
   private readonly link: LinkPort;
   private readonly game: SessionGame;
   private readonly guard: PeerGuard;
@@ -166,6 +171,8 @@ export class OnlineSession {
   private connectTimer: unknown = null;
   private claimTimer: unknown = null;
   private ended = false;
+  /** Tracks that arrived before the other player showed who they are. */
+  private heldTracks: MediaStreamTrack[] = [];
 
   /** The player who made the link; the game starts when the guest arrives. */
   static host(options: HostOptions): OnlineSession {
@@ -215,9 +222,17 @@ export class OnlineSession {
       friendMedia: null,
       message: null,
     });
+    this.media = new OnlineMedia(this.link, {
+      ...options.media,
+      onLocalChange: (mic, cam) => void this.link.send({ t: 'media', mic, cam }),
+    });
     this.offLocal = this.game.controller.onLocalAction((action) => this.onLocal(action));
     this.link.setHandlers({
       message: (data) => this.enqueue(() => this.onMessage(data)),
+      track: (track) => {
+        if (this.verified) this.media.receive(track);
+        else this.heldTracks.push(track);
+      },
       join: () => this.enqueue(() => this.onJoin()),
       leave: () => this.enqueue(() => this.onLeave()),
       error: (text) => this.onError(text),
@@ -305,6 +320,8 @@ export class OnlineSession {
   dispose(): void {
     this.stopTimers();
     this.offLocal();
+    this.dropHeldTracks();
+    this.media.stop();
     this.listeners.clear();
     if (!this.ended) {
       this.ended = true;
@@ -321,6 +338,7 @@ export class OnlineSession {
   private onJoin(): void {
     if (this.ended) return;
     this.verified = false;
+    this.dropHeldTracks();
     this.clearTimer('connectTimer');
     this.clearTimer('claimTimer');
     this.patch({ canClaimWin: false });
@@ -338,6 +356,7 @@ export class OnlineSession {
   private onLeave(): void {
     if (this.ended) return;
     this.verified = false;
+    this.dropHeldTracks();
     this.stopPings();
     if (!this.started) {
       this.patch({ status: this.role === 'host' ? 'waiting' : 'connecting' });
@@ -402,10 +421,11 @@ export class OnlineSession {
     if (this.role === 'host') {
       if (this.token && !proven) {
         // Someone with the link, but not the guest who sat down: turned away.
+        this.dropHeldTracks();
         this.link.kick();
         return;
       }
-      this.verified = true;
+      this.trust();
       const first = this.token === null;
       if (first) {
         this.token = createToken();
@@ -431,10 +451,11 @@ export class OnlineSession {
     }
     // The guest: once it holds a token, the host must show the same one.
     if (this.token && !proven) {
+      this.dropHeldTracks();
       this.link.kick();
       return;
     }
-    this.verified = true;
+    this.trust();
     if (!this.token) this.patch({ friendName: message.name });
     if (this.started) {
       this.patch({ status: 'playing', message: null });
@@ -560,6 +581,20 @@ export class OnlineSession {
     await this.close('closed', `Game ended: ${name}'s app ${detail}.`);
   }
 
+  /** The connected peer showed who they are: their camera and microphone may now come through. */
+  private trust(): void {
+    this.verified = true;
+    for (const track of this.heldTracks.splice(0)) this.media.receive(track);
+    const { mic, cam } = this.media.state.get();
+    if (mic === 'on' || cam === 'on') {
+      void this.link.send({ t: 'media', mic: mic === 'on', cam: cam === 'on' });
+    }
+  }
+
+  private dropHeldTracks(): void {
+    for (const track of this.heldTracks.splice(0)) track.stop();
+  }
+
   private fail(text: string): void {
     if (this.ended) return;
     this.emit({ kind: 'failed', text });
@@ -571,6 +606,8 @@ export class OnlineSession {
     this.ended = true;
     this.stopTimers();
     this.offLocal();
+    this.dropHeldTracks();
+    this.media.stop();
     this.patch({ status, message, canClaimWin: false });
     this.storage?.clear();
     await this.link.close();
