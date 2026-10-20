@@ -131,6 +131,8 @@ npm test               # unit and architecture tests (Vitest), including the rea
 npm run test:e2e       # end-to-end tests on the production build (Playwright, needs WebGL)
 npm run ladder -- 8    # each difficulty plays the next one up, 8 games per pair
 npm run lint && npm run format:check
+npm run audit          # every commit and file version in the history, for anything private
+npm run audit:dist     # the built site, after npm run build
 ```
 
 For development and tests, the page accepts these URL parameters:
@@ -233,7 +235,13 @@ board with the rules after every move.
 ## Deployment
 
 The build is a static site with relative URLs, so it works on any static host, including from a
-subpath. Online play needs nothing more: the players' browsers connect to each other. The included GitHub Actions workflow deploys it to GitHub Pages on every push to `main`
+subpath. Online play needs nothing more: the players' browsers connect to each other.
+
+The repository is public, so the workflow publishes only after two audits pass (`scripts/audit.ts`):
+every commit in the history (its author, its message and every version of every file, images and
+models included) and the built site are checked for credentials, e-mail addresses other than the
+author's, local paths, image metadata and the reference's name. The same rules run before every
+commit through the architecture tests. The included GitHub Actions workflow deploys it to GitHub Pages on every push to `main`
 (once, set Settings → Pages → Source: GitHub Actions).
 
 The engine is the single-threaded lite build of Stockfish (about 1.8 MB of WebAssembly). It needs no

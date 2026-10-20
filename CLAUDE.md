@@ -15,10 +15,18 @@ These are enforced by `.githooks/`, enabled with `git config core.hooksPath .git
   the GPL header (`Copyright (C) 2026 Stanislav Georgiev`, `https://github.com/slaviboy`, GNU
   General Public License). `tests/architecture/licenseHeaders.test.ts` enforces this.
 - **No secrets.** `tests/architecture/secrets.test.ts` scans tracked files.
+- **Nothing private.** The repository is public. No e-mail address but the author's, no path of
+  the computer the work is done on, no copyright holder who is not credited, and no metadata in
+  images (strip it with `node scripts/image-metadata.ts strip <files>`). This applies inside
+  binary files too: Blender writes paths into renders and into the .blend, so save the .blend
+  through `common.save_blend`. `tests/architecture/identity.test.ts` enforces this, and
+  `npm run audit` checks every commit in the history (the deploy workflow runs it). The rules live
+  in `scripts/public-safety.ts`.
 - **Product naming.** The product is Grandmaster 3D. The commercial game whose look inspired it is
   never named in tracked files: not in source, comments, identifiers, UI strings, documentation or
   commit messages. Write "the reference" instead. `tests/architecture/branding.test.ts` enforces
-  this. The reference screenshots stay in `docs/reference/`, which is gitignored.
+  this, also inside images and models. The reference screenshots stay in `docs/reference/`, which is
+  gitignored; never publish a picture that shows the reference, even beside our own.
 - **Messages.** Use conventional prefixes (`feat:`, `fix:`, `perf:`, `refactor:`, `test:`, `docs:`,
   `chore:`, `ci:`) in the imperative mood, with a body that says what changed and why. Make one
   meaningful change per commit, and commit after every one.
@@ -34,6 +42,8 @@ npm run lint         # ESLint
 npm run format:check # Prettier
 npm run models       # rebuild the pieces with headless Blender
 npm run ladder       # difficulty strength ladder
+npm run audit        # the whole history: authors, messages, every file version (public safety)
+npm run audit:dist   # the built site: no source maps, local addresses or private data
 ```
 
 ## Rules that keep the game correct
@@ -46,5 +56,12 @@ npm run ladder       # difficulty strength ladder
   Animations only move meshes, and `finishAll()` + `sync()` must always restore a correct board.
 - **One coordinate convention.** Defined in `src/scene/coords.ts`: 1 unit = 1 square, White at +z.
   Flipping turns the camera, never the board.
+- **Online, each side referees what it receives.** Everything from the other player passes
+  `PeerGuard` (size, rate, shape), `OnlineSession` (who may say what, when) and the controller
+  (`applyRemoteMove`, the rules of chess). Never trust their times, results or media state; time
+  them on this side's clock and show their camera from the tracks that arrive. A rule break
+  forfeits and disconnects. Only `src/net/PeerLink.ts` touches Trystero or a peer connection;
+  never put network objects on `window` or log addresses, candidates or SDP. Every online game
+  starts with the 18+ and IP warning, its box unticked, before anything connects.
 - **Engine sequencing.** Change options only between searches. After `stop`, wait for `bestmove`
   (Stockfish may answer `isready` first).
