@@ -10,14 +10,16 @@
  */
 
 // The modern interface: floating dark-glass cards around the board. A top bar with the wordmark,
-// the menus and the main buttons runs along the top, and the Match card (players, clocks and moves)
-// stands at the right, where it keeps the board's framing of the retro layout.
+// the menus and the main buttons runs along the top. The Coach card stands at the top left, and the
+// Match card (players, clocks and moves) at the right, where it keeps the board's framing of the
+// retro layout.
 
 import type { Color } from '../../game/types.ts';
 import { el } from '../Dialog.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
 import type { Shell, ShellContext, ShellView } from '../shell.ts';
+import { CoachCard } from './CoachCard.ts';
 import { iconButton } from './controls.ts';
 import { MatchCard } from './MatchCard.ts';
 
@@ -25,6 +27,7 @@ export class ModernShell implements Shell {
   readonly element: HTMLElement;
   private readonly menu: MenuBar;
   private readonly match: MatchCard;
+  private readonly coach: CoachCard;
 
   constructor(private readonly ctx: ShellContext) {
     const { app, commands, signal } = ctx;
@@ -48,8 +51,17 @@ export class ModernShell implements Shell {
     top.append(brand, this.menu.element, end);
 
     this.match = new MatchCard(commands);
+    this.coach = new CoachCard(
+      {
+        onAids: (aids) => ctx.setCoachAids(aids),
+        onShowLegalMoves: (on) => app.settings.update({ showLegalMoves: on }),
+        onHint: () => commands.hint(),
+      },
+      ctx.coachAids(),
+      app.settings.get().showLegalMoves,
+    );
 
-    this.element.append(top, this.match.element);
+    this.element.append(top, this.coach.element, this.match.element);
     app.root.append(this.element);
 
     // Small screens start with the move list folded so the board stays clear.
@@ -70,7 +82,8 @@ export class ModernShell implements Shell {
     return this.menu.isOpen;
   }
 
-  render({ state, players, bottomColor }: ShellView): void {
+  render({ state, settings, players, bottomColor }: ShellView): void {
+    this.coach.syncLegalMoves(settings.showLegalMoves);
     this.match.render(state, players, bottomColor);
   }
 
@@ -78,9 +91,13 @@ export class ModernShell implements Shell {
     this.match.renderClocks(times, running);
   }
 
-  say(_text: string): void {}
+  say(text: string): void {
+    this.coach.say(text);
+  }
 
-  clearLog(): void {}
+  clearLog(): void {
+    this.coach.clear();
+  }
 
   dispose(): void {
     this.menu.close();
@@ -115,6 +132,11 @@ export class ModernShell implements Shell {
           ...m.coordinates(),
           ...m.marks(),
           sep,
+          {
+            label: '&Coach',
+            checked: () => this.coach.visible,
+            action: () => this.coach.setVisible(!this.coach.visible),
+          },
           {
             label: 'M&atch Card',
             checked: () => this.match.visible,

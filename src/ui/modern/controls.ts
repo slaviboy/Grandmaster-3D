@@ -83,6 +83,7 @@ export function segmented<T extends string>(
     const button = el('button', 'm-segment', text);
     button.type = 'button';
     button.setAttribute('role', 'radio');
+    button.title = text;
     button.dataset.value = v;
     button.addEventListener('click', () => choose(v));
     button.addEventListener('keydown', (event) => {
