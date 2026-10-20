@@ -43,6 +43,10 @@ export interface BoardTheme {
   readonly roughness: number;
   /** How the board is built: a framed wooden board (the default) or a thin glass sheet. */
   readonly construction?: 'wood' | 'glass';
+  /** Board thickness in squares (default 0.45, the measured wooden board). */
+  readonly thickness?: number;
+  /** Coordinate letter height in squares (default 0.3). */
+  readonly labelSize?: number;
 }
 
 /** wood, lacquer, metal and stone are opaque; glass is clear and lets light through; gloss is
@@ -168,13 +172,15 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
   {
     id: 'marble',
     label: 'Marble',
-    light: marble('#d6e2e3', '120,140,146', '250,255,255', 0.75),
-    dark: marble('#9fb2b5', '74,92,98', '214,226,228', 0.8),
-    frame: marble('#d9e4e6', '128,146,152', '252,255,255', 0.5),
-    labelColour: 'rgba(160,178,184,0.75)',
-    labelShadow: 'rgba(255,255,255,0.4)',
+    light: marble('#b7d0dc', '96,120,132', '236,248,252', 0.75),
+    dark: marble('#88a5b0', '62,82,92', '196,214,220', 0.85),
+    frame: marble('#c3dbe6', '110,132,142', '240,250,254', 0.5),
+    labelColour: 'rgba(120,140,150,0.8)',
+    labelShadow: 'rgba(255,255,255,0.25)',
     edgeTint: [1.0, 1.0, 1.04],
     roughness: 0.3,
+    thickness: 0.2,
+    labelSize: 0.4,
   },
   {
     id: 'walnut',
@@ -256,8 +262,8 @@ export const PIECE_THEMES: readonly PieceTheme[] = [
     label: 'Red Lacquer & Silver',
     w: {
       finish: 'metal',
-      light: '#c4d0dc',
-      dark: '#93a2b4',
+      light: '#97abbd',
+      dark: '#5f6c80',
       rings: 0,
       contrast: 0.3,
       roughness: 0.36,
@@ -267,8 +273,8 @@ export const PIECE_THEMES: readonly PieceTheme[] = [
     },
     b: {
       finish: 'lacquer',
-      light: '#74291a',
-      dark: '#3a0f08',
+      light: '#9a4632',
+      dark: '#4e160c',
       rings: 11,
       contrast: 0.35,
       roughness: 0.3,

@@ -55,6 +55,7 @@ export class ChessBoard {
   private readonly edgeMaterial: MeshStandardMaterial;
   private readonly surfaceMaterial: MeshStandardMaterial;
   private labels: FrameLabels = { side: 'white', visible: true };
+  private thickness = BOARD_THICKNESS;
   private theme: BoardTheme = boardTheme('classic');
 
   constructor(private readonly environment: Texture | null = null) {
@@ -101,7 +102,7 @@ export class ChessBoard {
 
   /** y of the underside, where the board rests on the table. */
   get bottomY(): number {
-    return this.isGlass && this.glass ? this.glass.bottomY : FRAME_LIP - BOARD_THICKNESS;
+    return this.isGlass && this.glass ? this.glass.bottomY : FRAME_LIP - this.thickness;
   }
 
   /** Real reflections in a glass board's black squares, or plain glossy black (cheaper). */
@@ -131,6 +132,12 @@ export class ChessBoard {
     }
     if (this.glass) this.glass.group.visible = false;
     this.woodGroup.visible = true;
+    const thickness = theme.thickness ?? BOARD_THICKNESS;
+    if (thickness !== this.thickness) {
+      this.thickness = thickness;
+      this.woodFrame.geometry.dispose();
+      this.woodFrame.geometry = createFrameGeometry(thickness);
+    }
     this.surfaceMaterial.map?.dispose();
     this.surfaceMaterial.map = createSquaresTexture(theme);
     this.surfaceMaterial.roughness = theme.roughness;
@@ -199,7 +206,7 @@ function roundedRect(shape: Shape | Path, half: number, radius: number): void {
   shape.quadraticCurveTo(-half, -half, -half + radius, -half);
 }
 
-function createFrameGeometry(): ExtrudeGeometry {
+function createFrameGeometry(thickness = BOARD_THICKNESS): ExtrudeGeometry {
   const outer = new Shape();
   roundedRect(outer, 4 + FRAME_WIDTH - BEVEL, CORNER_RADIUS);
   const hole = new Path();
@@ -213,7 +220,7 @@ function createFrameGeometry(): ExtrudeGeometry {
   hole.lineTo(-h, -h);
   outer.holes.push(hole);
 
-  const depth = BOARD_THICKNESS - 2 * BEVEL;
+  const depth = thickness - 2 * BEVEL;
   const geometry = new ExtrudeGeometry(outer, {
     depth,
     bevelEnabled: true,
@@ -230,9 +237,9 @@ function createFrameGeometry(): ExtrudeGeometry {
   // reference shows on its front edge. Only the edge material uses these colours.
   const positions = geometry.getAttribute('position');
   const colours = new Float32Array(positions.count * 3);
-  const bottom = FRAME_LIP - BOARD_THICKNESS;
+  const bottom = FRAME_LIP - thickness;
   for (let i = 0; i < positions.count; i++) {
-    const t = Math.min(1, Math.max(0, (positions.getY(i) - bottom) / BOARD_THICKNESS));
+    const t = Math.min(1, Math.max(0, (positions.getY(i) - bottom) / thickness));
     const shade = 0.5 + 0.5 * Math.pow(t, 0.8);
     colours.set([shade, shade, shade], i * 3);
   }

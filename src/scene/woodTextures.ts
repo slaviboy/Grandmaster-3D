@@ -323,7 +323,7 @@ export function drawFrameCanvas(
   if (!labels.visible) return;
   const files = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-  const fontSize = unit * 0.3;
+  const fontSize = unit * (theme.labelSize ?? 0.3);
   ctx.font = `500 ${fontSize}px "Trebuchet MS", "DejaVu Sans", Verdana, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
