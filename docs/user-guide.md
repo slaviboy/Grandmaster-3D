@@ -76,7 +76,8 @@ approximate location and internet provider). Share game links only with people y
 and press **Create Link**. (Game ▸ Play a Friend Online opens the same choices.) Read the warning,
 type the name your friend will see, tick **I am 18 or older and understand that my IP address will
 be visible to the other player**, and press **Create Link**. Copy the link and send it to your
-friend. The window closes by itself when they arrive. Cancel stops waiting.
+friend, or let them scan the QR code below it with their phone's camera: it opens the same link.
+Every new game gets its own link and its own code. The window closes by itself when they arrive. Cancel stops waiting.
 
 **Joining.** Open the link you were sent. The same warning comes first, with its checkbox unticked;
 tick it and press **Join Game**. You play the side your friend did not choose. Nothing connects

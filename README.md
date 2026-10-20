@@ -254,16 +254,22 @@ GitHub Pages serves static files only, so there is no game server. Two players' 
 directly with WebRTC, the way classic peer-to-peer chat programs did:
 
 1. **New game ▸ A friend online** (or Game ▸ Play a Friend Online). After the warning, the game
-   makes a link such as `https://…/#play=<room>.<secret>` to send to a friend.
+   makes a link such as `https://slaviboy.github.io/grandmaster-3d/#g=<secret>` (67 characters) to
+   send to a friend, also shown as a QR code (with the game's mark in the middle) that a phone
+   camera opens directly. The code is made in the browser, never by an outside service, since the
+   link holds the game's secret. Every game gets its own link and its own code.
 2. The friend opens it, accepts the same warning, and the game starts. The host keeps the colour
    and time chosen; the friend gets the other side.
 
 **How the two find each other.** [Trystero](https://github.com/dmotz/trystero) announces the room
 on public Nostr relays. The link's secret encrypts that handshake, so the relays and anyone without
 the link see neither the offer nor the network addresses inside it. After the handshake, moves go
-straight between the two browsers. The room and secret are random (128 and 256 bits) and live only
-in the link's hash, which browsers never send to the web server; the game removes it from the
-address bar as soon as the page opens.
+straight between the two browsers. The link carries only the secret, 128 random bits; both players
+derive the room from it with SHA-256, so every game meets in its own room and the room tells
+nothing about the secret. The secret lives only in the link's hash, which browsers never send to the
+web server, and the game removes it from the address bar as soon as the page opens. The short link
+keeps the QR code small: 41×41 modules at error correction level Q, which reads past the mark in
+its centre with room to spare.
 
 **Fair play without a referee.** Nobody in between checks the game, so each browser checks
 everything it receives:
