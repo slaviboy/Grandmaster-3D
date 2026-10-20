@@ -772,6 +772,54 @@ export function tableTheme(id: string, custom: CustomColours = DEFAULT_CUSTOM): 
   return TABLE_THEMES.find((t) => t.id === id) ?? TABLE_THEMES[0]!;
 }
 
+/** A one-click look: a board, a piece set and a table chosen to go together. */
+export interface Look {
+  readonly id: string;
+  readonly label: string;
+  readonly board: string;
+  readonly pieces: string;
+  readonly table: string;
+}
+
+export const LOOKS: readonly Look[] = [
+  { id: 'classic', label: 'Classic', board: 'classic', pieces: 'classic', table: 'teal' },
+  {
+    id: 'console-mahogany',
+    label: 'Console Mahogany',
+    board: 'mahogany',
+    pieces: 'classic',
+    table: 'blue-stone',
+  },
+  {
+    id: 'marble-edition',
+    label: 'Marble Edition',
+    board: 'marble',
+    pieces: 'lacquer-silver',
+    table: 'blue-stone',
+  },
+  {
+    id: 'glass-studio',
+    label: 'Glass Studio',
+    board: 'glass',
+    pieces: 'glass',
+    table: 'white-studio',
+  },
+];
+
+/** The look the chosen board, pieces and table add up to, if they match one exactly. */
+export function currentLook(choice: {
+  readonly boardTheme: string;
+  readonly pieceTheme: string;
+  readonly tableTheme: string;
+}): Look | undefined {
+  return LOOKS.find(
+    (l) =>
+      l.board === choice.boardTheme &&
+      l.pieces === choice.pieceTheme &&
+      l.table === choice.tableTheme,
+  );
+}
+
 export function isBoardThemeId(id: unknown): id is string {
   return id === CUSTOM_ID || BOARD_THEMES.some((t) => t.id === id);
 }

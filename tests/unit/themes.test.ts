@@ -14,9 +14,11 @@ import {
   BOARD_THEMES,
   CUSTOM_ID,
   DEFAULT_CUSTOM,
+  LOOKS,
   PIECE_THEMES,
   TABLE_THEMES,
   boardTheme,
+  currentLook,
   isHexColour,
   pieceTheme,
   shade,
@@ -106,6 +108,33 @@ describe('themes', () => {
     expect(pieces.w.metalness).toBeGreaterThan(0.5);
     expect(isHexColour(pieces.b.endGrain)).toBe(true);
     expect(tableTheme(CUSTOM_ID, { ...custom, table: '#336699' }).surface.base).toBe('#336699');
+  });
+
+  it('builds every look from existing presets and recognises it again', () => {
+    const ids = LOOKS.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const look of LOOKS) {
+      expect(
+        BOARD_THEMES.map((t) => t.id),
+        look.id,
+      ).toContain(look.board);
+      expect(
+        PIECE_THEMES.map((t) => t.id),
+        look.id,
+      ).toContain(look.pieces);
+      expect(
+        TABLE_THEMES.map((t) => t.id),
+        look.id,
+      ).toContain(look.table);
+      const choice = { boardTheme: look.board, pieceTheme: look.pieces, tableTheme: look.table };
+      expect(currentLook(choice)?.id).toBe(look.id);
+    }
+    // The first look is the out-of-the-box default.
+    expect(LOOKS[0]).toMatchObject({ board: BOARD_THEMES[0]!.id, pieces: PIECE_THEMES[0]!.id });
+    expect(LOOKS[0]!.table).toBe(TABLE_THEMES[0]!.id);
+    expect(
+      currentLook({ boardTheme: 'marble', pieceTheme: 'classic', tableTheme: 'teal' }),
+    ).toBeUndefined();
   });
 
   it('shades colours lighter and darker', () => {

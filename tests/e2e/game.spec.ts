@@ -344,6 +344,12 @@ test('switches board, piece and table looks from the menu and the dialog', async
   await page.locator('.submenu .menu-entry', { hasText: 'Mahogany' }).click();
   expect((await theme()).board).toBe('mahogany');
 
+  // One-click look from the menu sets all three.
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry .menu-label', { hasText: /^Looks$/ }).hover();
+  await page.locator('.submenu .menu-entry', { hasText: 'Glass Studio' }).click();
+  expect(await theme()).toMatchObject({ board: 'glass', pieces: 'glass', table: 'white-studio' });
+
   // Dialog: pick presets in every tab and keep them.
   await page.getByRole('menuitem', { name: 'Preferences' }).click();
   await page.locator('.menu-entry', { hasText: 'Board and Pieces' }).click();

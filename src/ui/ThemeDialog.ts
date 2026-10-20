@@ -9,8 +9,8 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// The Board and Pieces dialog: tabs for the board, the piece set and the table, each with preset
-// swatches and a Custom section of colour pickers. Every choice shows on the board at once; OK keeps
+// The Board and Pieces dialog: a row of one-click looks, then tabs for the board, the piece set and
+// the table, each with preset swatches and a Custom section of colour pickers. Every choice shows on the board at once; OK keeps
 // it and Cancel (or Escape) puts back what was there before.
 
 import type { Store } from '../core/Store.ts';
@@ -18,15 +18,17 @@ import type { Settings } from '../game/Settings.ts';
 import {
   BOARD_THEMES,
   CUSTOM_ID,
+  LOOKS,
   PIECE_THEMES,
   TABLE_THEMES,
   boardTheme,
+  currentLook,
   pieceTheme,
   tableTheme,
   type CustomColours,
 } from '../scene/themes.ts';
 import { el, openDialog } from './Dialog.ts';
-import { boardSwatch, pieceSwatch, tableSwatch } from './swatches.ts';
+import { boardSwatch, lookSwatch, pieceSwatch, tableSwatch } from './swatches.ts';
 
 type Tab = 'board' | 'pieces' | 'table';
 
@@ -69,6 +71,9 @@ export function themeDialog(settings: Store<Settings>, start: Tab = 'board'): Pr
     const tabs = el('div', 'tabs');
     tabs.setAttribute('role', 'tablist');
     const panes = new Map<Tab, HTMLElement>();
+    // Every swatch row re-marks itself after any choice, since a look changes all three tabs.
+    const marks: Array<() => void> = [];
+    const markAll = () => marks.forEach((mark) => mark());
     const tabButtons = new Map<Tab, HTMLButtonElement>();
 
     const show = (tab: Tab) => {
@@ -87,7 +92,7 @@ export function themeDialog(settings: Store<Settings>, start: Tab = 'board'): Pr
       button.addEventListener('click', () => show(spec.id));
       tabButtons.set(spec.id, button);
       tabs.append(button);
-      panes.set(spec.id, buildPane(spec, settings));
+      panes.set(spec.id, buildPane(spec, settings, marks, markAll));
     }
     const actions = el('div', 'choice-row');
     const ok = el('button', 'btn', 'OK');
@@ -97,7 +102,8 @@ export function themeDialog(settings: Store<Settings>, start: Tab = 'board'): Pr
     cancel.type = 'button';
     cancel.addEventListener('click', () => close(false));
     actions.append(ok, cancel);
-    body.append(tabs, ...panes.values(), actions);
+    body.append(buildLooks(settings, marks, markAll), tabs, ...panes.values(), actions);
+    markAll();
     show(start);
   }).then((kept) => {
     if (!kept) {
@@ -112,7 +118,43 @@ export function themeDialog(settings: Store<Settings>, start: Tab = 'board'): Pr
   });
 }
 
-function buildPane(spec: TabSpec, settings: Store<Settings>): HTMLElement {
+/** The row of one-click looks: each sets the board, the pieces and the table together. */
+function buildLooks(
+  settings: Store<Settings>,
+  marks: Array<() => void>,
+  markAll: () => void,
+): HTMLElement {
+  const row = el('div', 'looks');
+  row.append(el('div', 'coach-heading', 'Looks'));
+  const grid = el('div', 'swatch-grid');
+  const buttons: HTMLButtonElement[] = [];
+  for (const look of LOOKS) {
+    const button = el('button', 'swatch');
+    button.type = 'button';
+    button.dataset.look = look.id;
+    button.title = look.label;
+    button.append(lookSwatch(look), el('span', '', look.label));
+    button.addEventListener('click', () => {
+      settings.update({ boardTheme: look.board, pieceTheme: look.pieces, tableTheme: look.table });
+      markAll();
+    });
+    buttons.push(button);
+    grid.append(button);
+  }
+  marks.push(() => {
+    const current = currentLook(settings.get());
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.look === current?.id));
+  });
+  row.append(grid);
+  return row;
+}
+
+function buildPane(
+  spec: TabSpec,
+  settings: Store<Settings>,
+  marks: Array<() => void>,
+  markAll: () => void,
+): HTMLElement {
   const pane = el('div', 'tab-pane');
   pane.setAttribute('role', 'tabpanel');
   pane.dataset.pane = spec.id;
@@ -123,9 +165,10 @@ function buildPane(spec: TabSpec, settings: Store<Settings>): HTMLElement {
     const current = settings.get()[spec.key];
     for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.theme === current));
   };
+  marks.push(mark);
   const choose = (id: string) => {
     settings.update({ [spec.key]: id } as Partial<Settings>);
-    mark();
+    markAll();
   };
 
   const swatchButton = (id: string, label: string) => {
@@ -153,7 +196,7 @@ function buildPane(spec: TabSpec, settings: Store<Settings>): HTMLElement {
       [spec.key]: CUSTOM_ID,
     } as Partial<Settings>);
     refreshCustomSwatch();
-    mark();
+    markAll();
   };
 
   const custom = el('div', 'custom-colours');
@@ -215,6 +258,5 @@ function buildPane(spec: TabSpec, settings: Store<Settings>): HTMLElement {
     colourRow('Table', 'table');
   }
   pane.append(grid, custom);
-  mark();
   return pane;
 }

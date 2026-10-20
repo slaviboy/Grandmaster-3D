@@ -12,7 +12,16 @@
 // Small previews of each look, painted with the same code that paints the board and table.
 
 import { createRng } from '../core/rng.ts';
-import type { BoardTheme, PieceStyle, PieceTheme, TableTheme } from '../scene/themes.ts';
+import {
+  boardTheme,
+  pieceTheme,
+  tableTheme,
+  type BoardTheme,
+  type Look,
+  type PieceStyle,
+  type PieceTheme,
+  type TableTheme,
+} from '../scene/themes.ts';
 import { drawCracked, drawFelt, drawGrain, drawSurface } from '../scene/woodTextures.ts';
 
 const WIDTH = 120;
@@ -51,13 +60,18 @@ export function boardSwatch(theme: BoardTheme): HTMLCanvasElement {
   return c;
 }
 
-function disc(ctx: CanvasRenderingContext2D, x: number, style: PieceStyle): void {
-  const y = HEIGHT / 2;
-  const r = 26;
+function disc(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  style: PieceStyle,
+  y = HEIGHT / 2,
+  r = 26,
+): void {
   if (style.finish === 'glass' || style.finish === 'gloss') {
     // Glass: see-through with a bright rim, or mirror-black with one sharp highlight.
     const clear = style.finish === 'glass';
-    const g = ctx.createRadialGradient(x - 8, y - 9, 1, x, y, r);
+    const k = r / 26;
+    const g = ctx.createRadialGradient(x - 8 * k, y - 9 * k, 1, x, y, r);
     g.addColorStop(0, clear ? 'rgba(255,255,255,0.9)' : '#5a6068');
     g.addColorStop(0.25, clear ? 'rgba(235,245,242,0.35)' : style.light);
     g.addColorStop(1, clear ? 'rgba(210,228,222,0.55)' : style.dark);
@@ -70,11 +84,12 @@ function disc(ctx: CanvasRenderingContext2D, x: number, style: PieceStyle): void
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.beginPath();
-    ctx.ellipse(x - 9, y - 11, 6, 3, -0.6, 0, Math.PI * 2);
+    ctx.ellipse(x - 9 * k, y - 11 * k, 6 * k, 3 * k, -0.6, 0, Math.PI * 2);
     ctx.fill();
     return;
   }
-  const g = ctx.createRadialGradient(x - 9, y - 10, 2, x, y, r);
+  const k = r / 26;
+  const g = ctx.createRadialGradient(x - 9 * k, y - 10 * k, 2, x, y, r);
   const sheen = style.finish === 'metal' ? '#ffffff' : style.light;
   g.addColorStop(0, sheen);
   g.addColorStop(0.35, style.light);
@@ -86,16 +101,16 @@ function disc(ctx: CanvasRenderingContext2D, x: number, style: PieceStyle): void
   if (style.finish === 'wood' || style.finish === 'lacquer') {
     // A few growth rings.
     ctx.strokeStyle = `rgba(0,0,0,${0.12 * style.contrast + 0.05})`;
-    for (let k = 1; k < 5; k++) {
+    for (let ring = 1; ring < 5; ring++) {
       ctx.beginPath();
-      ctx.arc(x + 4, y + 3, k * 6, 0, Math.PI * 2);
+      ctx.arc(x + 4 * k, y + 3 * k, ring * 6 * k, 0, Math.PI * 2);
       ctx.stroke();
     }
   } else if (style.finish === 'stone') {
     ctx.strokeStyle = `rgba(0,0,0,${0.25 * style.contrast})`;
     ctx.beginPath();
-    ctx.moveTo(x - r * 0.8, y + 6);
-    ctx.bezierCurveTo(x - 6, y - 10, x + 4, y + 14, x + r * 0.8, y - 4);
+    ctx.moveTo(x - r * 0.8, y + 6 * k);
+    ctx.bezierCurveTo(x - 6 * k, y - 10 * k, x + 4 * k, y + 14 * k, x + r * 0.8, y - 4 * k);
     ctx.stroke();
   }
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
@@ -127,5 +142,16 @@ export function tableSwatch(theme: TableTheme): HTMLCanvasElement {
   else if (theme.pattern === 'felt') drawFelt(t, 128, theme.surface, rng);
   else drawGrain(t, 0, 0, 128, 128, theme.surface, rng);
   ctx.drawImage(tile, 0, 0, 128, 128, 0, 0, WIDTH, WIDTH);
+  return c;
+}
+
+/** A whole look at a glance: the table around a corner of the board, with a piece of each side. */
+export function lookSwatch(look: Look): HTMLCanvasElement {
+  const [c, ctx] = canvas();
+  ctx.drawImage(tableSwatch(tableTheme(look.table)), 0, 0);
+  ctx.drawImage(boardSwatch(boardTheme(look.board)), 0, 0, WIDTH, HEIGHT, 14, 12, 92, 56);
+  const pieces = pieceTheme(look.pieces);
+  disc(ctx, 42, pieces.w, 40, 15);
+  disc(ctx, 78, pieces.b, 40, 15);
   return c;
 }

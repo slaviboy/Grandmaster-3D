@@ -35,7 +35,14 @@ import {
 } from './dialogs.ts';
 import { GameStatusPanel, type PlayerInfo } from './GameStatusPanel.ts';
 import { themeDialog } from './ThemeDialog.ts';
-import { BOARD_THEMES, CUSTOM_ID, PIECE_THEMES, TABLE_THEMES } from '../scene/themes.ts';
+import {
+  BOARD_THEMES,
+  CUSTOM_ID,
+  LOOKS,
+  PIECE_THEMES,
+  TABLE_THEMES,
+  currentLook,
+} from '../scene/themes.ts';
 import { MenuBar, type Menu, type MenuItem } from './MenuBar.ts';
 import type { Panel } from './Panel.ts';
 
@@ -557,6 +564,20 @@ export class UiRoot {
             action: toggle('showCoordinates'),
           },
           sep,
+          {
+            label: '&Looks',
+            submenu: () =>
+              LOOKS.map((look) => ({
+                label: look.label,
+                checked: () => currentLook(s())?.id === look.id,
+                action: () =>
+                  app.settings.update({
+                    boardTheme: look.board,
+                    pieceTheme: look.pieces,
+                    tableTheme: look.table,
+                  }),
+              })),
+          },
           { label: 'Board and &Pieces…', action: () => void themeDialog(app.settings) },
           {
             label: '&Board',
