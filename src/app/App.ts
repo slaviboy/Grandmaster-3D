@@ -34,6 +34,7 @@ import { Highlights } from '../scene/Highlights.ts';
 import { InteractionController } from '../scene/InteractionController.ts';
 import { PieceAssetManager } from '../scene/PieceAssetManager.ts';
 import { PieceManager } from '../scene/PieceManager.ts';
+import { setPieceEnvironment } from '../scene/pieceMaterial.ts';
 import { boardTheme, pieceTheme, tableTheme } from '../scene/themes.ts';
 import { askPromotion } from '../ui/PromotionDialog.ts';
 
@@ -72,6 +73,7 @@ export class App {
     this.scene.onResize((w, h) => this.camera.resize(w, h));
     if (this.params.get('anim') === '0') this.tweener.speed = 0;
 
+    setPieceEnvironment(this.scene.scene.environment);
     this.pieces = new PieceManager(this.assets);
     this.scene.scene.add(this.pieces.group);
     this.highlights = new Highlights(requestRender);

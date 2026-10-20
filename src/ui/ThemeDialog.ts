@@ -208,6 +208,8 @@ function buildPane(spec: TabSpec, settings: Store<Settings>): HTMLElement {
       ['lacquer', 'Lacquer'],
       ['metal', 'Metal'],
       ['stone', 'Stone'],
+      ['glass', 'Clear glass'],
+      ['gloss', 'Polished glass'],
     ]);
   } else {
     colourRow('Table', 'table');

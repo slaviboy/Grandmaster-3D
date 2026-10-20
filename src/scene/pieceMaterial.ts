@@ -19,11 +19,35 @@ import {
   Color,
   MeshPhysicalMaterial,
   Vector3,
+  type Texture,
   type WebGLProgramParametersWithUniforms,
 } from 'three';
+import { clearGlassMaterial, glossGlassMaterial, type GlassOptions } from './glass.ts';
 import type { PieceFinish, PieceStyle } from './themes.ts';
 
-const PATTERN: Record<PieceFinish, number> = { wood: 0, lacquer: 0, stone: 1, metal: 2 };
+const PATTERN: Record<PieceFinish, number> = {
+  wood: 0,
+  lacquer: 0,
+  stone: 1,
+  metal: 2,
+  glass: 2,
+  gloss: 2,
+};
+
+let environment: Texture | null = null;
+
+/**
+ * The room reflection used by polished finishes. A material's envMapIntensity only applies to its
+ * own envMap, not to the scene-wide environment, so glass, metal and stone get it explicitly.
+ */
+export function setPieceEnvironment(texture: Texture | null): void {
+  environment = texture;
+}
+
+function polish<T extends MeshPhysicalMaterial>(material: T): T {
+  if (environment) material.envMap = environment;
+  return material;
+}
 
 const VERTEX_DECLARATIONS = /* glsl */ `
 varying vec3 vWoodPosition;
@@ -87,7 +111,14 @@ vec3 woodColor(vec3 p) {
 `;
 
 /** A material for one piece in the given style; `seed` shifts its grain so no two pieces match. */
-export function createPieceMaterial(style: PieceStyle, seed: number): MeshPhysicalMaterial {
+export function createPieceMaterial(
+  style: PieceStyle,
+  seed: number,
+  glass: GlassOptions = { transmission: true },
+): MeshPhysicalMaterial {
+  // Glass has no grain: plain physical materials, no shader changes.
+  if (style.finish === 'glass') return polish(clearGlassMaterial(style, glass));
+  if (style.finish === 'gloss') return polish(glossGlassMaterial(style));
   const material = new MeshPhysicalMaterial({
     color: '#ffffff',
     roughness: style.roughness,
@@ -96,7 +127,7 @@ export function createPieceMaterial(style: PieceStyle, seed: number): MeshPhysic
     clearcoatRoughness: style.finish === 'lacquer' ? 0.08 : 0.16,
     specularIntensity: 0.6,
     // The room reflection is kept faint for wood; polished metal needs more of it to read as metal.
-    envMapIntensity: style.finish === 'metal' ? 6 : style.finish === 'stone' ? 1.6 : 1,
+    envMapIntensity: style.finish === 'metal' ? 1 : style.finish === 'stone' ? 1.1 : 1,
   });
   const uniforms = {
     woodLight: { value: new Color(style.light) },
@@ -112,6 +143,7 @@ export function createPieceMaterial(style: PieceStyle, seed: number): MeshPhysic
       ),
     },
   };
+  if (style.finish === 'metal' || style.finish === 'stone') polish(material);
   material.userData.wood = uniforms;
   material.userData.style = style;
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {

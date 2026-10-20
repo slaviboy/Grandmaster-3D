@@ -54,6 +54,26 @@ export function boardSwatch(theme: BoardTheme): HTMLCanvasElement {
 function disc(ctx: CanvasRenderingContext2D, x: number, style: PieceStyle): void {
   const y = HEIGHT / 2;
   const r = 26;
+  if (style.finish === 'glass' || style.finish === 'gloss') {
+    // Glass: see-through with a bright rim, or mirror-black with one sharp highlight.
+    const clear = style.finish === 'glass';
+    const g = ctx.createRadialGradient(x - 8, y - 9, 1, x, y, r);
+    g.addColorStop(0, clear ? 'rgba(255,255,255,0.9)' : '#5a6068');
+    g.addColorStop(0.25, clear ? 'rgba(235,245,242,0.35)' : style.light);
+    g.addColorStop(1, clear ? 'rgba(210,228,222,0.55)' : style.dark);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = clear ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = clear ? 2 : 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    ctx.ellipse(x - 9, y - 11, 6, 3, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   const g = ctx.createRadialGradient(x - 9, y - 10, 2, x, y, r);
   const sheen = style.finish === 'metal' ? '#ffffff' : style.light;
   g.addColorStop(0, sheen);

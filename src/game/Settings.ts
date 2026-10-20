@@ -106,7 +106,9 @@ function sanitizeCustom(raw: unknown): CustomColours {
   const boardPattern = ['wood', 'marble', 'plain'].includes(value.boardPattern as string)
     ? (value.boardPattern as CustomColours['boardPattern'])
     : DEFAULT_CUSTOM.boardPattern;
-  const finish = ['wood', 'lacquer', 'metal', 'stone'].includes(value.finish as string)
+  const finish = ['wood', 'lacquer', 'metal', 'stone', 'glass', 'gloss'].includes(
+    value.finish as string,
+  )
     ? (value.finish as CustomColours['finish'])
     : DEFAULT_CUSTOM.finish;
   return {

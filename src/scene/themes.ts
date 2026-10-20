@@ -43,7 +43,9 @@ export interface BoardTheme {
   readonly roughness: number;
 }
 
-export type PieceFinish = 'wood' | 'lacquer' | 'metal' | 'stone';
+/** wood, lacquer, metal and stone are opaque; glass is clear and lets light through; gloss is
+ * opaque polished glass (the black pieces of a glass set). */
+export type PieceFinish = 'wood' | 'lacquer' | 'metal' | 'stone' | 'glass' | 'gloss';
 
 export interface PieceStyle {
   readonly finish: PieceFinish;
@@ -240,8 +242,8 @@ export const PIECE_THEMES: readonly PieceTheme[] = [
     label: 'Red Lacquer & Silver',
     w: {
       finish: 'metal',
-      light: '#dce8f4',
-      dark: '#a8b8ca',
+      light: '#c4d0dc',
+      dark: '#93a2b4',
       rings: 0,
       contrast: 0.3,
       roughness: 0.36,
@@ -389,6 +391,32 @@ export const PIECE_THEMES: readonly PieceTheme[] = [
       metalness: 0,
       clearcoat: 0.7,
       endGrain: '#6a6868',
+    },
+  },
+  {
+    id: 'glass',
+    label: 'Glass',
+    w: {
+      finish: 'glass',
+      light: '#f6faf8',
+      dark: '#dce8e2',
+      rings: 0,
+      contrast: 0,
+      roughness: 0.04,
+      metalness: 0,
+      clearcoat: 0,
+      endGrain: '#eef4f2',
+    },
+    b: {
+      finish: 'gloss',
+      light: '#0b0d10',
+      dark: '#050608',
+      rings: 0,
+      contrast: 0,
+      roughness: 0.04,
+      metalness: 0,
+      clearcoat: 1,
+      endGrain: '#1c1f24',
     },
   },
 ];
@@ -574,6 +602,31 @@ function pieceStyleFrom(colour: string, finish: PieceFinish): PieceStyle {
   const dark = shade(colour, -0.16);
   const endGrain = shade(colour, 0.22, -0.1);
   switch (finish) {
+    case 'glass':
+      // The picked colour tints the glass.
+      return {
+        finish,
+        light: shade(colour, 0.1),
+        dark: colour,
+        rings: 0,
+        contrast: 0,
+        roughness: 0.04,
+        metalness: 0,
+        clearcoat: 0,
+        endGrain: shade(colour, 0.15),
+      };
+    case 'gloss':
+      return {
+        finish,
+        light: colour,
+        dark: shade(colour, -0.1),
+        rings: 0,
+        contrast: 0,
+        roughness: 0.04,
+        metalness: 0,
+        clearcoat: 1,
+        endGrain: shade(colour, 0.12),
+      };
     case 'metal':
       return {
         finish,
