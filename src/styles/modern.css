@@ -46,6 +46,7 @@
 
   /* Every floating surface: frosted glass, or solid where the browser cannot blur. */
   .m-topbar,
+  .m-card,
   .menu {
     background: var(--m-surface);
     -webkit-backdrop-filter: var(--m-blur);
@@ -56,6 +57,7 @@
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .m-topbar,
+    .m-card,
     .menu {
       background: var(--m-solid);
     }
@@ -182,6 +184,16 @@
     pointer-events: none;
     z-index: 30;
     animation: m-fade 0.12s 0.35s both;
+  }
+
+  /* Near the right edge, tooltips line up with their button's right side. */
+  .m-topbar-end > [data-tip]:last-child:hover::after,
+  .m-topbar-end > [data-tip]:last-child:focus-visible::after,
+  .m-move-nav > [data-tip]:last-child:hover::after,
+  .m-move-nav > [data-tip]:last-child:focus-visible::after {
+    left: auto;
+    right: 0;
+    transform: none;
   }
 
   /* Top bar: wordmark, menus, then the main buttons. */
@@ -381,6 +393,357 @@
     background: var(--m-line);
   }
 
+  .m-card {
+    border-radius: var(--m-radius);
+  }
+
+  .m-card[hidden] {
+    display: none;
+  }
+
+  .m-label {
+    color: var(--m-faint);
+    font: 700 1.02rem var(--m-font);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Match card, top right: the opponent above the moves, the player below. */
+  .m-match {
+    position: absolute;
+    top: 6.6rem;
+    right: 0.8rem;
+    width: 21.2rem;
+    max-height: calc(100% - 6.6rem - 8.6rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .m-player {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.2rem minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 0.8rem;
+    row-gap: 0.3rem;
+    padding: 1rem;
+    flex: none;
+    transition: background 0.2s;
+  }
+
+  .m-player.top {
+    border-radius: var(--m-radius) var(--m-radius) 0 0;
+  }
+
+  .m-player.bottom {
+    border-radius: 0 0 var(--m-radius) var(--m-radius);
+  }
+
+  .m-player.to-move {
+    background: linear-gradient(90deg, var(--m-gold-soft), transparent 75%);
+  }
+
+  .m-player.to-move::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 1.2rem;
+    bottom: 1.2rem;
+    width: 0.3rem;
+    border-radius: 0 0.3rem 0.3rem 0;
+    background: var(--m-gold);
+  }
+
+  .m-avatar {
+    position: relative;
+    grid-row: 1 / 3;
+    width: 4.2rem;
+    height: 4.2rem;
+  }
+
+  .m-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 1.2rem;
+    overflow: hidden;
+    background: linear-gradient(160deg, #2c2f37, #1a1c21);
+    box-shadow: inset 0 0 0 1px var(--m-line-strong);
+  }
+
+  .m-avatar-img img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 18%;
+  }
+
+  .m-avatar-img svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .m-avatar-img.person {
+    display: grid;
+    place-items: center;
+  }
+
+  .m-avatar-img.person svg {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  /* A disc in the player's colour on the portrait's corner. */
+  .m-avatar-color {
+    position: absolute;
+    right: -0.35rem;
+    bottom: -0.35rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 50%;
+    background: #f4f4f6;
+    box-shadow:
+      0 0 0 0.25rem #1b1d22,
+      inset 0 -0.15rem 0.2rem rgba(0, 0, 0, 0.2);
+  }
+
+  .m-avatar-color[data-color='b'] {
+    background: #0b0c0e;
+    box-shadow:
+      0 0 0 0.25rem #1b1d22,
+      inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+
+  .m-player-name {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    min-width: 0;
+    font: 600 1.42rem/1.2 var(--m-font);
+    white-space: nowrap;
+  }
+
+  .m-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .m-note {
+    flex: none;
+    color: var(--m-gold);
+    font: 500 1.12rem var(--m-font);
+  }
+
+  .m-note::after {
+    content: '…';
+    display: inline-block;
+    animation: m-pulse 1.2s ease-in-out infinite;
+  }
+
+  .m-note[hidden] {
+    display: none;
+  }
+
+  .m-player-sub {
+    grid-column: 2 / 4;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 1.8rem;
+    color: var(--m-muted);
+    font-size: 1.15rem;
+  }
+
+  .m-rating {
+    padding: 0 0.5rem;
+    border: 1px solid var(--m-line);
+    border-radius: 0.5rem;
+    background: var(--m-raised);
+    font: 600 1.05rem/1.6rem var(--m-font);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .m-rating[hidden] {
+    display: none;
+  }
+
+  .m-captures {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .m-cap-group {
+    display: flex;
+  }
+
+  .m-cap-group svg {
+    width: 1.55rem;
+    height: 1.55rem;
+  }
+
+  .m-cap-group svg + svg {
+    margin-left: -0.85rem;
+  }
+
+  /* Black pieces in graphite with a light edge, so they read on the dark glass. */
+  .m-cap-group[data-color='b'] svg path {
+    fill: #3b3e46;
+    stroke: #e8e9ec;
+  }
+
+  .m-lead {
+    color: var(--m-text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .m-clock {
+    padding: 0.4rem 0.65rem;
+    border: 1px solid var(--m-line);
+    border-radius: 1rem;
+    background: var(--m-raised);
+    color: var(--m-muted);
+    font: 600 1.85rem/1 var(--m-font);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    transition:
+      background 0.2s,
+      color 0.2s;
+  }
+
+  .m-clock.active {
+    border-color: transparent;
+    background: linear-gradient(180deg, #e3c682, #c8a255);
+    color: var(--m-gold-ink);
+    box-shadow: 0 0.3rem 1.2rem rgba(214, 179, 106, 0.28);
+  }
+
+  .m-clock.low {
+    background: var(--m-danger);
+    color: #2a0b08;
+    box-shadow: 0 0.3rem 1.2rem rgba(229, 115, 107, 0.35);
+  }
+
+  .m-match-moves {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-block: 1px solid var(--m-line);
+  }
+
+  .m-match-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.5rem 0.2rem 1.2rem;
+  }
+
+  .m-time-control {
+    margin-left: auto;
+    color: var(--m-muted);
+    font-size: 1.15rem;
+  }
+
+  .m-match-head .m-icon-btn {
+    width: 2.8rem;
+    height: 2.8rem;
+  }
+
+  .m-match-head .m-icon-btn svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    transition: transform 0.2s;
+  }
+
+  .m-match.compact .m-fold svg {
+    transform: rotate(-90deg);
+  }
+
+  .m-moves {
+    flex: 1 1 auto;
+    min-height: 5rem;
+    max-height: 22rem;
+    margin: 0;
+    padding: 0.2rem 0.6rem 0.4rem;
+    overflow-y: auto;
+    list-style: none;
+    font: 500 1.28rem var(--m-font);
+    font-variant-numeric: tabular-nums;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+
+  .m-moves li {
+    display: grid;
+    grid-template-columns: 3rem 1fr 1fr;
+    align-items: center;
+    min-height: 2.6rem;
+    border-radius: 0.7rem;
+  }
+
+  .m-moves li:nth-child(even) {
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .m-moves li.m-moves-empty {
+    display: block;
+    padding: 0.8rem 0.6rem;
+    background: none;
+    color: var(--m-faint);
+    font-weight: 400;
+  }
+
+  .m-move-number {
+    padding-left: 0.6rem;
+    color: var(--m-faint);
+  }
+
+  .m-move-san {
+    justify-self: start;
+    padding: 0.15rem 0.6rem;
+    border-radius: 0.6rem;
+  }
+
+  .m-move-san.current {
+    background: var(--m-gold-soft);
+    color: var(--m-gold-hi);
+    box-shadow: inset 0 0 0 1px var(--m-gold-line);
+  }
+
+  .m-move-nav {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.2rem 0.6rem 0.6rem;
+  }
+
+  .m-move-nav .m-icon-btn {
+    width: 3.2rem;
+    height: 3rem;
+  }
+
+  .m-move-nav .m-icon-btn svg {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .m-match.compact .m-moves,
+  .m-match.compact .m-move-nav {
+    display: none;
+  }
+
+  /* In the card, tooltips open upwards, over the moves rather than past the card's bottom. */
+  .m-match [data-tip]:hover::after,
+  .m-match [data-tip]:focus-visible::after {
+    top: auto;
+    bottom: calc(100% + 0.6rem);
+  }
+
   @media (max-width: 760px) {
     .m-brand-name {
       display: none;
@@ -421,5 +784,11 @@
   from {
     opacity: 0;
     transform: translateY(-0.4rem);
+  }
+}
+
+@keyframes m-pulse {
+  50% {
+    opacity: 0.25;
   }
 }

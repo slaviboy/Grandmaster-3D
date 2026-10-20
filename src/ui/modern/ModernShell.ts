@@ -10,33 +10,21 @@
  */
 
 // The modern interface: floating dark-glass cards around the board. A top bar with the wordmark,
-// the menus and the main buttons runs along the top.
+// the menus and the main buttons runs along the top, and the Match card (players, clocks and moves)
+// stands at the right, where it keeps the board's framing of the retro layout.
 
 import type { Color } from '../../game/types.ts';
 import { el } from '../Dialog.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
 import type { Shell, ShellContext, ShellView } from '../shell.ts';
-
-/** A button with an icon and an optional visible label; the label also names it for tooltips. */
-export function iconButton(
-  icon: string,
-  label: string,
-  onClick: () => void,
-  className = 'm-icon-btn',
-): HTMLButtonElement {
-  const button = el('button', className);
-  button.type = 'button';
-  button.innerHTML = icon;
-  button.setAttribute('aria-label', label);
-  button.dataset.tip = label;
-  button.addEventListener('click', onClick);
-  return button;
-}
+import { iconButton } from './controls.ts';
+import { MatchCard } from './MatchCard.ts';
 
 export class ModernShell implements Shell {
   readonly element: HTMLElement;
   private readonly menu: MenuBar;
+  private readonly match: MatchCard;
 
   constructor(private readonly ctx: ShellContext) {
     const { app, commands, signal } = ctx;
@@ -59,18 +47,36 @@ export class ModernShell implements Shell {
     );
     top.append(brand, this.menu.element, end);
 
-    this.element.append(top);
+    this.match = new MatchCard(commands);
+
+    this.element.append(top, this.match.element);
     app.root.append(this.element);
-    app.camera.setReservedRight(0);
+
+    // Small screens start with the move list folded so the board stays clear.
+    if (window.innerWidth < 760) this.match.setMovesVisible(false);
+
+    // On narrow windows the camera fits the board into the space left of the Match card.
+    const reserve = () => {
+      const rect = this.match.element.getBoundingClientRect();
+      const covered = this.match.visible && window.innerWidth >= 760;
+      app.camera.setReservedRight(covered ? window.innerWidth - rect.left : 0);
+    };
+    this.match.onChange(reserve);
+    window.addEventListener('resize', reserve, { signal });
+    reserve();
   }
 
   get menuOpen(): boolean {
     return this.menu.isOpen;
   }
 
-  render(_view: ShellView): void {}
+  render({ state, players, bottomColor }: ShellView): void {
+    this.match.render(state, players, bottomColor);
+  }
 
-  renderClocks(_times: Record<Color, number>, _running: Color | null): void {}
+  renderClocks(times: Record<Color, number>, running: Color | null): void {
+    this.match.renderClocks(times, running);
+  }
 
   say(_text: string): void {}
 
@@ -108,6 +114,21 @@ export class ModernShell implements Shell {
           sep,
           ...m.coordinates(),
           ...m.marks(),
+          sep,
+          {
+            label: 'M&atch Card',
+            checked: () => this.match.visible,
+            action: () => this.match.setVisible(!this.match.visible),
+          },
+          {
+            label: 'Move &List',
+            checked: () => this.match.visible && this.match.movesVisible,
+            action: () => {
+              const show = !(this.match.visible && this.match.movesVisible);
+              this.match.setVisible(true);
+              this.match.setMovesVisible(show);
+            },
+          },
           sep,
           { label: '&Full Screen', action: () => this.ctx.commands.toggleFullscreen() },
         ],
