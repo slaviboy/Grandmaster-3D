@@ -18,7 +18,8 @@ import { pieceSvg } from './icons.ts';
 const CHOICES: readonly PromotionKind[] = ['q', 'r', 'b', 'n'];
 
 export function askPromotion(color: Color): Promise<PromotionKind | null> {
-  return openDialog<PromotionKind | null>('Promote pawn to', null, ({ body, root, close }) => {
+  let onKey: ((event: KeyboardEvent) => void) | null = null;
+  const answer = openDialog<PromotionKind | null>('Promote pawn to', null, ({ body, close }) => {
     const row = el('div', 'choice-row');
     for (const kind of CHOICES) {
       const button = el('button', 'choice');
@@ -30,12 +31,18 @@ export function askPromotion(color: Color): Promise<PromotionKind | null> {
       row.append(button);
     }
     body.append(row);
-    root.addEventListener('keydown', (event) => {
+    // Listen on the document so the letter keys work wherever focus happens to be.
+    onKey = (event: KeyboardEvent) => {
       const kind = event.key.toLowerCase() as PromotionKind;
-      if (CHOICES.includes(kind)) {
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && CHOICES.includes(kind)) {
         event.preventDefault();
+        event.stopPropagation();
         close(kind);
       }
-    });
+    };
+    document.addEventListener('keydown', onKey, true);
+  });
+  return answer.finally(() => {
+    if (onKey) document.removeEventListener('keydown', onKey, true);
   });
 }
