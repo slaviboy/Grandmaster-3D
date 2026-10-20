@@ -102,6 +102,8 @@ export interface GameState {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly difficulty: DifficultyId;
+  /** The computer's rating at the chosen difficulty (Custom has its own). */
+  readonly rating: number;
   readonly minutes: number;
   readonly thinking: EngineThought | null;
   readonly hint: { readonly from: Square; readonly to: Square } | null;
@@ -409,7 +411,7 @@ export class GameController {
     const engine = this.options.engine!;
     const generation = this.generation;
     const fen = this.game.fen();
-    const preset = difficulty(this.settings.difficulty);
+    const preset = difficulty(this.settings.difficulty, this.settings.customRating);
     this.thinking = { depth: 0, score: '' };
     this.options.view.setInteractive(null);
     this.setPhase('engineThinking');
@@ -527,6 +529,7 @@ export class GameController {
       canUndo: this.game.canUndo() && this.phase !== 'loading',
       canRedo: this.game.canRedo() && this.phase !== 'loading',
       difficulty: this.settings.difficulty,
+      rating: difficulty(this.settings.difficulty, this.settings.customRating).rating,
       minutes: this.settings.minutes,
       thinking: this.thinking,
       hint: this.hint,

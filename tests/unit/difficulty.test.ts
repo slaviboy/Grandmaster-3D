@@ -11,7 +11,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../src/core/rng.ts';
-import { DIFFICULTIES, difficulty, isDifficultyId } from '../../src/engine/difficulty.ts';
+import {
+  CUSTOM_RATING,
+  DIFFICULTIES,
+  clampRating,
+  customDifficulty,
+  difficulty,
+  isDifficultyId,
+} from '../../src/engine/difficulty.ts';
+import { sanitize } from '../../src/game/Settings.ts';
 import { pickMove } from '../../src/engine/movePolicy.ts';
 import type { PvLine } from '../../src/engine/uci.ts';
 
@@ -52,6 +60,66 @@ describe('difficulty presets', () => {
     expect(difficulty('maximum').options['UCI_LimitStrength']).toBe(false);
     expect(isDifficultyId('hard')).toBe(true);
     expect(isDifficultyId('impossible')).toBe(false);
+  });
+});
+
+describe('custom difficulty', () => {
+  const ratings = Array.from(
+    { length: (CUSTOM_RATING.max - CUSTOM_RATING.min) / CUSTOM_RATING.step + 1 },
+    (_, i) => CUSTOM_RATING.min + i * CUSTOM_RATING.step,
+  );
+
+  it('plays like the preset at each preset rating above the engine limit', () => {
+    for (const id of ['medium', 'hard', 'expert'] as const) {
+      const preset = difficulty(id);
+      const custom = customDifficulty(preset.rating);
+      expect(custom.options, id).toEqual(preset.options);
+      expect(custom.go, id).toEqual(preset.go);
+      expect(custom.minThinkMs, id).toBe(preset.minThinkMs);
+    }
+    expect(customDifficulty(3000).options).toEqual(difficulty('maximum').options);
+  });
+
+  it('follows the Beginner and Easy recipes below the engine limit', () => {
+    for (const id of ['beginner', 'easy'] as const) {
+      const preset = difficulty(id);
+      const custom = customDifficulty(preset.rating);
+      expect(custom.options, id).toEqual(preset.options);
+      expect(custom.go, id).toEqual(preset.go);
+      expect(custom.policy, id).toEqual(preset.policy);
+    }
+  });
+
+  it('stays within the engine limits and gets stronger as the rating rises', () => {
+    let previous = customDifficulty(CUSTOM_RATING.min);
+    for (const rating of ratings) {
+      const level = difficulty('custom', rating);
+      expect(level.rating).toBe(rating);
+      const o = level.options;
+      expect(Number(o['UCI_Elo'])).toBeGreaterThanOrEqual(1320);
+      expect(Number(o['UCI_Elo'])).toBeLessThanOrEqual(3190);
+      expect(Number.isInteger(o['Skill Level'])).toBe(true);
+      expect(Number.isInteger(o['MultiPV'])).toBe(true);
+      if (level.go.depth !== undefined) expect(Number.isInteger(level.go.depth)).toBe(true);
+      if (level.policy && previous.policy) {
+        expect(level.policy.blunderChance).toBeLessThanOrEqual(previous.policy.blunderChance);
+        expect(level.policy.temperature).toBeLessThanOrEqual(previous.policy.temperature);
+      }
+      expect(level.go.movetime ?? 0).toBeGreaterThanOrEqual(previous.go.movetime ?? 0);
+      previous = level;
+    }
+  });
+
+  it('clamps ratings and keeps them in settings', () => {
+    expect(clampRating(100)).toBe(CUSTOM_RATING.min);
+    expect(clampRating(9999)).toBe(CUSTOM_RATING.max);
+    expect(clampRating(Number.NaN)).toBe(CUSTOM_RATING.initial);
+    expect(isDifficultyId('custom')).toBe(true);
+    expect(sanitize({ difficulty: 'custom', customRating: 1234.6 })).toMatchObject({
+      difficulty: 'custom',
+      customRating: 1235,
+    });
+    expect(sanitize({ customRating: 'strong' }).customRating).toBe(CUSTOM_RATING.initial);
   });
 });
 

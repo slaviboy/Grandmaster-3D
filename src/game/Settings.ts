@@ -12,7 +12,12 @@
 // Player preferences, saved in the browser when it allows it. A missing or unreadable store just
 // means the defaults; nothing depends on storage working.
 
-import { isDifficultyId, type DifficultyId } from '../engine/difficulty.ts';
+import {
+  CUSTOM_RATING,
+  clampRating,
+  isDifficultyId,
+  type DifficultyId,
+} from '../engine/difficulty.ts';
 import {
   DEFAULT_BOARD,
   DEFAULT_CUSTOM,
@@ -30,6 +35,8 @@ export type GameMode = 'computer' | 'local';
 
 export interface Settings {
   readonly difficulty: DifficultyId;
+  /** The computer's rating when the difficulty is Custom. */
+  readonly customRating: number;
   readonly humanColor: Color;
   readonly mode: GameMode;
   /** Minutes per player; 0 means untimed. */
@@ -56,6 +63,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   difficulty: 'easy',
+  customRating: CUSTOM_RATING.initial,
   humanColor: 'w',
   mode: 'computer',
   minutes: 10,
@@ -91,6 +99,7 @@ export function sanitize(raw: unknown): Settings {
   return {
     ...s,
     difficulty: isDifficultyId(s.difficulty) ? s.difficulty : DEFAULT_SETTINGS.difficulty,
+    customRating: clampRating(s.customRating),
     humanColor: s.humanColor === 'b' ? 'b' : 'w',
     mode: s.mode === 'local' ? 'local' : 'computer',
     minutes: TIME_CONTROLS.includes(s.minutes) ? s.minutes : DEFAULT_SETTINGS.minutes,
