@@ -28,6 +28,11 @@ export interface Menu {
   readonly items: () => MenuItem[];
 }
 
+export interface MenuBarOptions {
+  /** Removes the bar's listeners on the document and window when aborted. */
+  readonly signal?: AbortSignal;
+}
+
 function accessKey(label: string): string | undefined {
   const i = label.indexOf('&');
   return i >= 0 ? label[i + 1]?.toLowerCase() : undefined;
@@ -51,7 +56,11 @@ export class MenuBar {
   private readonly buttons: HTMLButtonElement[] = [];
   private open: { index: number; list: HTMLElement; sub?: HTMLElement } | null = null;
 
-  constructor(private readonly menus: readonly Menu[]) {
+  constructor(
+    private readonly menus: readonly Menu[],
+    options: MenuBarOptions = {},
+  ) {
+    const { signal } = options;
     this.element = document.createElement('nav');
     this.element.className = 'menubar';
     this.element.setAttribute('role', 'menubar');
@@ -74,24 +83,32 @@ export class MenuBar {
       this.buttons.push(button);
       this.element.append(button);
     });
-    document.addEventListener('pointerdown', (event) => {
-      if (
-        this.open &&
-        !this.element.contains(event.target as Node) &&
-        !this.open.list.contains(event.target as Node)
-      ) {
-        this.close();
-      }
-    });
-    window.addEventListener('keydown', (event) => {
-      if (event.altKey && !event.ctrlKey && !event.metaKey) {
-        const index = this.menus.findIndex((m) => accessKey(m.label) === event.key.toLowerCase());
-        if (index >= 0) {
-          event.preventDefault();
-          this.show(index, true);
+    document.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (
+          this.open &&
+          !this.element.contains(event.target as Node) &&
+          !this.open.list.contains(event.target as Node)
+        ) {
+          this.close();
         }
-      }
-    });
+      },
+      { signal },
+    );
+    window.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.altKey && !event.ctrlKey && !event.metaKey) {
+          const index = this.menus.findIndex((m) => accessKey(m.label) === event.key.toLowerCase());
+          if (index >= 0) {
+            event.preventDefault();
+            this.show(index, true);
+          }
+        }
+      },
+      { signal },
+    );
   }
 
   get isOpen(): boolean {

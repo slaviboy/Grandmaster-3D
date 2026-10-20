@@ -9,20 +9,16 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// The interface around the board, laid out like the reference: a title bar with the wordmark and
-// window buttons, the menu bar, the Chess Coach on the left, Game Status and Captured Pieces on the
-// right, the turn tab and round buttons at the bottom and a status line. It follows the game state
-// and sends the player's commands to the app.
+// The interface's brain: it follows the game state, narrates moves in the coach, keeps the board
+// marks and clocks current, runs the player's commands and keyboard shortcuts, and mounts the shell
+// that draws the interface around the board.
 
 import type { App } from '../app/App.ts';
 import { DIFFICULTIES, difficulty } from '../engine/difficulty.ts';
-import { coachMarks, describeMove, describeResult, type CoachOptions } from '../game/coach.ts';
+import { coachMarks, describeMove, describeResult } from '../game/coach.ts';
 import type { GameState } from '../game/GameController.ts';
 import { TIME_CONTROLS, type Settings } from '../game/Settings.ts';
 import type { Color } from '../game/types.ts';
-import { BottomBar } from './BottomBar.ts';
-import { CapturedPanel } from './CapturedPanel.ts';
-import { CoachPanel } from './CoachPanel.ts';
 import { dialogOpen } from './Dialog.ts';
 import {
   aboutDialog,
@@ -35,7 +31,7 @@ import {
   shortcutsDialog,
 } from './dialogs.ts';
 import { opponentPortrait } from './portraits.ts';
-import { GameStatusPanel, type PlayerInfo } from './GameStatusPanel.ts';
+import type { PlayerInfo } from './GameStatusPanel.ts';
 import { themeDialog } from './ThemeDialog.ts';
 import {
   BOARD_THEMES,
@@ -45,19 +41,15 @@ import {
   TABLE_THEMES,
   currentLook,
 } from '../scene/themes.ts';
-import { MenuBar, type Menu, type MenuItem } from './MenuBar.ts';
-import type { Panel } from './Panel.ts';
+import type { MenuItem } from './MenuBar.ts';
+import { RetroShell } from './RetroShell.ts';
+import type { CoachAids, Commands, MenuCatalog, Shell } from './shell.ts';
 
 const VERSION = '0.1.0';
 
 export class UiRoot {
-  readonly element: HTMLElement;
-  private readonly status: GameStatusPanel;
-  private readonly captured: CapturedPanel;
-  private readonly coach: CoachPanel;
-  private readonly bottom: BottomBar;
-  private readonly menu: MenuBar;
-  private coachOptions: Omit<CoachOptions, 'side'> = {
+  private shell: Shell;
+  private coachOptions: CoachAids = {
     captureMoves: false,
     checkMoves: false,
     board: 'off',
@@ -67,10 +59,22 @@ export class UiRoot {
   private seenGeneration = -1;
   private announced = '';
   private lastError: string | null = null;
+  private readonly commands: Commands = {
+    newGame: () => void this.newGame(),
+    undo: () => void this.app.controller.undo(),
+    redo: () => void this.app.controller.redo(),
+    undoAll: () => void this.undoAll(),
+    redoAll: () => void this.redoAll(),
+    moveNow: () => void this.app.controller.moveNow(),
+    resign: () => void this.resign(),
+    hint: () => this.hint(),
+    flip: () => void this.app.camera.flip(),
+    topView: () => this.app.camera.topView(),
+    settings: () => void this.settings(),
+    toggleFullscreen: () => this.toggleFullscreen(),
+  };
 
   constructor(private readonly app: App) {
-    this.element = document.createElement('div');
-    this.element.className = 'ui';
     // The interface styles apply under html[data-ui]; this layout is the retro one.
     document.documentElement.dataset.ui = 'retro';
     // Keep the reference proportions: the layout is designed for a 1024x768 window.
@@ -84,87 +88,21 @@ export class UiRoot {
     scale();
     window.addEventListener('resize', scale);
 
-    const titleBar = document.createElement('header');
-    titleBar.className = 'title-bar';
-    titleBar.innerHTML = `<div class="wordmark" aria-label="Grandmaster 3D"><span class="wm-main">Grandmaster</span><span class="wm-sub">3D Edition</span></div>`;
-    const windowButtons = document.createElement('div');
-    windowButtons.className = 'window-buttons';
-    const winButton = (label: string, title: string, onClick: () => void) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `win-${label}`;
-      b.title = title;
-      b.setAttribute('aria-label', title);
-      b.addEventListener('click', onClick);
-      windowButtons.append(b);
-    };
-    winButton('min', 'Collapse all windows', () => this.collapseAll());
-    winButton('max', 'Full screen', () => this.toggleFullscreen());
-    winButton('close', 'Hide all windows', () => this.toggleAllPanels());
-    titleBar.append(windowButtons);
-
-    this.menu = new MenuBar(this.menus());
-    titleBar.append(this.menu.element);
-
-    this.coach = new CoachPanel({
-      onOptions: (options) => {
-        this.coachOptions = options;
+    this.shell = new RetroShell({
+      app,
+      commands: this.commands,
+      menu: this.catalog(),
+      coachAids: () => this.coachOptions,
+      setCoachAids: (aids) => {
+        this.coachOptions = aids;
         this.refreshCoachMarks();
       },
-      onShowLegalMoves: (on) => this.app.settings.update({ showLegalMoves: on }),
-      onHint: () => this.hint(),
+      signal: new AbortController().signal,
     });
-    this.app.onNotice((text) => this.coach.say(text));
-    this.status = new GameStatusPanel({
-      first: () => void this.undoAll(),
-      back: () => void this.app.controller.undo(),
-      pause: () => void this.app.controller.moveNow(),
-      forward: () => void this.app.controller.redo(),
-      last: () => void this.redoAll(),
-    });
-    this.captured = new CapturedPanel(() => this.captured.toggleMaterial());
-    const right = document.createElement('div');
-    right.className = 'right-column';
-    right.append(this.status.panel.element, this.captured.panel.element);
-
-    this.bottom = new BottomBar({
-      newGame: () => void this.newGame(),
-      undo: () => void this.app.controller.undo(),
-      redo: () => void this.app.controller.redo(),
-      resign: () => void this.resign(),
-      hint: () => this.hint(),
-      flip: () => void this.app.camera.flip(),
-      settings: () => void this.settings(),
-      toggleMoves: () => {
-        this.status.panel.setCollapsed(false);
-        this.status.setMoveListVisible(!this.status.moveListVisible);
-      },
-    });
-
-    this.element.append(titleBar, this.coach.panel.element, right, this.bottom.element);
-    app.root.append(this.element);
-
-    // Small screens start with the side windows folded away so the board stays clear.
-    if (window.innerWidth < 760) {
-      this.status.panel.setCollapsed(true);
-      this.captured.panel.setCollapsed(true);
-    }
-
-    // Keep the board clear of the right-hand panels on narrower windows.
-    const reserve = () => {
-      const open = [this.status.panel, this.captured.panel].some((p) => p.visible && !p.collapsed);
-      const width = open && window.innerWidth >= 760 ? right.getBoundingClientRect().width : 0;
-      app.camera.setReservedRight(width);
-    };
-    for (const panel of this.panels()) panel.onChange(reserve);
-    window.addEventListener('resize', reserve);
-    reserve();
+    this.app.onNotice((text) => this.shell.say(text));
 
     app.controller.state.subscribe((state) => this.render(state));
-    app.settings.subscribe((settings) => {
-      this.coach.syncLegalMoves(settings.showLegalMoves);
-      this.render(app.controller.state.get());
-    });
+    app.settings.subscribe(() => this.render(app.controller.state.get()));
     setInterval(() => this.renderClocks(), 200);
     window.addEventListener('keydown', (event) => this.onKey(event));
     this.renderClocks();
@@ -185,11 +123,13 @@ export class UiRoot {
   }
 
   private render(state: GameState): void {
-    const bottomColor: Color = this.app.camera.side === 'black' ? 'b' : 'w';
-    this.status.render(state, this.players(state), bottomColor);
-    this.captured.render(state);
-    const over = state.status.kind !== 'playing';
-    this.bottom.render(state.turn, over, state.canUndo, state.canRedo, this.statusText(state));
+    this.shell.render({
+      state,
+      settings: this.app.settings.get(),
+      players: this.players(state),
+      bottomColor: this.app.camera.side === 'black' ? 'b' : 'w',
+      status: this.statusText(state),
+    });
     this.narrate(state);
     this.refreshCoachMarks();
   }
@@ -223,19 +163,19 @@ export class UiRoot {
             ? 'You'
             : 'Stockfish';
       const isLast = i === state.history.length - 1;
-      this.coach.say(describeMove(move, who, isLast && state.inCheck));
+      this.shell.say(describeMove(move, who, isLast && state.inCheck));
     }
     this.seenMoves = state.history.length;
     const result = describeResult(state.status);
     const key = `${result}|${state.history.length}`;
     if (result && state.phase === 'gameOver' && key !== this.announced) {
       this.announced = key;
-      this.coach.say(result);
+      this.shell.say(result);
       void this.showGameOver(state, result);
     }
     if (!result) this.announced = '';
     if (state.engineError && state.engineError !== this.lastError) {
-      this.coach.say(`The engine had a problem (${state.engineError}); it restarts by itself.`);
+      this.shell.say(`The engine had a problem (${state.engineError}); it restarts by itself.`);
     }
     this.lastError = state.engineError;
   }
@@ -276,7 +216,7 @@ export class UiRoot {
       w: timed ? clock.remaining('w') : clock.elapsed('w'),
       b: timed ? clock.remaining('b') : clock.elapsed('b'),
     };
-    this.status.renderClocks(times, clock.active);
+    this.shell.renderClocks(times, clock.active);
   }
 
   private pgn(): string {
@@ -296,11 +236,11 @@ export class UiRoot {
   private async newGame(): Promise<void> {
     const patch = await newGameDialog(this.app.settings.get());
     if (!patch) return;
-    this.coach.clear();
+    this.shell.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
     const state = this.app.controller.state.get();
-    this.coach.say(
+    this.shell.say(
       state.mode === 'computer'
         ? `New game against Stockfish (${state.difficulty === 'custom' ? `rated ${state.rating}` : difficulty(state.difficulty).label}). You play ${state.humanColor === 'w' ? 'White' : 'Black'}.`
         : 'New two-player game. White moves first.',
@@ -308,7 +248,7 @@ export class UiRoot {
   }
 
   private async quickNewGame(patch: Partial<Settings>): Promise<void> {
-    this.coach.clear();
+    this.shell.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
   }
@@ -327,7 +267,7 @@ export class UiRoot {
 
   private hint(): void {
     void this.app.controller.requestHint().then((hint) => {
-      if (hint) this.coach.say(`Coach suggests ${hint.from}–${hint.to}.`);
+      if (hint) this.shell.say(`Coach suggests ${hint.from}–${hint.to}.`);
     });
   }
 
@@ -351,9 +291,9 @@ export class UiRoot {
             ? await this.app.controller.loadFen(trimmed)
             : await this.app.controller.loadPgn(trimmed);
           if (result.ok) {
-            this.coach.clear();
+            this.shell.clearLog();
             this.seenMoves = this.app.controller.game.history().length;
-            this.coach.say(looksLikeFen ? 'Position loaded.' : 'Game loaded.');
+            this.shell.say(looksLikeFen ? 'Position loaded.' : 'Game loaded.');
           }
           return result;
         },
@@ -362,29 +302,13 @@ export class UiRoot {
     );
   }
 
-  private collapseAll(): void {
-    const panels = this.panels();
-    const collapse = panels.some((p) => !p.collapsed);
-    for (const p of panels) p.setCollapsed(collapse);
-  }
-
-  private toggleAllPanels(): void {
-    const panels = this.panels();
-    const show = panels.every((p) => !p.visible);
-    for (const p of panels) p.setVisible(show);
-  }
-
-  private panels(): Panel[] {
-    return [this.coach.panel, this.status.panel, this.captured.panel];
-  }
-
   private toggleFullscreen(): void {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen?.().catch(() => undefined);
   }
 
   private onKey(event: KeyboardEvent): void {
-    if (dialogOpen() || this.menu.isOpen) return;
+    if (dialogOpen() || this.shell.menuOpen) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select')) return;
     const mod = event.ctrlKey || event.metaKey;
@@ -406,293 +330,248 @@ export class UiRoot {
     }
   }
 
-  private menus(): Menu[] {
+  /** Every menu entry, grouped by topic for the shells to arrange. */
+  private catalog(): MenuCatalog {
     const app = this.app;
     const s = () => app.settings.get();
     const st = () => app.controller.state.get();
     const toggle = (key: keyof Settings) => () =>
       app.settings.update({ [key]: !s()[key] } as Partial<Settings>);
     const sep: MenuItem = { separator: true };
-    return [
-      {
-        label: '&File',
-        items: () => [
-          { label: '&New Game…', shortcut: 'Ctrl+N', action: () => void this.newGame() },
-          { label: '&Open Game or Position…', action: () => this.importExport(true) },
-          { label: '&Save Game (PGN)', action: () => downloadText('game.pgn', this.pgn()) },
-          sep,
-          {
-            label: 'Copy &FEN',
-            action: () =>
-              void navigator.clipboard?.writeText(app.controller.game.fen()).catch(() => undefined),
-          },
-          {
-            label: 'Copy &PGN',
-            action: () => void navigator.clipboard?.writeText(this.pgn()).catch(() => undefined),
-          },
-        ],
-      },
-      {
-        label: '&Edit',
-        items: () => [
-          {
-            label: '&Undo Move',
-            shortcut: 'Ctrl+Z',
-            enabled: () => st().canUndo,
-            action: () => void app.controller.undo(),
-          },
-          {
-            label: '&Redo Move',
-            shortcut: 'Ctrl+Y',
-            enabled: () => st().canRedo,
-            action: () => void app.controller.redo(),
-          },
-          sep,
-          { label: '&Paste Game or Position…', action: () => this.importExport(true) },
-          { label: '&Export…', action: () => this.importExport(false) },
-        ],
-      },
-      {
-        label: '&Game',
-        items: () => [
-          {
-            label: 'Play as &White',
-            checked: () => s().mode === 'computer' && s().humanColor === 'w',
-            action: () => void this.quickNewGame({ mode: 'computer', humanColor: 'w' }),
-          },
-          {
-            label: 'Play as &Black',
-            checked: () => s().mode === 'computer' && s().humanColor === 'b',
-            action: () => void this.quickNewGame({ mode: 'computer', humanColor: 'b' }),
-          },
-          {
-            label: '&Two Players',
-            checked: () => s().mode === 'local',
-            action: () => void this.quickNewGame({ mode: 'local' }),
-          },
-          sep,
-          {
-            label: '&Difficulty',
-            submenu: () => [
-              ...DIFFICULTIES.map((d) => ({
-                label: d.label,
-                checked: () => s().difficulty === d.id,
-                action: () => app.settings.update({ difficulty: d.id }),
-              })),
-              {
-                label: `Custom (${s().customRating})…`,
-                checked: () => s().difficulty === 'custom',
-                action: () =>
-                  void ratingDialog(s().customRating).then((rating) => {
-                    if (rating !== null)
-                      app.settings.update({ difficulty: 'custom', customRating: rating });
-                  }),
-              },
-            ],
-          },
-          {
-            label: '&Time Control',
-            submenu: () =>
-              TIME_CONTROLS.map((m) => ({
-                label: m === 0 ? 'Untimed' : `${m} Min/Game`,
-                checked: () => s().minutes === m,
-                action: () => void this.quickNewGame({ minutes: m }),
-              })),
-          },
-          sep,
-          {
-            label: '&Resign',
-            enabled: () => st().status.kind === 'playing',
-            action: () => void this.resign(),
-          },
-        ],
-      },
-      {
-        label: '&Actions',
-        items: () => [
-          { label: '&Hint', shortcut: 'H', action: () => this.hint() },
-          {
-            label: '&Move Now',
-            shortcut: 'M',
-            enabled: () => st().phase === 'engineThinking',
-            action: () => void app.controller.moveNow(),
-          },
-          {
-            label: '&Take Back',
-            shortcut: 'Ctrl+Z',
-            enabled: () => st().canUndo,
-            action: () => void app.controller.undo(),
-          },
-          sep,
-          { label: '&Flip Board', shortcut: 'F', action: () => void app.camera.flip() },
-          {
-            label: 'T&op View',
-            shortcut: 'T',
-            checked: () => app.camera.isTopView,
-            action: () => app.camera.topView(),
-          },
-          { label: 'Reset &View', shortcut: 'Home', action: () => app.camera.reset() },
-        ],
-      },
-      {
-        label: '&Mentor',
-        items: () => [
-          {
-            label: 'Show &Legal Moves',
-            checked: () => s().showLegalMoves,
-            action: toggle('showLegalMoves'),
-          },
-          {
-            label: 'Show Last &Move',
-            checked: () => s().showLastMove,
-            action: toggle('showLastMove'),
-          },
-          sep,
-          {
-            label: '&Chess Coach',
-            action: () => {
-              this.coach.panel.setVisible(true);
-              this.coach.panel.setCollapsed(false);
+    return {
+      file: () => [
+        { label: '&New Game…', shortcut: 'Ctrl+N', action: () => void this.newGame() },
+        { label: '&Open Game or Position…', action: () => this.importExport(true) },
+        { label: '&Save Game (PGN)', action: () => downloadText('game.pgn', this.pgn()) },
+        sep,
+        {
+          label: 'Copy &FEN',
+          action: () =>
+            void navigator.clipboard?.writeText(app.controller.game.fen()).catch(() => undefined),
+        },
+        {
+          label: 'Copy &PGN',
+          action: () => void navigator.clipboard?.writeText(this.pgn()).catch(() => undefined),
+        },
+      ],
+      history: () => [
+        {
+          label: '&Undo Move',
+          shortcut: 'Ctrl+Z',
+          enabled: () => st().canUndo,
+          action: () => void app.controller.undo(),
+        },
+        {
+          label: '&Redo Move',
+          shortcut: 'Ctrl+Y',
+          enabled: () => st().canRedo,
+          action: () => void app.controller.redo(),
+        },
+      ],
+      transfer: () => [
+        { label: '&Paste Game or Position…', action: () => this.importExport(true) },
+        { label: '&Export…', action: () => this.importExport(false) },
+      ],
+      sides: () => [
+        {
+          label: 'Play as &White',
+          checked: () => s().mode === 'computer' && s().humanColor === 'w',
+          action: () => void this.quickNewGame({ mode: 'computer', humanColor: 'w' }),
+        },
+        {
+          label: 'Play as &Black',
+          checked: () => s().mode === 'computer' && s().humanColor === 'b',
+          action: () => void this.quickNewGame({ mode: 'computer', humanColor: 'b' }),
+        },
+        {
+          label: '&Two Players',
+          checked: () => s().mode === 'local',
+          action: () => void this.quickNewGame({ mode: 'local' }),
+        },
+      ],
+      difficulty: () => [
+        {
+          label: '&Difficulty',
+          submenu: () => [
+            ...DIFFICULTIES.map((d) => ({
+              label: d.label,
+              checked: () => s().difficulty === d.id,
+              action: () => app.settings.update({ difficulty: d.id }),
+            })),
+            {
+              label: `Custom (${s().customRating})…`,
+              checked: () => s().difficulty === 'custom',
+              action: () =>
+                void ratingDialog(s().customRating).then((rating) => {
+                  if (rating !== null)
+                    app.settings.update({ difficulty: 'custom', customRating: rating });
+                }),
             },
-          },
-          { label: '&Suggest a Move', shortcut: 'H', action: () => this.hint() },
-        ],
-      },
-      {
-        label: '&Preferences',
-        items: () => [
-          { label: '&Sound', checked: () => s().sound, action: toggle('sound') },
-          {
-            label: '&Animation Speed',
-            submenu: () =>
-              (
-                [
-                  [0, 'Instant'],
-                  [0.6, 'Fast'],
-                  [1, 'Normal'],
-                  [1.6, 'Slow'],
-                ] as const
-              ).map(([v, label]) => ({
-                label,
-                checked: () => s().animationSpeed === v,
-                action: () => app.settings.update({ animationSpeed: v }),
-              })),
-          },
-          {
-            label: '&Follow Move Path',
-            checked: () => s().followPath,
-            action: toggle('followPath'),
-          },
-          { label: '&Demolish Captures', checked: () => s().demolish, action: toggle('demolish') },
-          {
-            label: 'Glass &Reflections',
-            checked: () => s().glassReflections,
-            action: toggle('glassReflections'),
-          },
-          {
-            label: 'Board &Coordinates',
-            checked: () => s().showCoordinates,
-            action: toggle('showCoordinates'),
-          },
-          sep,
-          {
-            label: '&Looks',
-            submenu: () =>
-              LOOKS.map((look) => ({
-                label: look.label,
-                checked: () => currentLook(s())?.id === look.id,
-                action: () =>
-                  app.settings.update({
-                    boardTheme: look.board,
-                    pieceTheme: look.pieces,
-                    tableTheme: look.table,
-                  }),
-              })),
-          },
-          { label: 'Board and &Pieces…', action: () => void themeDialog(app.settings) },
-          {
-            label: '&Board',
-            submenu: () => [
-              ...BOARD_THEMES.map((t) => ({
-                label: t.label,
-                checked: () => s().boardTheme === t.id,
-                action: () => app.settings.update({ boardTheme: t.id }),
-              })),
-              {
-                label: 'Custom…',
-                checked: () => s().boardTheme === CUSTOM_ID,
-                action: () => void themeDialog(app.settings, 'board'),
-              },
-            ],
-          },
-          {
-            label: 'Piece &Set',
-            submenu: () => [
-              ...PIECE_THEMES.map((t) => ({
-                label: t.label,
-                checked: () => s().pieceTheme === t.id,
-                action: () => app.settings.update({ pieceTheme: t.id }),
-              })),
-              {
-                label: 'Custom…',
-                checked: () => s().pieceTheme === CUSTOM_ID,
-                action: () => void themeDialog(app.settings, 'pieces'),
-              },
-            ],
-          },
-          {
-            label: 'T&able',
-            submenu: () => [
-              ...TABLE_THEMES.map((t) => ({
-                label: t.label,
-                checked: () => s().tableTheme === t.id,
-                action: () => app.settings.update({ tableTheme: t.id }),
-              })),
-              {
-                label: 'Custom…',
-                checked: () => s().tableTheme === CUSTOM_ID,
-                action: () => void themeDialog(app.settings, 'table'),
-              },
-            ],
-          },
-          sep,
-          { label: 'Se&ttings…', action: () => void this.settings() },
-        ],
-      },
-      {
-        label: '&Windows',
-        items: () => [
-          {
-            label: '&Chess Coach',
-            checked: () => this.coach.panel.visible,
-            action: () => this.coach.panel.setVisible(!this.coach.panel.visible),
-          },
-          {
-            label: '&Game Status',
-            checked: () => this.status.panel.visible,
-            action: () => this.status.panel.setVisible(!this.status.panel.visible),
-          },
-          {
-            label: 'Ca&ptured Pieces',
-            checked: () => this.captured.panel.visible,
-            action: () => this.captured.panel.setVisible(!this.captured.panel.visible),
-          },
-          {
-            label: '&Move List',
-            checked: () => this.status.moveListVisible,
-            action: () => this.status.setMoveListVisible(!this.status.moveListVisible),
-          },
-          sep,
-          { label: '&Full Screen', action: () => this.toggleFullscreen() },
-        ],
-      },
-      {
-        label: '&Help',
-        items: () => [
-          { label: '&Keyboard and Mouse…', action: () => void shortcutsDialog() },
-          { label: '&About Grandmaster 3D…', action: () => void aboutDialog(VERSION) },
-        ],
-      },
-    ];
+          ],
+        },
+      ],
+      timeControl: () => [
+        {
+          label: '&Time Control',
+          submenu: () =>
+            TIME_CONTROLS.map((m) => ({
+              label: m === 0 ? 'Untimed' : `${m} Min/Game`,
+              checked: () => s().minutes === m,
+              action: () => void this.quickNewGame({ minutes: m }),
+            })),
+        },
+      ],
+      resign: () => [
+        {
+          label: '&Resign',
+          enabled: () => st().status.kind === 'playing',
+          action: () => void this.resign(),
+        },
+      ],
+      hint: () => [{ label: '&Hint', shortcut: 'H', action: () => this.hint() }],
+      moveNow: () => [
+        {
+          label: '&Move Now',
+          shortcut: 'M',
+          enabled: () => st().phase === 'engineThinking',
+          action: () => void app.controller.moveNow(),
+        },
+      ],
+      takeBack: () => [
+        {
+          label: '&Take Back',
+          shortcut: 'Ctrl+Z',
+          enabled: () => st().canUndo,
+          action: () => void app.controller.undo(),
+        },
+      ],
+      camera: () => [
+        { label: '&Flip Board', shortcut: 'F', action: () => void app.camera.flip() },
+        {
+          label: 'T&op View',
+          shortcut: 'T',
+          checked: () => app.camera.isTopView,
+          action: () => app.camera.topView(),
+        },
+        { label: 'Reset &View', shortcut: 'Home', action: () => app.camera.reset() },
+      ],
+      marks: () => [
+        {
+          label: 'Show &Legal Moves',
+          checked: () => s().showLegalMoves,
+          action: toggle('showLegalMoves'),
+        },
+        {
+          label: 'Show Last &Move',
+          checked: () => s().showLastMove,
+          action: toggle('showLastMove'),
+        },
+      ],
+      suggest: () => [{ label: '&Suggest a Move', shortcut: 'H', action: () => this.hint() }],
+      effects: () => [
+        { label: '&Sound', checked: () => s().sound, action: toggle('sound') },
+        {
+          label: '&Animation Speed',
+          submenu: () =>
+            (
+              [
+                [0, 'Instant'],
+                [0.6, 'Fast'],
+                [1, 'Normal'],
+                [1.6, 'Slow'],
+              ] as const
+            ).map(([v, label]) => ({
+              label,
+              checked: () => s().animationSpeed === v,
+              action: () => app.settings.update({ animationSpeed: v }),
+            })),
+        },
+        {
+          label: '&Follow Move Path',
+          checked: () => s().followPath,
+          action: toggle('followPath'),
+        },
+        { label: '&Demolish Captures', checked: () => s().demolish, action: toggle('demolish') },
+        {
+          label: 'Glass &Reflections',
+          checked: () => s().glassReflections,
+          action: toggle('glassReflections'),
+        },
+      ],
+      coordinates: () => [
+        {
+          label: 'Board &Coordinates',
+          checked: () => s().showCoordinates,
+          action: toggle('showCoordinates'),
+        },
+      ],
+      appearance: () => [
+        {
+          label: '&Looks',
+          submenu: () =>
+            LOOKS.map((look) => ({
+              label: look.label,
+              checked: () => currentLook(s())?.id === look.id,
+              action: () =>
+                app.settings.update({
+                  boardTheme: look.board,
+                  pieceTheme: look.pieces,
+                  tableTheme: look.table,
+                }),
+            })),
+        },
+        { label: 'Board and &Pieces…', action: () => void themeDialog(app.settings) },
+        {
+          label: '&Board',
+          submenu: () => [
+            ...BOARD_THEMES.map((t) => ({
+              label: t.label,
+              checked: () => s().boardTheme === t.id,
+              action: () => app.settings.update({ boardTheme: t.id }),
+            })),
+            {
+              label: 'Custom…',
+              checked: () => s().boardTheme === CUSTOM_ID,
+              action: () => void themeDialog(app.settings, 'board'),
+            },
+          ],
+        },
+        {
+          label: 'Piece &Set',
+          submenu: () => [
+            ...PIECE_THEMES.map((t) => ({
+              label: t.label,
+              checked: () => s().pieceTheme === t.id,
+              action: () => app.settings.update({ pieceTheme: t.id }),
+            })),
+            {
+              label: 'Custom…',
+              checked: () => s().pieceTheme === CUSTOM_ID,
+              action: () => void themeDialog(app.settings, 'pieces'),
+            },
+          ],
+        },
+        {
+          label: 'T&able',
+          submenu: () => [
+            ...TABLE_THEMES.map((t) => ({
+              label: t.label,
+              checked: () => s().tableTheme === t.id,
+              action: () => app.settings.update({ tableTheme: t.id }),
+            })),
+            {
+              label: 'Custom…',
+              checked: () => s().tableTheme === CUSTOM_ID,
+              action: () => void themeDialog(app.settings, 'table'),
+            },
+          ],
+        },
+      ],
+      settings: () => [{ label: 'Se&ttings…', action: () => void this.settings() }],
+      help: () => [
+        { label: '&Keyboard and Mouse…', action: () => void shortcutsDialog() },
+        { label: '&About Grandmaster 3D…', action: () => void aboutDialog(VERSION) },
+      ],
+    };
   }
 }
