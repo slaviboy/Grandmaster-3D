@@ -122,6 +122,7 @@ export class PieceManager {
     for (const view of this.views.values()) {
       this.assets.release(view.mesh);
       view.mesh.material = this.assets.material(view.color);
+      this.assets.dressShadow(view.mesh, view.color, view.kind);
     }
   }
 

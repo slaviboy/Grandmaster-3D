@@ -32,6 +32,7 @@ function fakeAssets(): PieceAssetManager {
     },
     release: (mesh: Mesh) => (mesh.material as MeshBasicMaterial).dispose(),
     material: () => new MeshBasicMaterial(),
+    dressShadow: () => {},
     height: () => 1,
   } as unknown as PieceAssetManager;
 }

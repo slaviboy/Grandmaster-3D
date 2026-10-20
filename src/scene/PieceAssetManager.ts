@@ -16,6 +16,7 @@
 import { Mesh, type BufferGeometry } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { COLOR_NAMES, PIECE_NAMES, type Color, type PieceKind } from '../game/types.ts';
+import { attachContactBlob, detachContactBlob, type GlassOptions } from './glass.ts';
 import { createPieceMaterial } from './pieceMaterial.ts';
 import { pieceTheme, type PieceStyle, type PieceTheme } from './themes.ts';
 
@@ -25,6 +26,7 @@ export class PieceAssetManager {
   private readonly geometries = new Map<PieceKind, BufferGeometry>();
   private created = 0;
   private theme: PieceTheme = pieceTheme('classic');
+  private glass: GlassOptions = { transmission: true };
 
   /** Loads every model; rejects with a readable message if any file is missing or malformed. */
   async load(baseUrl: string, onProgress?: (loaded: number, total: number) => void): Promise<void> {
@@ -88,21 +90,42 @@ export class PieceAssetManager {
     return this.theme[color];
   }
 
+  /** Whether clear glass refracts for real (costlier) or uses the cheaper see-through look. */
+  setGlassOptions(options: GlassOptions): void {
+    this.glass = options;
+  }
+
   /** A fresh material in the current set for one side. */
   material(color: Color) {
-    return createPieceMaterial(this.theme[color], ++this.created);
+    return createPieceMaterial(this.theme[color], ++this.created, this.glass);
+  }
+
+  /**
+   * Shadows to match the finish: clear glass gets a soft contact blob instead of a solid shadow,
+   * everything else casts a normal shadow.
+   */
+  dressShadow(mesh: Mesh, color: Color, kind: PieceKind): void {
+    const clear = this.theme[color].finish === 'glass';
+    mesh.castShadow = !clear;
+    if (clear) {
+      const box = this.geometry(kind).boundingBox;
+      attachContactBlob(mesh, box ? Math.max(box.max.x, box.max.z) : 0.3);
+    } else {
+      detachContactBlob(mesh);
+    }
   }
 
   create(color: Color, kind: PieceKind): Mesh {
     const mesh = new Mesh(this.geometry(kind), this.material(color));
-    mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = `${COLOR_NAMES[color]}-${PIECE_NAMES[kind]}`;
+    this.dressShadow(mesh, color, kind);
     return mesh;
   }
 
-  /** Frees a mesh's own material; the shared geometry stays. */
+  /** Frees a mesh's own material (and any contact blob); the shared geometry stays. */
   release(mesh: Mesh): void {
+    detachContactBlob(mesh);
     const material = mesh.material;
     if (Array.isArray(material)) material.forEach((m) => m.dispose());
     else material.dispose();
