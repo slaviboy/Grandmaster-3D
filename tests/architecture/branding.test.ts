@@ -11,18 +11,22 @@
 
 // Guard: this product is Grandmaster 3D. The commercial game whose look inspired it is never named
 // in anything we publish: not in source, identifiers, UI strings, docs or commit-tracked files.
-// The needles are assembled from fragments so this file does not contain the words it forbids.
+// The needles are assembled from fragments (in scripts/public-safety.ts) so no file contains the
+// words it forbids. Binary files are read for the strings inside them: tools write paths and
+// names into images and models.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { read, readableFiles } from './repoFiles.ts';
+import {
+  FORBIDDEN_NAMES as FORBIDDEN,
+  RULE_FILES,
+  isBinary,
+  readableStrings,
+} from '../../scripts/public-safety.ts';
+import { read, readableFiles, repoRoot, trackedFiles } from './repoFiles.ts';
 
-const FORBIDDEN: readonly string[] = [
-  ['chess', 'master'].join(''),
-  ['chess', ' ', 'master'].join(''),
-  ['ubi', 'soft'].join(''),
-];
-
-const SKIP_FILES = [/^tests\/architecture\/branding\.test\.ts$/, /^package-lock\.json$/] as const;
+const SKIP_FILES = [...RULE_FILES, /^package-lock\.json$/];
 
 describe('product naming', () => {
   const files = readableFiles().filter((file) => !SKIP_FILES.some((rule) => rule.test(file)));
@@ -43,6 +47,22 @@ describe('product naming', () => {
         });
     }
     expect(findings, `Say "the reference" instead. Found at:\n${findings.join('\n')}`).toEqual([]);
+  });
+
+  it('no image, model or other binary file carries the names inside it', () => {
+    const findings: string[] = [];
+    for (const file of trackedFiles()) {
+      let data: Buffer;
+      try {
+        data = readFileSync(join(repoRoot, file));
+      } catch {
+        continue;
+      }
+      if (!isBinary(file, data)) continue;
+      const text = readableStrings(data).toLowerCase();
+      for (const needle of FORBIDDEN) if (text.includes(needle)) findings.push(file);
+    }
+    expect(findings, `Found inside:\n${findings.join('\n')}`).toEqual([]);
   });
 
   it('names the product in the package manifest', () => {

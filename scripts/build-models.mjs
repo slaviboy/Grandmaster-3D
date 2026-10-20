@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stripMetadata } from './image-metadata.mjs';
+import { stripMetadata } from './image-metadata.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const blender = process.env.BLENDER ?? '/Applications/Blender.app/Contents/MacOS/Blender';
