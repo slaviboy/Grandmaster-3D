@@ -271,9 +271,13 @@ test('rotates, tilts, zooms and resets the camera like the original', async ({ p
   expect(Math.hypot(...zoomed)).toBeLessThan(Math.hypot(...rotated));
 
   await page.keyboard.press('Home');
-  await page.waitForTimeout(1200);
-  const reset = await page.evaluate(() => window.__chessDebug.cameraPosition());
-  reset.forEach((v, i) => expect(v).toBeCloseTo(start[i]!, 1));
+  // The camera eases home; with software rendering that can take a few seconds.
+  await expect
+    .poll(async () => {
+      const now = await page.evaluate(() => window.__chessDebug.cameraPosition());
+      return Math.max(...now.map((v, i) => Math.abs(v - start[i]!)));
+    })
+    .toBeLessThan(0.02);
 });
 
 test('Follow move path and Demolish captures: the knight takes its L and the victim shatters', async ({
