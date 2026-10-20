@@ -153,9 +153,9 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
   {
     id: 'mahogany',
     label: 'Mahogany',
-    light: wood('#f0e2cf', '196,160,128', '255,248,236', 18, 0.45, 3),
-    dark: wood('#8c5248', '84,36,28', '186,120,104', 24, 0.6, 3),
-    frame: wood('#8d5146', '74,30,22', '190,124,108', 16, 0.65, 5),
+    light: wood('#efe4d8', '196,160,128', '255,248,236', 18, 0.45, 3),
+    dark: wood('#866062', '82,48,50', '182,138,138', 24, 0.6, 3),
+    frame: wood('#88605e', '72,40,40', '182,136,134', 16, 0.65, 5),
     labelColour: 'rgba(248,226,214,0.85)',
     labelShadow: 'rgba(60,20,14,0.4)',
     edgeTint: [1.1, 1.0, 1.05],
