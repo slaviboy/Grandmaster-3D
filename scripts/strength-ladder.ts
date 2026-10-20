@@ -11,7 +11,7 @@
 
 // Plays each difficulty level against the next one up, with the real lite Stockfish and the same
 // move policy the game uses, to check that every level is stronger than the one below it.
-// Run: npm run ladder -- [games per pair = 6] [think-time scale = 0.5]
+// Run: npm run ladder -- [games per pair = 6] [think-time scale = 0.5] [lower ids, e.g. easy]
 // Games are adjudicated when one side is clearly winning (600 centipawns for six plies in a row)
 // or after 160 plies.
 
@@ -25,6 +25,8 @@ import { NodeProcessTransport, engineScript } from '../tests/support/NodeProcess
 
 const gamesPerPair = Number(process.argv[2] ?? 6);
 const scale = Number(process.argv[3] ?? 0.5);
+/** Optional comma-separated ids of the lower level of each pair to play, e.g. "beginner,easy". */
+const only = process.argv[4]?.split(',');
 const script = engineScript();
 if (!script) throw new Error('stockfish is not installed');
 
@@ -88,6 +90,7 @@ const lines: string[] = [];
 for (let i = 0; i + 1 < DIFFICULTIES.length; i++) {
   const lower = DIFFICULTIES[i]!;
   const upper = DIFFICULTIES[i + 1]!;
+  if (only && !only.includes(lower.id)) continue;
   let upperScore = 0;
   for (let g = 0; g < gamesPerPair; g++) {
     const upperIsWhite = g % 2 === 0;

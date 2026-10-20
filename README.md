@@ -73,6 +73,30 @@ For development and tests, the page accepts these URL parameters:
 | `seed=` | Seed for the random generator |
 | `debug=1` | Adds `window.__chessDebug` |
 
+## Difficulty
+
+Each level sets every Stockfish option, because options persist between searches:
+
+| Level | Engine settings | Move choice |
+| --- | --- | --- |
+| Beginner | Skill Level 0, depth 2 | Picks among the top 5 lines, sometimes a blunder |
+| Easy | Skill Level 1, depth 3 | Picks among the top 4 lines |
+| Medium | UCI_Elo 1600 | Engine's move |
+| Hard | UCI_Elo 1900 | Engine's move |
+| Expert | UCI_Elo 2400 | Engine's move |
+| Maximum Strength | Unrestricted, 64 MB hash | Engine's move |
+
+The strength ladder (`npm run ladder -- 8`, run at half the think time) gave the stronger level of
+each pair:
+
+| Pair | Score |
+| --- | --- |
+| Easy vs Beginner | 6.5/8 |
+| Medium vs Easy | 8/8 |
+| Hard vs Medium | 6.5/8 |
+| Expert vs Hard | 6.5/8 |
+| Maximum vs Expert | 8/8 |
+
 ## Rebuilding the chess pieces
 
 The pieces come from Python scripts that run in headless Blender (tested with Blender 5.2 LTS):
@@ -128,7 +152,7 @@ special headers: no cross-origin isolation, no `SharedArrayBuffer`. The server o
 
 ## Known limitations
 
-- Strength labels such as "about 1500" are approximate. Medium and above use Stockfish's own
+- Strength labels such as "about 1600" are approximate. Medium and above use Stockfish's own
   UCI_Elo. Beginner and Easy add a move-picking policy on top of the lowest Skill Levels, because
   UCI_Elo stops at 1320.
 - The lite engine uses a small neural network. It is far stronger than any human, but weaker than
