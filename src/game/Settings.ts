@@ -13,6 +13,17 @@
 // means the defaults; nothing depends on storage working.
 
 import { isDifficultyId, type DifficultyId } from '../engine/difficulty.ts';
+import {
+  DEFAULT_BOARD,
+  DEFAULT_CUSTOM,
+  DEFAULT_PIECES,
+  DEFAULT_TABLE,
+  isBoardThemeId,
+  isHexColour,
+  isPieceThemeId,
+  isTableThemeId,
+  type CustomColours,
+} from '../scene/themes.ts';
 import type { Color } from './types.ts';
 
 export type GameMode = 'computer' | 'local';
@@ -33,6 +44,12 @@ export interface Settings {
   readonly showLegalMoves: boolean;
   readonly showCoordinates: boolean;
   readonly showLastMove: boolean;
+  /** Board, piece set and table looks (preset ids or "custom"). */
+  readonly boardTheme: string;
+  readonly pieceTheme: string;
+  readonly tableTheme: string;
+  /** The player's colours for the Custom looks. */
+  readonly custom: CustomColours;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -47,6 +64,10 @@ export const DEFAULT_SETTINGS: Settings = {
   showLegalMoves: true,
   showCoordinates: true,
   showLastMove: true,
+  boardTheme: DEFAULT_BOARD,
+  pieceTheme: DEFAULT_PIECES,
+  tableTheme: DEFAULT_TABLE,
+  custom: DEFAULT_CUSTOM,
 };
 
 export const TIME_CONTROLS: readonly number[] = [0, 5, 10, 15, 30];
@@ -71,6 +92,32 @@ export function sanitize(raw: unknown): Settings {
     mode: s.mode === 'local' ? 'local' : 'computer',
     minutes: TIME_CONTROLS.includes(s.minutes) ? s.minutes : DEFAULT_SETTINGS.minutes,
     animationSpeed: Math.min(2, Math.max(0, s.animationSpeed)),
+    boardTheme: isBoardThemeId(s.boardTheme) ? s.boardTheme : DEFAULT_BOARD,
+    pieceTheme: isPieceThemeId(s.pieceTheme) ? s.pieceTheme : DEFAULT_PIECES,
+    tableTheme: isTableThemeId(s.tableTheme) ? s.tableTheme : DEFAULT_TABLE,
+    custom: sanitizeCustom(s.custom),
+  };
+}
+
+function sanitizeCustom(raw: unknown): CustomColours {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const colour = (key: keyof CustomColours) =>
+    isHexColour(value[key]) ? (value[key] as string) : (DEFAULT_CUSTOM[key] as string);
+  const boardPattern = ['wood', 'marble', 'plain'].includes(value.boardPattern as string)
+    ? (value.boardPattern as CustomColours['boardPattern'])
+    : DEFAULT_CUSTOM.boardPattern;
+  const finish = ['wood', 'lacquer', 'metal', 'stone'].includes(value.finish as string)
+    ? (value.finish as CustomColours['finish'])
+    : DEFAULT_CUSTOM.finish;
+  return {
+    light: colour('light'),
+    dark: colour('dark'),
+    frame: colour('frame'),
+    boardPattern,
+    white: colour('white'),
+    black: colour('black'),
+    finish,
+    table: colour('table'),
   };
 }
 

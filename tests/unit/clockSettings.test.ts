@@ -87,6 +87,22 @@ describe('Settings', () => {
     expect(s).not.toHaveProperty('extra');
   });
 
+  it('keeps valid looks and custom colours, and drops bad ones', () => {
+    const s = sanitize({
+      boardTheme: 'marble',
+      pieceTheme: 'no-such-set',
+      tableTheme: 'custom',
+      custom: { light: '#123456', dark: 'red', finish: 'metal', boardPattern: 'glass' },
+    });
+    expect(s.boardTheme).toBe('marble');
+    expect(s.pieceTheme).toBe('classic');
+    expect(s.tableTheme).toBe('custom');
+    expect(s.custom.light).toBe('#123456');
+    expect(s.custom.dark).toBe(DEFAULT_SETTINGS.custom.dark);
+    expect(s.custom.finish).toBe('metal');
+    expect(s.custom.boardPattern).toBe('wood');
+  });
+
   it('round-trips through storage and survives broken storage', () => {
     const data = new Map<string, string>();
     const storage = {

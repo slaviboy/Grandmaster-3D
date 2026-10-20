@@ -34,6 +34,7 @@ import { Highlights } from '../scene/Highlights.ts';
 import { InteractionController } from '../scene/InteractionController.ts';
 import { PieceAssetManager } from '../scene/PieceAssetManager.ts';
 import { PieceManager } from '../scene/PieceManager.ts';
+import { boardTheme, pieceTheme, tableTheme } from '../scene/themes.ts';
 import { askPromotion } from '../ui/PromotionDialog.ts';
 
 export class App {
@@ -145,7 +146,23 @@ export class App {
       return moving || animating || shattering;
     });
 
+    // Apply looks only when they actually change: repainting costs a few milliseconds.
+    let looks = { board: '', pieces: '', table: '' };
     this.settings.subscribe((s) => {
+      const custom = JSON.stringify(s.custom);
+      const next = {
+        board: `${s.boardTheme}|${s.boardTheme === 'custom' ? custom : ''}`,
+        pieces: `${s.pieceTheme}|${s.pieceTheme === 'custom' ? custom : ''}`,
+        table: `${s.tableTheme}|${s.tableTheme === 'custom' ? custom : ''}`,
+      };
+      if (next.board !== looks.board) this.scene.board.setTheme(boardTheme(s.boardTheme, s.custom));
+      if (next.table !== looks.table) this.scene.setTable(tableTheme(s.tableTheme, s.custom));
+      if (next.pieces !== looks.pieces) {
+        this.assets.setTheme(pieceTheme(s.pieceTheme, s.custom));
+        if (this.assets.ready) this.pieces.restyle();
+      }
+      looks = next;
+      this.scene.requestRender();
       saveSettings(s);
       this.sound.enabled = s.sound;
       if (this.params.get('anim') !== '0') this.tweener.speed = s.animationSpeed;
@@ -255,6 +272,21 @@ export class App {
       newGame: (patch: Partial<Settings>, fen?: string) => this.newGame(patch, fen),
       setSettings: (patch: Partial<Settings>) => this.settings.update(patch),
       render: () => this.scene.renderNow(),
+      theme: () => ({
+        board: this.scene.board.currentTheme.id,
+        pieces: this.assets.currentTheme.id,
+        table: this.settings.get().tableTheme,
+        whiteMaterial: (() => {
+          const view =
+            this.pieces.get('e1') ??
+            [...Object.keys(this.pieces.snapshot())]
+              .map((sq) => this.pieces.get(sq as Square))
+              .find((v) => v?.color === 'w');
+          const m = view?.mesh.material as
+            { metalness?: number; userData?: { style?: { light?: string } } } | undefined;
+          return m ? { metalness: m.metalness, light: m.userData?.style?.light } : null;
+        })(),
+      }),
       cameraPosition: () =>
         this.scene.camera.position.toArray().map((v) => Math.round(v * 1000) / 1000),
       effectCount: () => this.shatter.group.children.length,
