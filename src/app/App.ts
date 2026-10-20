@@ -82,7 +82,9 @@ export class App {
       this.settings.get(),
     );
     this.view = new BoardView(this.pieces, this.animations, this.highlights, requestRender);
-    this.shatter = new ShatterEffect(this.fragments, 99, () => this.sound.play('shatter'));
+    this.shatter = new ShatterEffect(this.fragments, 99, (glass) =>
+      this.sound.play(glass ? 'shatterGlass' : 'shatter'),
+    );
     this.scene.scene.add(this.shatter.group);
     this.animations.effect = this.shatter;
 

@@ -10,7 +10,8 @@
  */
 
 // Game sounds synthesised with Web Audio, so there are no audio files: a wooden clack for a move,
-// a double knock for a capture, a soft bell for check and a short chord when the game ends. Audio
+// a double knock for a capture, a soft bell for check, a crack of wood or a tinkle of glass for a
+// demolished piece and a short chord when the game ends. Audio
 // starts after the first click or key press, as browsers require.
 
 import type { SoundEffect, SoundPort } from '../game/GameController.ts';
@@ -88,6 +89,9 @@ export class SoundManager implements SoundPort {
         for (let i = 1; i < 6; i++)
           this.clack(t + 0.03 * i + Math.random() * 0.03, 0.5 / i, 1.2 + Math.random() * 0.6);
         break;
+      case 'shatterGlass':
+        this.tinkle(t);
+        break;
       case 'gameEnd':
         [523, 659, 784].forEach((f, i) => this.tone(t + i * 0.09, f, 0.9, 0.12));
         break;
@@ -111,6 +115,34 @@ export class SoundManager implements SoundPort {
     source.start(t);
     source.stop(t + 0.12);
     this.tone(t, 190 * pitch, 0.08, 0.5 * level);
+  }
+
+  /**
+   * Breaking glass: a bright hiss of noise, then a scatter of short, high ringing partials as the
+   * shards land.
+   */
+  private tinkle(t: number): void {
+    const ctx = this.context!;
+    const source = ctx.createBufferSource();
+    source.buffer = this.noise;
+    const high = ctx.createBiquadFilter();
+    high.type = 'highpass';
+    high.frequency.value = 3500;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    source.connect(high).connect(gain).connect(this.master!);
+    source.start(t);
+    source.stop(t + 0.22);
+    for (let i = 0; i < 9; i++) {
+      const at = t + 0.01 + Math.random() * 0.35;
+      this.tone(
+        at,
+        2000 + Math.random() * 3200,
+        0.08 + Math.random() * 0.22,
+        0.03 + Math.random() * 0.06,
+      );
+    }
   }
 
   private tone(
