@@ -17,6 +17,7 @@ import type { App } from '../app/App.ts';
 import { DIFFICULTIES, difficulty } from '../engine/difficulty.ts';
 import { coachMarks, describeMove, describeResult } from '../game/coach.ts';
 import type { GameState } from '../game/GameController.ts';
+import type { OnlineSession, OnlineState, SessionEvent } from '../net/OnlineSession.ts';
 import { TIME_CONTROLS, type Settings, type UiStyle } from '../game/Settings.ts';
 import type { Color } from '../game/types.ts';
 import { dialogOpen } from './Dialog.ts';
@@ -31,6 +32,13 @@ import {
   settingsDialog,
   shortcutsDialog,
 } from './dialogs.ts';
+import {
+  consentDialog,
+  nextGameDialog,
+  offerDialog,
+  waitDialog,
+  type ConsentKind,
+} from './onlineDialogs.ts';
 import { opponentPortrait } from './portraits.ts';
 import type { PlayerInfo } from './GameStatusPanel.ts';
 import { themeDialog } from './ThemeDialog.ts';
@@ -49,6 +57,8 @@ import { RetroShell } from './RetroShell.ts';
 import type { CoachAids, Commands, MenuCatalog, Shell } from './shell.ts';
 
 const VERSION = '0.1.0';
+/** The name a player last used online, offered again next time (a convenience, never consent). */
+const NAME_KEY = 'grandmaster-3d:name';
 
 export class UiRoot {
   private shell: Shell | null = null;
@@ -70,6 +80,10 @@ export class UiRoot {
   private seenGeneration = -1;
   private announced = '';
   private lastError: string | null = null;
+  /** The online game this interface follows, and how to stop following it. */
+  private session: OnlineSession | null = null;
+  private offSession: Array<() => void> = [];
+  private claimOffered = false;
   private readonly commands: Commands = {
     newGame: () => void this.newGame(),
     undo: () => void this.app.controller.undo(),
@@ -109,6 +123,10 @@ export class UiRoot {
     setInterval(() => this.renderClocks(), 200);
     window.addEventListener('keydown', (event) => this.onKey(event));
     this.renderClocks();
+
+    app.online.subscribe((session) => this.follow(session));
+    app.onInvite(() => void this.checkInvitation());
+    void app.ready.then(() => this.checkInvitation());
   }
 
   /** Puts up the interface in the given style, replacing the current one. */
@@ -162,6 +180,18 @@ export class UiRoot {
     if (state.mode === 'local') {
       return { w: { name: 'White', computer: false }, b: { name: 'Black', computer: false } };
     }
+    const online = this.onlineState(state);
+    if (online) {
+      const note =
+        online.status === 'away'
+          ? 'Disconnected'
+          : online.status === 'connecting' || online.status === 'waiting'
+            ? 'Connecting…'
+            : undefined;
+      const me: PlayerInfo = { name: online.myName, computer: false };
+      const friend: PlayerInfo = { name: online.friendName, computer: false, note };
+      return state.humanColor === 'w' ? { w: me, b: friend } : { w: friend, b: me };
+    }
     const human: PlayerInfo = { name: 'Player', computer: false };
     return state.humanColor === 'w' ? { w: human, b: computer } : { w: computer, b: human };
   }
@@ -186,6 +216,20 @@ export class UiRoot {
     const check = state.inCheck ? ' Check!' : '';
     if (state.phase === 'engineThinking') return `Stockfish is thinking…${check}`;
     if (state.phase === 'awaitingPromotion') return 'Choose a piece for the pawn.';
+    const online = this.onlineState(state);
+    if (online) {
+      const friend = online.friendName;
+      if (online.status === 'waiting') return 'Waiting for your friend to open the link…';
+      if (online.status === 'connecting') return 'Connecting…';
+      if (online.status === 'away') {
+        return online.canClaimWin
+          ? `${friend} is still away. You can claim the win (Game menu).`
+          : `${friend} is disconnected. Waiting for them to come back…`;
+      }
+      if (online.status === 'closed' || online.status === 'failed')
+        return online.message ?? 'The online game is over.';
+      return state.turn === state.humanColor ? `Your move.${check}` : `${friend} to move.${check}`;
+    }
     if (state.mode === 'computer')
       return `${state.turn === state.humanColor ? 'Your move' : `${side} to move`}.${check}`;
     return `${side} to move.${check}`;
@@ -206,7 +250,9 @@ export class UiRoot {
             : 'Black'
           : move.color === state.humanColor
             ? 'You'
-            : 'Stockfish';
+            : state.mode === 'online'
+              ? (this.session?.state.get().friendName ?? 'Your friend')
+              : 'Stockfish';
       const isLast = i === state.history.length - 1;
       this.say(describeMove(move, who, isLast && state.inCheck));
     }
@@ -227,7 +273,11 @@ export class UiRoot {
 
   private async showGameOver(state: GameState, result: string): Promise<void> {
     if (dialogOpen()) return;
-    const human = state.mode === 'computer' ? state.humanColor : null;
+    const human = state.mode === 'local' ? null : state.humanColor;
+    const opponent =
+      state.mode === 'online'
+        ? (this.session?.state.get().friendName ?? 'Your friend')
+        : 'Stockfish';
     const status = state.status;
     let headline = 'Game over';
     if (status.kind === 'draw') headline = 'Draw';
@@ -235,16 +285,17 @@ export class UiRoot {
       headline = human
         ? status.winner === human
           ? 'You win!'
-          : 'Stockfish wins'
+          : `${opponent} wins`
         : `${status.winner === 'w' ? 'White' : 'Black'} wins`;
-    const choice = await gameOverDialog(headline, result);
-    if (choice === 'new') await this.newGame();
+    const rematch = this.sessionOpen();
+    const choice = await gameOverDialog(headline, result, rematch ? 'Rematch' : 'New Game');
+    if (choice === 'new') await (rematch ? this.rematch() : this.newGame());
     else if (choice === 'save') downloadText('game.pgn', this.pgn());
   }
 
   private refreshCoachMarks(): void {
     const state = this.app.controller.state.get();
-    const side: Color = state.mode === 'computer' ? state.humanColor : state.turn;
+    const side: Color = state.mode === 'local' ? state.turn : state.humanColor;
     const marks = coachMarks(this.app.controller.game, { ...this.coachOptions, side });
     this.app.highlights.set({
       spots: marks.spots,
@@ -283,10 +334,12 @@ export class UiRoot {
 
   // --- commands ------------------------------------------------------------------------------
 
-  private async newGame(): Promise<void> {
+  private async newGame(preset: Partial<Settings> = {}): Promise<void> {
+    if (this.sessionOpen() && !(await this.readyToLeave())) return;
     const ask = this.style === 'modern' ? newGameSheet : newGameDialog;
-    const patch = await ask(this.app.settings.get());
+    const patch = await ask({ ...this.app.settings.get(), ...preset });
     if (!patch) return;
+    if (patch.mode === 'online') return this.hostOnline(patch);
     this.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
@@ -299,6 +352,7 @@ export class UiRoot {
   }
 
   private async quickNewGame(patch: Partial<Settings>): Promise<void> {
+    if (this.sessionOpen() && !(await this.readyToLeave())) return;
     this.clearLog();
     this.seenMoves = 0;
     await this.app.newGame(patch);
@@ -313,6 +367,7 @@ export class UiRoot {
   private async resign(): Promise<void> {
     const state = this.app.controller.state.get();
     if (state.status.kind !== 'playing') return;
+    if (state.mode === 'online' && !this.sessionOpen()) return;
     const ok =
       this.style === 'modern'
         ? await confirmDialog('Resign this game?', this.resignation(state), 'Resign')
@@ -324,12 +379,18 @@ export class UiRoot {
   /** Who gives up and who wins: the player against the computer, else the side to move. */
   private resignation(state: GameState): string {
     if (state.mode === 'computer') return 'Stockfish wins the game.';
+    if (state.mode === 'online')
+      return `${this.session?.state.get().friendName ?? 'Your friend'} wins the game.`;
     const loser = state.turn === 'w' ? 'White' : 'Black';
     const winner = state.turn === 'w' ? 'Black' : 'White';
     return `${loser} gives up and ${winner} wins the game.`;
   }
 
   private hint(): void {
+    if (this.app.controller.state.get().mode === 'online') {
+      this.say('Hints are off in online games.');
+      return;
+    }
     void this.app.controller.requestHint().then((hint) => {
       if (hint) this.say(`Coach suggests ${hint.from}–${hint.to}.`);
     });
@@ -364,6 +425,211 @@ export class UiRoot {
       },
       focusImport,
     );
+  }
+
+  // --- online play ---------------------------------------------------------------------------
+
+  private onlineState(state: GameState): OnlineState | null {
+    return state.mode === 'online' && this.session ? this.session.state.get() : null;
+  }
+
+  /** An online game is going on: connected or waiting, not closed. */
+  private sessionOpen(): boolean {
+    return !!this.session && !this.session.closed;
+  }
+
+  private rememberedName(): string {
+    try {
+      return localStorage.getItem(NAME_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private async askConsent(kind: ConsentKind, name = this.rememberedName()) {
+    const answer = await consentDialog(kind, name);
+    if (answer) {
+      try {
+        localStorage.setItem(NAME_KEY, answer.name);
+      } catch {
+        // Storage blocked: the name is simply asked again next time.
+      }
+    }
+    return answer;
+  }
+
+  /** Before something that would end the online game: asks, and leaves if the player agrees. */
+  private async readyToLeave(): Promise<boolean> {
+    const session = this.session!;
+    const friend = session.state.get().friendName;
+    const playing = this.app.controller.state.get().status.kind === 'playing';
+    if (!playing && session.state.get().status !== 'waiting') {
+      const choice = await nextGameDialog(friend);
+      if (choice === 'rematch') await this.rematch();
+      if (choice !== 'leave') return false;
+    } else if (playing && session.state.get().status !== 'waiting') {
+      const ok = await confirmDialog(
+        'Leave the online game?',
+        `You lose the game if you leave now. ${friend} wins.`,
+        'Leave',
+      );
+      if (!ok) return false;
+    }
+    await this.app.leaveOnline();
+    return true;
+  }
+
+  /** Hosts a game: the warning, then the link to send, then the wait for the friend. */
+  private async hostOnline(patch: Partial<Settings>): Promise<void> {
+    const consent = await this.askConsent('host');
+    if (!consent) return;
+    const s = { ...this.app.settings.get(), ...patch };
+    const link = this.app.hostOnline(consent.name, s.humanColor, s.minutes);
+    const session = this.app.online.get()!;
+    const result = await waitDialog(session.state, link);
+    if (result !== 'playing' && this.app.online.get() === session) await this.app.leaveOnline();
+  }
+
+  /** An invitation in the address bar, or a game this tab was playing before a reload. */
+  private async checkInvitation(): Promise<void> {
+    await this.app.ready;
+    const invite = this.app.takeInvite();
+    if (invite) {
+      if (this.sessionOpen() && !(await this.readyToLeave())) return;
+      const consent = await this.askConsent('guest');
+      if (!consent) return;
+      this.app.joinOnline(invite, consent.name);
+      await this.waitForHost();
+      return;
+    }
+    const saved = this.app.savedOnline();
+    if (!saved || this.app.online.get()) return;
+    const consent = await this.askConsent('rejoin', saved.name);
+    if (!consent) {
+      this.app.forgetSavedOnline();
+      return;
+    }
+    this.app.resumeOnline(saved, consent.name);
+    if (saved.role === 'guest') await this.waitForHost();
+  }
+
+  private async waitForHost(): Promise<void> {
+    const session = this.app.online.get()!;
+    const result = await waitDialog(session.state, null);
+    if (result !== 'playing' && this.app.online.get() === session) await this.app.leaveOnline();
+  }
+
+  /** Asks for a rematch (the warning comes first, every time). */
+  private async rematch(): Promise<void> {
+    const session = this.session;
+    if (!session || session.closed) return;
+    const consent = await this.askConsent('rematch', session.state.get().myName);
+    if (!consent || session.closed) return;
+    const asked = session.state.get().rematch !== 'received';
+    await session.requestRematch();
+    if (asked) this.say(`Waiting for ${session.state.get().friendName} to accept the rematch…`);
+  }
+
+  private async leaveOnline(): Promise<void> {
+    if (!this.sessionOpen()) return;
+    const state = this.app.controller.state.get();
+    if (state.status.kind === 'playing' && this.session!.state.get().status !== 'waiting') {
+      const ok = await confirmDialog(
+        'Leave the online game?',
+        `You lose the game if you leave now. ${this.session!.state.get().friendName} wins.`,
+        'Leave',
+      );
+      if (!ok) return;
+    }
+    await this.app.leaveOnline();
+    this.say('You left the online game.');
+  }
+
+  /** Follows a new online session: its state redraws the interface, its events speak. */
+  private follow(session: OnlineSession | null): void {
+    for (const off of this.offSession) off();
+    this.offSession = [];
+    this.session = session;
+    this.claimOffered = false;
+    if (!session) {
+      this.render(this.app.controller.state.get());
+      return;
+    }
+    this.offSession.push(
+      session.state.subscribe((online) => {
+        this.render(this.app.controller.state.get());
+        if (online.canClaimWin && !this.claimOffered) {
+          this.claimOffered = true;
+          void this.offerClaim(session);
+        }
+        if (!online.canClaimWin) this.claimOffered = false;
+      }),
+      session.onEvent((event) => void this.onSessionEvent(session, event)),
+    );
+  }
+
+  private async onSessionEvent(session: OnlineSession, event: SessionEvent): Promise<void> {
+    const online = session.state.get();
+    const friend = online.friendName;
+    const colour = (c: Color | null) => (c === 'b' ? 'Black' : 'White');
+    switch (event.kind) {
+      case 'joined':
+        this.clearLog();
+        this.seenMoves = 0;
+        this.say(`${friend} joined. You play ${colour(online.myColor)}.`);
+        break;
+      case 'returned':
+        this.say(`${friend} is back.`);
+        break;
+      case 'away':
+        this.say(`${friend} lost the connection. Waiting for them to come back…`);
+        break;
+      case 'drawOffered':
+        this.say(`${friend} offers a draw.`);
+        if (dialogOpen()) break;
+        if (await offerDialog('Draw Offer', `${friend} offers a draw.`, 'Accept Draw'))
+          await session.offerDraw();
+        else session.declineDraw();
+        break;
+      case 'rematchOffered':
+        this.say(`${friend} wants a rematch, with the colours swapped.`);
+        if (dialogOpen()) break;
+        if (
+          await offerDialog(
+            'Rematch',
+            `${friend} wants a rematch, with the colours swapped.`,
+            'Rematch',
+          )
+        )
+          await this.rematch();
+        break;
+      case 'rematchStarted':
+        this.clearLog();
+        this.seenMoves = 0;
+        this.say(`Rematch against ${friend}. You play ${colour(online.myColor)}.`);
+        break;
+      case 'left':
+      case 'violation':
+      case 'failed':
+        // The message arrives with the closing state; give it a moment.
+        queueMicrotask(() => {
+          const message = session.state.get().message;
+          if (message) this.say(message);
+        });
+        break;
+    }
+  }
+
+  private async offerClaim(session: OnlineSession): Promise<void> {
+    const friend = session.state.get().friendName;
+    this.say(`${friend} has been gone for two minutes. You can claim the win.`);
+    if (dialogOpen()) return;
+    const claim = await offerDialog(
+      'Claim the Win?',
+      `${friend} has been gone for two minutes. Claim the win, or keep waiting for them.`,
+      'Claim the Win',
+    );
+    if (claim) await session.claimWin();
   }
 
   private toggleFullscreen(): void {
@@ -452,6 +718,11 @@ export class UiRoot {
           checked: () => s().mode === 'local',
           action: () => void this.quickNewGame({ mode: 'local' }),
         },
+        {
+          label: 'Play a &Friend Online…',
+          checked: () => s().mode === 'online' && this.sessionOpen(),
+          action: () => void this.newGame({ mode: 'online' }),
+        },
       ],
       difficulty: () => [
         {
@@ -488,9 +759,38 @@ export class UiRoot {
       resign: () => [
         {
           label: '&Resign',
-          enabled: () => st().status.kind === 'playing',
+          enabled: () =>
+            st().status.kind === 'playing' && (st().mode !== 'online' || this.sessionOpen()),
           action: () => void this.resign(),
         },
+        ...(st().mode === 'online'
+          ? [
+              {
+                label: 'Offer &Draw',
+                enabled: () =>
+                  st().status.kind === 'playing' &&
+                  this.session?.state.get().status === 'playing' &&
+                  this.session.state.get().drawOffer !== 'sent',
+                action: () => {
+                  const session = this.session;
+                  if (!session) return;
+                  const accepting = session.state.get().drawOffer === 'received';
+                  void session.offerDraw();
+                  if (!accepting) this.say(`You offered ${session.state.get().friendName} a draw.`);
+                },
+              },
+              {
+                label: 'Claim the &Win',
+                enabled: () => !!this.session?.state.get().canClaimWin,
+                action: () => void this.session?.claimWin(),
+              },
+              {
+                label: '&Leave Online Game',
+                enabled: () => this.sessionOpen(),
+                action: () => void this.leaveOnline(),
+              },
+            ]
+          : []),
       ],
       hint: () => [{ label: '&Hint', shortcut: 'H', action: () => this.hint() }],
       moveNow: () => [

@@ -12,7 +12,9 @@
 // Builds the game: the scene and camera, the Blender pieces, the board marks and animations, the
 // engine, the controller and the interface, and wires them together. URL parameters for testing:
 // ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no computer, ?seed=<n>,
-// ?difficulty=<id>, ?ui=modern|retro interface, ?debug=1 installs window.__chessDebug.
+// ?difficulty=<id>, ?ui=modern|retro interface, ?debug=1 installs window.__chessDebug (never
+// during an online game). An invitation arrives as #play=<room>.<secret>; it is read once and
+// taken out of the address bar at once.
 
 import { Raycaster, Vector3 } from 'three';
 import { SoundManager } from '../audio/SoundManager.ts';
@@ -23,6 +25,11 @@ import { WorkerTransport } from '../engine/EngineTransport.ts';
 import { isDifficultyId } from '../engine/difficulty.ts';
 import { StockfishAdapter } from '../engine/StockfishAdapter.ts';
 import { GameController } from '../game/GameController.ts';
+import type { Color } from '../game/types.ts';
+import { OnlineSession, type SavedSession, type SessionGame } from '../net/OnlineSession.ts';
+import { openPeerLink } from '../net/PeerLink.ts';
+import { createInvite, inviteUrl, parseInvite, type Invite } from '../net/protocol.ts';
+import { tabStorage } from '../net/savedSession.ts';
 import { isUiStyle, loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
 import { Tweener } from '../scene/animation/tween.ts';
@@ -62,8 +69,17 @@ export class App {
   private readonly frames = new FrameMonitor();
   /** The automatic fallback turns glass reflections off at most once per session. */
   private glassFallbackUsed = false;
+  /** The online game, if one was started on this page; it outlives interface switches. */
+  readonly online = new Store<OnlineSession | null>(null);
+  /** An invitation from the address bar, waiting for the player to accept the warning. */
+  private pendingInvite: Invite | null = null;
+  private readonly inviteListeners = new Set<() => void>();
 
   constructor(readonly root: HTMLElement) {
+    this.readInvite();
+    window.addEventListener('hashchange', () => {
+      if (this.readInvite()) for (const listener of this.inviteListeners) listener();
+    });
     let initial = loadSettings();
     const difficultyParam = this.params.get('difficulty');
     if (difficultyParam && isDifficultyId(difficultyParam)) {
@@ -262,7 +278,7 @@ export class App {
     await engineReady;
     const s = this.settings.get();
     await this.camera.setOrientation(
-      s.mode === 'computer' && s.humanColor === 'b' ? 'black' : 'white',
+      s.mode !== 'local' && s.humanColor === 'b' ? 'black' : 'white',
       false,
     );
     await this.controller.newGame(this.params.get('fen') ?? undefined);
@@ -271,10 +287,85 @@ export class App {
   /** Starts a new game with the given settings (side, mode, time, difficulty). */
   async newGame(patch: Partial<Settings> = {}, fen?: string): Promise<void> {
     const next = { ...this.settings.get(), ...patch };
+    // Any other kind of game ends the online one first.
+    if (next.mode !== 'online') await this.leaveOnline();
     this.settings.set(next);
-    const side = next.mode === 'computer' && next.humanColor === 'b' ? 'black' : 'white';
+    const side = next.mode !== 'local' && next.humanColor === 'b' ? 'black' : 'white';
     void this.camera.setOrientation(side);
     await this.controller.newGame(fen);
+  }
+
+  // --- online play ------------------------------------------------------------------------------
+
+  /** Takes the invitation from the address bar, if any, and clears it from there. */
+  private readInvite(): boolean {
+    if (!location.hash.startsWith('#play')) return false;
+    const invite = parseInvite(location.hash);
+    history.replaceState(null, '', location.pathname + location.search);
+    if (invite) this.pendingInvite = invite;
+    return invite !== null;
+  }
+
+  /** Called when an invitation arrives in an open page (a link pasted into the address bar). */
+  onInvite(listener: () => void): () => void {
+    this.inviteListeners.add(listener);
+    return () => this.inviteListeners.delete(listener);
+  }
+
+  /** The invitation waiting to be accepted, handed over once. */
+  takeInvite(): Invite | null {
+    const invite = this.pendingInvite;
+    this.pendingInvite = null;
+    return invite;
+  }
+
+  /** An online game this tab was playing before a reload. */
+  savedOnline(): SavedSession | null {
+    return tabStorage.load();
+  }
+
+  forgetSavedOnline(): void {
+    tabStorage.clear();
+  }
+
+  /** Makes a new invitation and waits for the friend; returns the link to send. */
+  hostOnline(name: string, color: Color, minutes: number): string {
+    const invite = createInvite();
+    this.begin(OnlineSession.host({ ...this.sessionOptions(invite), name, color, minutes }));
+    return inviteUrl(location.href, invite);
+  }
+
+  joinOnline(invite: Invite, name: string): void {
+    this.begin(OnlineSession.join({ ...this.sessionOptions(invite), name }));
+  }
+
+  resumeOnline(saved: SavedSession, name: string): void {
+    const options = this.sessionOptions(saved.invite);
+    this.begin(OnlineSession.resume({ ...saved, name }, options));
+  }
+
+  /** Leaves the online game, if there is one (losing it if it is still being played). */
+  async leaveOnline(): Promise<void> {
+    const session = this.online.get();
+    if (!session) return;
+    this.online.set(null);
+    await session.leave();
+    session.dispose();
+  }
+
+  private sessionOptions(invite: Invite) {
+    const game: SessionGame = {
+      controller: this.controller,
+      startGame: (color, minutes) => this.newGame({ mode: 'online', humanColor: color, minutes }),
+    };
+    return { link: openPeerLink(invite), game, invite, storage: tabStorage };
+  }
+
+  private begin(session: OnlineSession): void {
+    this.online.get()?.dispose();
+    // The development hook reaches into the whole app; it has no place in a game against a person.
+    delete (window as unknown as { __chessDebug?: unknown }).__chessDebug;
+    this.online.set(session);
   }
 
   /** Development and test helpers on window.__chessDebug. */
