@@ -54,7 +54,8 @@ export class MatchCard {
   private bottomColor: Color = 'w';
   private timed = false;
   private portraits = '';
-  private renderedMoves = '';
+  /** The moves last drawn; null until the first render, so an empty game shows its hint. */
+  private renderedMoves: string | null = null;
 
   constructor(commands: Commands) {
     this.element = el('aside', 'm-card m-match');
