@@ -22,6 +22,7 @@ import {
   parseInvite,
   parseMessage,
 } from '../../src/net/protocol.ts';
+import { parseSaved } from '../../src/net/savedSession.ts';
 
 const SAMPLE_ID = 'abcdefghijklmnopqrstuv';
 
@@ -136,5 +137,39 @@ describe('invitation links', () => {
     ]) {
       expect(parseInvite(hash), hash).toBeNull();
     }
+  });
+});
+
+describe('parseSaved', () => {
+  const good = {
+    invite: createInvite(),
+    role: 'guest',
+    token: SAMPLE_ID,
+    name: 'Ben',
+    friendName: 'Ana',
+    color: 'b',
+    minutes: 5,
+    moves: ['e2e4', 'e7e5'],
+    clocks: { w: 1200, b: 800 },
+  };
+
+  it('reads back a saved game', () => {
+    expect(parseSaved(JSON.parse(JSON.stringify(good)))).toEqual(good);
+  });
+
+  it('treats anything malformed as nothing', () => {
+    for (const patch of [
+      { role: 'admin' },
+      { token: 'x' },
+      { color: 'red' },
+      { minutes: 7 },
+      { moves: ['e2e4', 'castle'] },
+      { clocks: { w: -1, b: 0 } },
+      { invite: { room: 'r', secret: 's' } },
+    ]) {
+      expect(parseSaved({ ...good, ...patch }), JSON.stringify(patch)).toBeNull();
+    }
+    expect(parseSaved(null)).toBeNull();
+    expect(parseSaved('saved')).toBeNull();
   });
 });
