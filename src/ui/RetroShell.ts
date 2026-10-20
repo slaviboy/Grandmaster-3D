@@ -21,6 +21,7 @@ import { GameStatusPanel } from './GameStatusPanel.ts';
 import { MenuBar, type Menu, type MenuItem } from './MenuBar.ts';
 import type { Panel } from './Panel.ts';
 import type { Shell, ShellContext, ShellView } from './shell.ts';
+import { uiStyleSwitch } from './UiStyleSwitch.ts';
 
 export class RetroShell implements Shell {
   readonly element: HTMLElement;
@@ -52,7 +53,7 @@ export class RetroShell implements Shell {
     winButton('min', 'Collapse all windows', () => this.collapseAll());
     winButton('max', 'Full screen', () => commands.toggleFullscreen());
     winButton('close', 'Hide all windows', () => this.toggleAllPanels());
-    titleBar.append(windowButtons);
+    titleBar.append(uiStyleSwitch(app.settings), windowButtons);
 
     this.menu = new MenuBar(this.menus(), { signal });
     titleBar.append(this.menu.element);
@@ -193,6 +194,7 @@ export class RetroShell implements Shell {
           sep,
           ...m.appearance(),
           sep,
+          ...m.interface(),
           ...m.settings(),
         ],
       },

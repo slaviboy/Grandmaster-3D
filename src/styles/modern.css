@@ -307,6 +307,40 @@
     flex: none;
   }
 
+  /* The Modern | Retro switch: a small segmented pill, the current style lit in gold. */
+  .ui-switch {
+    display: flex;
+    gap: 0.2rem;
+    padding: 0.3rem;
+    border: 1px solid var(--m-line);
+    border-radius: 1.2rem;
+    background: rgba(0, 0, 0, 0.22);
+  }
+
+  .ui-switch-option {
+    height: 2.8rem;
+    padding: 0 1rem;
+    border: 0;
+    border-radius: 0.9rem;
+    background: none;
+    color: var(--m-muted);
+    font: 500 1.2rem var(--m-font);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .ui-switch-option:hover {
+    color: var(--m-text);
+  }
+
+  .ui-switch-option[aria-checked='true'] {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--m-gold-hi);
+    box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.3);
+  }
+
   /* Dropdown menus. MenuBar places them at the button's lower left corner. */
   .menu {
     position: fixed;

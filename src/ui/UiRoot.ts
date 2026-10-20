@@ -113,6 +113,8 @@ export class UiRoot {
 
   /** Puts up the interface in the given style, replacing the current one. */
   private mount(style: UiStyle): void {
+    // Someone switching with the keyboard keeps their place on the switch.
+    const onSwitch = document.activeElement?.closest('.ui-switch') !== null;
     this.shell?.dispose();
     this.mounted?.abort();
     this.mounted = new AbortController();
@@ -133,6 +135,8 @@ export class UiRoot {
     const shell = style === 'modern' ? new ModernShell(context) : new RetroShell(context);
     for (const line of this.log) shell.say(line);
     this.shell = shell;
+    if (onSwitch)
+      shell.element.querySelector<HTMLElement>('.ui-switch [aria-checked="true"]')?.focus();
     this.renderClocks();
   }
 
@@ -625,6 +629,22 @@ export class UiRoot {
               action: () => void themeDialog(app.settings, 'table'),
             },
           ],
+        },
+      ],
+      interface: () => [
+        {
+          label: '&Interface',
+          submenu: () =>
+            (
+              [
+                ['modern', '&Modern'],
+                ['retro', '&Retro'],
+              ] as const
+            ).map(([style, label]) => ({
+              label,
+              checked: () => s().uiStyle === style,
+              action: () => app.settings.update({ uiStyle: style }),
+            })),
         },
       ],
       settings: () => [{ label: 'Se&ttings…', action: () => void this.settings() }],

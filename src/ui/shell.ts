@@ -77,6 +77,8 @@ export interface MenuCatalog {
   readonly coordinates: () => MenuItem[];
   /** One-click looks, the Board and Pieces dialog, and the board, piece set and table lists. */
   readonly appearance: () => MenuItem[];
+  /** Interface ▸ Modern / Retro. */
+  readonly interface: () => MenuItem[];
   readonly settings: () => MenuItem[];
   readonly help: () => MenuItem[];
 }

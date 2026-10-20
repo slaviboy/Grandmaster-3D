@@ -114,6 +114,39 @@
     color: #fff;
   }
 
+  /* The Modern | Retro switch, on the wordmark's row left of the window buttons. */
+  .title-bar .ui-switch {
+    position: absolute;
+    right: 6.6rem;
+    top: 0.3rem;
+    display: flex;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.9rem;
+    overflow: hidden;
+    background: var(--chrome-dark);
+  }
+
+  .ui-switch-option {
+    height: 1.6rem;
+    padding: 0 0.8rem;
+    border: 0;
+    background: none;
+    color: var(--text-dim);
+    font: 1.05rem/1.6rem var(--font-ui);
+    cursor: pointer;
+  }
+
+  .ui-switch-option[aria-checked='true'] {
+    background: var(--panel-header);
+    color: #fff;
+  }
+
+  .ui-switch-option:hover,
+  .ui-switch-option:focus-visible {
+    color: #ffe7a0;
+    outline: none;
+  }
+
   .menubar {
     position: absolute;
     left: 1rem;

@@ -19,6 +19,7 @@ import { el } from '../Dialog.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
 import type { Shell, ShellContext, ShellView } from '../shell.ts';
+import { uiStyleSwitch } from '../UiStyleSwitch.ts';
 import { CoachCard } from './CoachCard.ts';
 import { iconButton } from './controls.ts';
 import { Dock } from './Dock.ts';
@@ -47,6 +48,7 @@ export class ModernShell implements Shell {
     newGame.setAttribute('aria-label', 'New game (Ctrl+N)');
     newGame.addEventListener('click', () => commands.newGame());
     end.append(
+      uiStyleSwitch(app.settings),
       newGame,
       iconButton(LINE_ICONS.fullscreen, 'Full screen', () => commands.toggleFullscreen()),
     );
@@ -161,7 +163,7 @@ export class ModernShell implements Shell {
           { label: '&Full Screen', action: () => this.ctx.commands.toggleFullscreen() },
         ],
       },
-      { label: '&Look', items: m.appearance },
+      { label: '&Look', items: () => [...m.appearance(), sep, ...m.interface()] },
       { label: '&Options', items: () => [...m.effects(), sep, ...m.settings()] },
       { label: '&Help', items: m.help },
     ];
