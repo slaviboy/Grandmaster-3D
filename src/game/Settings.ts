@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pieceTheme: DEFAULT_PIECES,
   tableTheme: DEFAULT_TABLE,
   custom: DEFAULT_CUSTOM,
-  uiStyle: 'retro',
+  uiStyle: 'modern',
 };
 
 export const TIME_CONTROLS: readonly number[] = [0, 5, 10, 15, 30];

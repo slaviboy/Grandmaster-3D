@@ -33,13 +33,14 @@ declare global {
   }
 }
 
-async function open(page: Page, query = ''): Promise<string[]> {
+/** Opens the game in the given interface; most tests drive the retro one's menus and panels. */
+async function open(page: Page, query = '', ui: 'retro' | 'modern' = 'retro'): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto(`/?debug=1&seed=7${query}`);
+  await page.goto(`/?debug=1&seed=7&ui=${ui}${query}`);
   await page.waitForFunction(() => window.__chessDebug?.pieceCount() === 32, null, {
     timeout: 60_000,
   });
