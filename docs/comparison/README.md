@@ -65,3 +65,17 @@ The tuning rounds made these changes:
 - Piece widths narrowed to the measured bases.
 - The rook height corrected to 0.93.
 - The wood colours: boxwood for White and a desaturated rosewood for Black.
+
+## Marble Edition
+
+Compared with the marble-board reference from a camera fitted to it (2.8 px rms), over 22 sample
+points on the squares, frame, pieces and table:
+
+| Round | Mean ΔE | What changed |
+| --- | --- | --- |
+| 1 | 7.3 | Cooler marble, a 0.2-square board, larger coordinates, darker silver and red |
+| 2 | 5.7 | The Bell piece set, polished mottled pieces that mirror the board, and light slab veins in place of dark per-square veins |
+
+The squares now measure ΔE 0 to 5. The largest remaining gaps are on the red pieces, where the
+reference puts its pinkish highlights elsewhere (ΔE up to 24 at single points), and on the shaded
+left side of the frame (ΔE 8). The default look still measures 3.7 against the main reference.

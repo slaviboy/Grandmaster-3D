@@ -23,6 +23,17 @@ by measured comparison.
 | Last move | Thin white rings on the from- and to-squares |
 | Selection | The selected square is tinted a light blue (≈`#5BA9C8`) |
 
+## Other looks
+
+The default look above follows the main reference. The one-click looks follow their own
+references:
+
+| Look | Specification |
+|---|---|
+| Console Mahogany | Mahogany board with pale and reddish-brown squares, Boxwood & Rosewood pieces, dark blue stone table |
+| Marble Edition | A thin board (0.2 of a square) of cool blue-grey marble: light squares `#B7D0DC`, dark `#88A5B0`, crossed by long, light veins that run straight across squares with sharp kinks. Large grey-blue coordinates (0.4 of a square). Red Lacquer & Silver pieces in the Bell shape: wide bell bases about 0.7 across, thin stems and a double collar; king 1.75, queen 1.58, bishop 1.44, knight 1.19, rook 1.05, pawn 0.90. Both sides are polished, mottled and mirror the board. Blue stone table |
+| Glass Studio | A clear glass sheet 0.12 of a square thick with a green-tinted edge, printed with frosted-white and glossy black squares and a double black line on a clear border. The pieces mirror in the black squares. Clear glass pieces against mirror-black glass pieces; clear glass casts only a soft contact shadow. A neutral light grey studio sweep with a white backdrop |
+
 ## Interface
 
 | Element | Specification |

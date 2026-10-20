@@ -31,11 +31,15 @@ your opponent at six difficulty levels.
 - **Optional animations**, both off by default:
   - *Follow move path*: pieces travel their real route. The knight goes two squares, turns and goes
     one more, lifting over pieces in its way.
-  - *Demolish captures*: the captured piece shatters into wooden fragments that were pre-fractured
-    in Blender.
-- **Looks you can change** under Preferences → Board and Pieces:
-  - 6 boards, 7 piece sets and 5 tables
+  - *Demolish captures*: the captured piece shatters into fragments that were pre-fractured in
+    Blender: wooden chunks, or glass shards with a glassy tinkle for glass pieces.
+- **Looks you can change** under Preferences → Looks and Board and Pieces:
+  - 4 one-click looks that set the board, pieces and table together
+  - 7 boards, 8 piece sets in two carved shapes (Staunton and Bell), and 6 tables
   - a Custom choice for each, using your own colours
+  - a glass look with a mirroring glass board and clear and black glass pieces. If glass runs
+    below 40 frames a second, its reflections turn off by themselves (Preferences → Glass
+    Reflections turns them back on).
 - Sounds synthesised with Web Audio, so there are no audio files.
 
 | Chess Coach and move list | Rotated and zoomed |
@@ -48,16 +52,17 @@ your opponent at six difficulty levels.
 
 | Category | Presets |
 | --- | --- |
-| Boards | Classic Maple, Mahogany, Marble, Walnut & Birch, Ebony & Boxwood, Tournament Green |
-| Piece sets | Boxwood & Rosewood, Red Lacquer & Silver, Ebony & Boxwood, Walnut & Maple, Ivory & Onyx, Gold & Silver, Marble |
-| Tables | Teal Cloth, Blue Stone, Slate, Green Felt, Burgundy |
+| Looks | Classic, Console Mahogany, Marble Edition, Glass Studio |
+| Boards | Classic Maple, Mahogany, Marble, Walnut & Birch, Ebony & Boxwood, Tournament Green, Glass Board |
+| Piece sets | Boxwood & Rosewood, Red Lacquer & Silver (Bell shape), Ebony & Boxwood, Walnut & Maple, Ivory & Onyx, Gold & Silver, Marble, Glass |
+| Tables | Teal Cloth, Blue Stone, Slate, Green Felt, Burgundy, White Studio |
 
 The Custom choices take your own colours:
 
 | Custom | You pick |
 | --- | --- |
 | Board | Light squares, dark squares and frame, in wood, marble or a plain finish |
-| Pieces | A colour for each side, in wood, lacquer, metal or stone |
+| Pieces | A colour for each side, in wood, lacquer, metal, stone, clear glass or polished glass |
 | Table | One colour |
 
 Changes show on the board straight away, even mid-game, and are remembered. Everything is painted
@@ -138,13 +143,14 @@ The modelling scripts live in [blender/scripts/](blender/scripts/):
 | `profiles.py` | The lathe profiles |
 | `pieces.py` | The turned pieces |
 | `knight.py` | The carved knight |
-| `build_set.py` | Builds and checks the whole set |
+| `bell.py` | The Bell set: wide bell bases, thin stems and a double collar |
+| `build_set.py` | Builds and checks both sets |
 | `export_glb.py` | Exports the GLB files |
 | `render_previews.py` | Renders the previews |
 | `fracture.py` | Fractures the pieces into fragments |
 
 The editable source is `blender/chess_set.blend`, previews are in [blender/renders/](blender/renders/),
-and the exported models are in `public/models/chess/`.
+and the exported models are in `public/models/chess/` (the Bell set in its `bell/` folder).
 
 ## How it is built
 
