@@ -12,12 +12,13 @@ by measured comparison.
 | Element | Specification |
 |---|---|
 | Background | Dark blue-teal cloth `#154458` with a fine, wavy wood-grain-like streak pattern running horizontally |
-| Board frame | Orange maple `#E0A15D`. It is wide (≈0.55 of a square on each side), with rounded outer corners, a visible front edge about 0.2 of a square thick, and a soft drop shadow on the cloth |
+| Board frame | Orange maple `#E0A15D`. It is 0.5 of a square wide on each side, with rounded outer corners and a rounded top edge. The front edge is 0.45 of a square thick, light at the top and darkening toward the cloth, and the board casts a soft drop shadow on the cloth |
 | Coordinates | A–H along the near edge and 1–8 along the left edge, engraved in pale cream (lighter than the frame), in a clean sans-serif |
 | Squares | Light maple `#F4C38D` and tan `#B78249`, low contrast, with fine straight grain. The playing area sits slightly below the frame top |
 | Pieces | Classic Staunton in turned wood, semi-gloss. Growth rings show on the tops (seen clearly from overhead), and grain runs along each piece. White is pale boxwood cream; black is a mid-to-dark rosewood brown with visible grain (not ebony black) |
+| Piece sizes | Measured heights in squares: king 1.745, queen 1.63, bishop 1.36, knight 1.30, rook 0.93, pawn 0.83. Bases are about 0.5 (pawn) to 0.6 (king) of a square across. Knights face the a-file side, and bishop slits face right as seen from White |
 | Piece forms | King: crown with a cross finial. Queen: coronet with points and a ball. Bishop: miter with a slit and a small ball. Knight: carved horse head with mane. Rook: tower with crenellations. Pawn: ball on a collar. All are tall and slim with wide bases |
-| Camera | Default view is from White's side at ≈45–50° elevation with moderate perspective (the far edge is ≈0.75× the near edge). The board sits left of the right-hand panel. The view can be rotated, tilted, panned and zoomed |
+| Camera | Default view fitted to the reference within 0.8 px: from White's side at 49.7° elevation, vertical field of view 30.5°, 22 squares away, with the principal point shifted 4% left so the board sits beside the right-hand panel. Drag a corner to rotate and tilt, drag the edge to pan, use the wheel or PgUp/PgDn to zoom, and the arrow keys to rotate and tilt |
 | Light | Key light from the front right and above, casting soft shadows toward the back left; soft fill light; mild highlights on the pieces |
 | Last move | Thin white rings on the from- and to-squares |
 | Selection | The selected square is tinted a light blue (≈`#5BA9C8`) |
@@ -36,3 +37,7 @@ by measured comparison.
 | Bottom right | A rounded strip of round icon buttons |
 | Status line | One line of text along the bottom edge, such as "Black is checkmated" |
 | Dialogs | Dark panels with a header bar and full-width rounded buttons |
+
+## Results
+
+Measured comparisons and the tuning history are in [comparison/README.md](comparison/README.md).
