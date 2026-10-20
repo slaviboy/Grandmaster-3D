@@ -14,6 +14,7 @@
 
 import {
   ExtrudeGeometry,
+  Float32BufferAttribute,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -28,11 +29,11 @@ import { createFrameTexture, createSquaresTexture, type FrameLabels } from './wo
 /** Width of the frame around the playing area. */
 export const FRAME_WIDTH = 0.5;
 /** Total board thickness, frame top to underside. */
-export const BOARD_THICKNESS = 0.3;
+export const BOARD_THICKNESS = 0.45;
 /** How far the frame top stands above the playing surface. */
 export const FRAME_LIP = 0.015;
 const CORNER_RADIUS = 0.26;
-const BEVEL = 0.025;
+const BEVEL = 0.05;
 /** Distance from a frame corner within which a drag rotates instead of pans. */
 const CORNER_ZONE = 1.2;
 
@@ -45,6 +46,7 @@ export class ChessBoard {
   /** y of the underside, where the board rests on the cloth. */
   readonly bottomY = FRAME_LIP - BOARD_THICKNESS;
   private readonly frameMaterial: MeshStandardMaterial;
+  private readonly edgeMaterial: MeshStandardMaterial;
   private labels: FrameLabels = { side: 'white', visible: true };
 
   constructor() {
@@ -66,7 +68,12 @@ export class ChessBoard {
       roughness: 0.5,
       metalness: 0,
     });
-    this.frame = new Mesh(createFrameGeometry(), this.frameMaterial);
+    // The extrusion's side walls (its second material group) read lighter in the reference,
+    // like the exposed end of a planed board.
+    this.edgeMaterial = this.frameMaterial.clone();
+    this.edgeMaterial.color.setRGB(1.14, 1.08, 1.3);
+    this.edgeMaterial.vertexColors = true;
+    this.frame = new Mesh(createFrameGeometry(), [this.frameMaterial, this.edgeMaterial]);
     this.frame.name = 'frame';
     this.frame.castShadow = true;
     this.frame.receiveShadow = true;
@@ -82,6 +89,8 @@ export class ChessBoard {
     this.frameMaterial.map?.dispose();
     this.frameMaterial.map = this.makeFrameTexture();
     this.frameMaterial.needsUpdate = true;
+    this.edgeMaterial.map = this.frameMaterial.map;
+    this.edgeMaterial.needsUpdate = true;
   }
 
   /** Which drag zone of the frame a world-space point on the frame falls in. */
@@ -106,6 +115,7 @@ export class ChessBoard {
     this.surface.geometry.dispose();
     this.frameMaterial.map?.dispose();
     this.frameMaterial.dispose();
+    this.edgeMaterial.dispose();
     const surfaceMaterial = this.surface.material as MeshStandardMaterial;
     surfaceMaterial.map?.dispose();
     surfaceMaterial.dispose();
@@ -151,5 +161,16 @@ function createFrameGeometry(): ExtrudeGeometry {
   geometry.rotateX(-Math.PI / 2);
   geometry.translate(0, FRAME_LIP - (depth + BEVEL), 0);
   geometry.computeVertexNormals();
+  // Darken the side walls toward the cloth: the soft occlusion along the board's foot that the
+  // reference shows on its front edge. Only the edge material uses these colours.
+  const positions = geometry.getAttribute('position');
+  const colours = new Float32Array(positions.count * 3);
+  const bottom = FRAME_LIP - BOARD_THICKNESS;
+  for (let i = 0; i < positions.count; i++) {
+    const t = Math.min(1, Math.max(0, (positions.getY(i) - bottom) / BOARD_THICKNESS));
+    const shade = 0.5 + 0.5 * Math.pow(t, 0.8);
+    colours.set([shade, shade, shade], i * 3);
+  }
+  geometry.setAttribute('color', new Float32BufferAttribute(colours, 3));
   return geometry;
 }

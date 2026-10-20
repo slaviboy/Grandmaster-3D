@@ -13,7 +13,9 @@
 // something changed or an animation is running, so an idle board costs nothing.
 
 import {
+  CanvasTexture,
   Color,
+  MeshBasicMaterial,
   DirectionalLight,
   Fog,
   HemisphereLight,
@@ -90,6 +92,12 @@ export class ChessScene {
     shadow.normalBias = 0.02;
     this.scene.add(this.keyLight, this.keyLight.target);
 
+    // A soft light from the viewer's side, without shadows, so the front edge of the frame and the
+    // fronts of the pieces are not lost in shade.
+    const front = new DirectionalLight('#eaf2ff', 0.3);
+    front.position.set(-2, 5, 14);
+    this.scene.add(front);
+
     this.board = new ChessBoard();
     this.scene.add(this.board.group);
 
@@ -104,6 +112,7 @@ export class ChessScene {
     cloth.position.y = this.board.bottomY - 0.001;
     cloth.receiveShadow = true;
     this.scene.add(cloth);
+    this.scene.add(this.createContactShadow());
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -111,6 +120,34 @@ export class ChessScene {
 
     this.timer.connect(document);
     this.renderer.setAnimationLoop((time) => this.tick(time));
+  }
+
+  /** A blurred dark patch under the board: the soft drop shadow on the cloth in the reference. */
+  private createContactShadow(): Mesh {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    ctx.filter = 'blur(14px)';
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    const inset = size * 0.13;
+    ctx.fillRect(inset, inset, size - 2 * inset, size - 2 * inset);
+    const texture = new CanvasTexture(canvas);
+    const shadow = new Mesh(
+      new PlaneGeometry(11.6, 11.6),
+      new MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    shadow.name = 'contact-shadow';
+    shadow.rotation.x = -Math.PI / 2;
+    // Slightly toward the viewer and to the right, away from the key light.
+    shadow.position.set(0.25, this.board.bottomY + 0.002, 0.35);
+    return shadow;
   }
 
   /** Registers a per-frame update; returns a function that removes it. */

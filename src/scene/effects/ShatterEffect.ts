@@ -29,6 +29,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createRng, range, type Rng } from '../../core/rng.ts';
 import { PIECE_NAMES, type PieceKind } from '../../game/types.ts';
 import type { CaptureEffect } from '../AnimationController.ts';
+import { BOARD_THICKNESS, FRAME_LIP } from '../ChessBoard.ts';
 import type { PieceView } from '../PieceManager.ts';
 
 interface ChunkTemplate {
@@ -58,7 +59,7 @@ const LIFETIME = 2;
 const FADE_FROM = 1.3;
 const MAX_BURSTS = 4;
 /** Height of the cloth the board rests on, relative to the playing surface. */
-const CLOTH_Y = -0.285;
+const CLOTH_Y = FRAME_LIP - BOARD_THICKNESS;
 
 /** Loads the fragment models: one GLB per piece type, one node per chunk. */
 export class FragmentLibrary {
