@@ -66,6 +66,8 @@ The look of a 2000s desktop chess game:
   - resignation and flag fall
 - **Clocks** of 5, 10, 15 or 30 minutes per player, or untimed.
 - **Undo and redo**, PGN and FEN import and export, a two-player mode, and flipping the board.
+- **Play a friend online** from a link, with no server and no account: the two browsers connect
+  directly (see [Online play](#online-play)). Online play is for adults only.
 - **Chess Coach** board aids and commentary:
   - legal, capture and check moves
   - danger zones, safe zones and board coverage
@@ -140,7 +142,10 @@ For development and tests, the page accepts these URL parameters:
 | `difficulty=` | Difficulty level |
 | `ui=modern`, `ui=retro` | Interface style |
 | `seed=` | Seed for the random generator |
-| `debug=1` | Adds `window.__chessDebug` |
+| `debug=1` | Adds `window.__chessDebug` (removed during an online game) |
+
+The online end-to-end test (`tests/e2e/online.spec.ts`) connects two browser windows over the real
+network through public relays, so it needs the internet and is skipped in CI.
 
 ## Difficulty
 
@@ -212,6 +217,8 @@ src/scene/    three.js scene, board, camera controls, piece loading and placemen
               input, move animations and paths, shatter effect
 src/ui/       interface core (UiRoot: commands, menus, coach), the retro shell and its panels,
               the modern shell and its cards (src/ui/modern/), dialogs, icons
+src/net/      online play: the protocol, the guard on incoming data, the session between two
+              players, and PeerLink (the only file that touches Trystero and WebRTC)
 src/app/      wires everything together
 blender/      modelling scripts, source .blend, renders
 tests/        unit, architecture and end-to-end tests
@@ -225,12 +232,56 @@ board with the rules after every move.
 ## Deployment
 
 The build is a static site with relative URLs, so it works on any static host, including from a
-subpath. The included GitHub Actions workflow deploys it to GitHub Pages on every push to `main`
+subpath. Online play needs nothing more: the players' browsers connect to each other. The included GitHub Actions workflow deploys it to GitHub Pages on every push to `main`
 (once, set Settings → Pages → Source: GitHub Actions).
 
 The engine is the single-threaded lite build of Stockfish (about 1.8 MB of WebAssembly). It needs no
 special headers: no cross-origin isolation, no `SharedArrayBuffer`. The server only has to send
 `.wasm` files as `application/wasm`, as GitHub Pages and most hosts do.
+
+## Online play
+
+GitHub Pages serves static files only, so there is no game server. Two players' browsers connect
+directly with WebRTC, the way classic peer-to-peer chat programs did:
+
+1. **New game ▸ A friend online** (or Game ▸ Play a Friend Online). After the warning, the game
+   makes a link such as `https://…/#play=<room>.<secret>` to send to a friend.
+2. The friend opens it, accepts the same warning, and the game starts. The host keeps the colour
+   and time chosen; the friend gets the other side.
+
+**How the two find each other.** [Trystero](https://github.com/dmotz/trystero) announces the room
+on public Nostr relays. The link's secret encrypts that handshake, so the relays and anyone without
+the link see neither the offer nor the network addresses inside it. After the handshake, moves go
+straight between the two browsers. The room and secret are random (128 and 256 bits) and live only
+in the link's hash, which browsers never send to the web server; the game removes it from the
+address bar as soon as the page opens.
+
+**Fair play without a referee.** Nobody in between checks the game, so each browser checks
+everything it receives:
+
+- incoming data is limited in size (4 KB) and rate, and must be exactly a known message;
+- a move must be the sender's, in turn, in order and legal in chess.js;
+- each side times the other's moves on its own clock (the measured network delay, capped at
+  300 ms, is given back), and only accepts the other side's word that *they* ran out of time;
+- only the host sets the colours and the time, once, and a rejoining game may only grow;
+- a random token handed to the guest must be shown again by whoever comes back, so a stranger with
+  a leaked link can neither take a seat nor pose as the host; a third player is refused.
+
+A player whose app breaks a rule forfeits on the honest side and is disconnected. A modified
+browser can change only what its own screen shows. Undo, redo and hints are off online. No one can
+stop a player from consulting an engine in another window.
+
+**Privacy.** A direct connection means **the other player can find your public IP address**
+(your approximate location and internet provider), for example with `chrome://webrtc-internals` or
+the operating system's list of connections. Your local network address stays hidden, and the game
+never shows or logs any address. Share links only with people you trust; a VPN shows the VPN's
+address instead. Every online game starts with this warning and an "I am 18 or older" checkbox that
+starts unticked each time and is never remembered. The age check is the player's own statement; a
+game without a server cannot verify it.
+
+**Connections that fail.** Without a relay (TURN) server, roughly one pair of players in ten
+cannot connect directly, for example on some mobile networks or office Wi-Fi; the game then says
+so. A TURN server could be added through Trystero's `rtcConfig`, at the cost of running one.
 
 ## Known limitations
 
@@ -241,6 +292,8 @@ special headers: no cross-origin isolation, no `SharedArrayBuffer`. The server o
   the full 94 MB build.
 - Game review is limited to stepping back and forward through the moves; there is no annotation.
 - End-to-end tests need a browser with WebGL, so CI runs only the unit tests.
+- Online play has no server: players see each other's public IP address, and some networks block
+  direct connections (see [Online play](#online-play)).
 
 ## License
 

@@ -4,6 +4,7 @@ How to play, what every menu, card, button and setting does, in both interfaces.
 
 - [The two interfaces](#the-two-interfaces)
 - [Starting a game](#starting-a-game)
+- [Playing a friend online](#playing-a-friend-online)
 - [Moving pieces](#moving-pieces)
 - [Looking around the board](#looking-around-the-board)
 - [The modern interface](#the-modern-interface)
@@ -41,7 +42,8 @@ Modern.
 Open **New game** with the gold button in the top bar (Modern), the round king button at the
 bottom left (Retro), Game or File ▸ New Game…, or Ctrl+N.
 
-- **Opponent.** Play against the computer (Stockfish) or two players on one device.
+- **Opponent.** Play against the computer (Stockfish), two players on one device, or a friend
+  online (see [Playing a friend online](#playing-a-friend-online)).
 - **Strength.** Six levels, each with its own opponent's portrait:
 
   | Level | About | Portrait |
@@ -63,6 +65,42 @@ In Modern, every choice is on one page. Click a card or chip, or use the arrow k
 Shortcuts from the menus start a new game straight away with one thing changed: Play as White,
 Play as Black, Two Players and Time Control. Changing the Difficulty does not start a new game; the
 computer plays at the new strength from its next move.
+
+## Playing a friend online
+
+Online play is **for adults only**. It connects your computer directly to the other player's, with
+no server in between, so **the other player will be able to find your IP address** (your
+approximate location and internet provider). Share game links only with people you know and trust.
+
+**Inviting a friend.** Open **New game**, choose **A friend online**, pick your side and the time,
+and press **Create Link**. (Game ▸ Play a Friend Online opens the same choices.) Read the warning,
+type the name your friend will see, tick **I am 18 or older and understand that my IP address will
+be visible to the other player**, and press **Create Link**. Copy the link and send it to your
+friend. The window closes by itself when they arrive. Cancel stops waiting.
+
+**Joining.** Open the link you were sent. The same warning comes first, with its checkbox unticked;
+tick it and press **Join Game**. You play the side your friend did not choose. Nothing connects
+until you have agreed, and the link disappears from the address bar as soon as the page opens.
+
+**During the game.**
+
+- The cards show both names. The status line says whose move it is, and whether your friend's
+  connection dropped. A dropped game carries on by itself when they come back.
+- Take back, replay and hints are off. Each side's clock runs on its own turn, starting with the
+  first move.
+- **Offer Draw** (Game menu) offers a draw; the game is drawn when both of you agree.
+- **Resign**, or **Leave Online Game**, ends the game as a loss. Starting any other game asks first,
+  since it means leaving.
+- If your friend is gone for two minutes in an untimed game, you can **Claim the Win**. In a timed
+  game, their clock keeps running.
+- After the game, **Rematch** swaps the colours once you both ask (the warning comes again).
+- If you reload the page, the game offers to rejoin, after the warning.
+
+**If the other app cheats.** Your game checks everything it receives. An impossible move or broken
+game data ends the game in your favour and disconnects the other player.
+
+**If it cannot connect.** Some networks, such as mobile data or office Wi-Fi, block direct
+connections between two computers. Try another network, or ask your friend to.
 
 ## Moving pieces
 
@@ -335,7 +373,9 @@ The browser keeps your preferences for the next visit:
 - legal-move, last-move and coordinate marks;
 - the looks and your custom colours.
 
-The game itself is not kept: a reload starts a new game. The coach aids and which cards or windows
+The game itself is not kept: a reload starts a new game. An online game is the exception: the tab
+keeps it until it closes, so a reload can rejoin (after the warning). The name you last used online
+is offered again; agreeing to the warning never is. The coach aids and which cards or windows
 are open last for the visit. In a private window, or when the browser blocks storage, the game uses
 the defaults and nothing is saved.
 
@@ -345,5 +385,7 @@ the defaults and nothing is saved.
   Reflections off by itself and says so in the coach. You can turn it back on in Options or
   Preferences.
 - **The engine had a problem.** Stockfish restarts by itself; the coach mentions it.
+- **An online game cannot connect.** Some networks block direct connections between two players.
+  Try another network. The link only works while the player who made it keeps the game open.
 - **The board is covered on a small screen.** Fold the Match card's move list or the Coach card, or
   hide them from the View (Modern) or Windows (Retro) menu.
