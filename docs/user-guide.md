@@ -88,6 +88,12 @@ until you have agreed, and the link disappears from the address bar as soon as t
   connection dropped. A dropped game carries on by itself when they come back.
 - Take back, replay and hints are off. Each side's clock runs on its own turn, starting with the
   first move.
+- **Video and voice.** Your card has a microphone and a camera switch; both start off, and the
+  browser asks for permission the first time you turn one on. Your own picture shows mirrored on
+  your card. Turning a switch off stops the device (the camera light goes out). Your friend's
+  picture and sound appear on their card when they turn theirs on; the speaker switch there mutes
+  them for you only, and a crossed-out microphone shows when no sound comes from them. In Modern a
+  card with video opens up to show it; in Retro it fills the portrait frame.
 - **Offer Draw** (Game menu) offers a draw; the game is drawn when both of you agree.
 - **Resign**, or **Leave Online Game**, ends the game as a loss. Starting any other game asks first,
   since it means leaving.
@@ -385,6 +391,8 @@ the defaults and nothing is saved.
   Reflections off by itself and says so in the coach. You can turn it back on in Options or
   Preferences.
 - **The engine had a problem.** Stockfish restarts by itself; the coach mentions it.
+- **The camera or microphone is blocked.** The coach says so. Allow it in the browser's site
+  settings (the icon next to the address), then turn the switch on again.
 - **An online game cannot connect.** Some networks block direct connections between two players.
   Try another network. The link only works while the player who made it keeps the game open.
 - **The board is covered on a small screen.** Fold the Match card's move list or the Coach card, or

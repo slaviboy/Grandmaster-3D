@@ -67,7 +67,8 @@ The look of a 2000s desktop chess game:
 - **Clocks** of 5, 10, 15 or 30 minutes per player, or untimed.
 - **Undo and redo**, PGN and FEN import and export, a two-player mode, and flipping the board.
 - **Play a friend online** from a link, with no server and no account: the two browsers connect
-  directly (see [Online play](#online-play)). Online play is for adults only.
+  directly, with optional video and voice on the players' cards (see [Online play](#online-play)).
+  Online play is for adults only.
 - **Chess Coach** board aids and commentary:
   - legal, capture and check moves
   - danger zones, safe zones and board coverage
@@ -267,7 +268,14 @@ everything it receives:
 - a random token handed to the guest must be shown again by whoever comes back, so a stranger with
   a leaked link can neither take a seat nor pose as the host; a third player is refused.
 
-A player whose app breaks a rule forfeits on the honest side and is disconnected. A modified
+A player whose app breaks a rule forfeits on the honest side and is disconnected.
+
+**Video and voice.** Each player's card has microphone and camera switches, and both start off. The
+browser asks for a device only when its switch is turned on, and turning it off stops the device
+itself (its light goes out). Nothing the other player sends can turn on a camera or microphone. The
+other player's picture and sound are shown from what actually arrives, never from what their app
+claims, and only one picture and one sound are taken from them. Their sound can be muted on your
+side. The picture is a small 320×240 at 15 frames a second, sent directly between the players. A modified
 browser can change only what its own screen shows. Undo, redo and hints are off online. No one can
 stop a player from consulting an engine in another window.
 
