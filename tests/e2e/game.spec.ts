@@ -303,6 +303,66 @@ test('Follow move path and Demolish captures: the knight takes its L and the vic
   expect(errors).toEqual([]);
 });
 
+test('Glass Studio: glass board and pieces, glass shards, and the reflections switch', async ({
+  page,
+}) => {
+  const errors = await open(page);
+  const theme = () =>
+    page.evaluate(
+      () =>
+        (window.__chessDebug as unknown as { theme(): Record<string, unknown> }).theme() as {
+          board: string;
+          pieces: string;
+          table: string;
+          whiteMaterial: { transmission?: number } | null;
+          mirror: boolean | null;
+        },
+    );
+  await newGame(page, { mode: 'local', minutes: 0, demolish: true });
+  await page.getByRole('menuitem', { name: 'Preferences' }).click();
+  await page.locator('.menu-entry .menu-label', { hasText: /^Looks$/ }).hover();
+  await page.locator('.submenu .menu-entry', { hasText: 'Glass Studio' }).click();
+  const glass = await theme();
+  expect(glass).toMatchObject({ board: 'glass', pieces: 'glass', table: 'white-studio' });
+  expect(glass.whiteMaterial!.transmission).toBe(1);
+  expect(glass.mirror).toBe(true);
+
+  // A glass capture with Demolish bursts into shards that are all freed again.
+  await page.waitForTimeout(1500); // fragments load in the background
+  await move(page, 'e2', 'e4');
+  await idle(page);
+  await move(page, 'd7', 'd5');
+  await idle(page);
+  await move(page, 'e4', 'd5');
+  await expect
+    .poll(() => page.evaluate(() => window.__chessDebug.effectCount()), { timeout: 5000 })
+    .toBeGreaterThan(0);
+  await idle(page);
+  // Software rendering draws glass at about one frame a second, and the shards live for two
+  // seconds of animation time (at most 0.1 s per frame), so allow for that.
+  await expect
+    .poll(() => page.evaluate(() => window.__chessDebug.effectCount()), { timeout: 40_000 })
+    .toBe(0);
+  expect(await consistency(page)).toEqual([]);
+
+  // The switch swaps between real and cheaper glass at once, both ways. On a slow renderer the
+  // automatic fallback may already have turned reflections off, so start from whatever is set.
+  const toggle = async () => {
+    await page.getByRole('menuitem', { name: 'Preferences' }).click();
+    await page.locator('.menu-entry', { hasText: 'Glass Reflections' }).click();
+  };
+  const start = (await theme()).mirror!;
+  await toggle();
+  const flipped = await theme();
+  expect(flipped.mirror).toBe(!start);
+  expect(flipped.whiteMaterial!.transmission).toBe(start ? 0 : 1);
+  await toggle();
+  expect((await theme()).mirror).toBe(start);
+
+  expect(await history(page)).toEqual(['e4', 'd5', 'exd5']);
+  expect(errors).toEqual([]);
+});
+
 test('works on a phone-sized screen with touch', async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 780 },

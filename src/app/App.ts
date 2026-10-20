@@ -354,9 +354,22 @@ export class App {
               .map((sq) => this.pieces.get(sq as Square))
               .find((v) => v?.color === 'w');
           const m = view?.mesh.material as
-            { metalness?: number; userData?: { style?: { light?: string } } } | undefined;
-          return m ? { metalness: m.metalness, light: m.userData?.style?.light } : null;
+            | {
+                metalness?: number;
+                transmission?: number;
+                userData?: { style?: { light?: string } };
+              }
+            | undefined;
+          return m
+            ? {
+                metalness: m.metalness,
+                transmission: m.transmission,
+                light: m.userData?.style?.light,
+              }
+            : null;
         })(),
+        /** Whether the glass board's mirror is showing (null without a glass board). */
+        mirror: this.scene.scene.getObjectByName('glass-mirror')?.visible ?? null,
       }),
       cameraPosition: () =>
         this.scene.camera.position.toArray().map((v) => Math.round(v * 1000) / 1000),
