@@ -247,13 +247,7 @@ export class OnlineSession {
         this.patch({ status: 'away' });
       });
     }
-    if (role === 'guest') {
-      this.connectTimer = this.timers.setTimeout(() => {
-        if (!this.started && !this.link.connected) {
-          this.fail("Couldn't reach the game. Check the link, or ask your friend for a new one.");
-        }
-      }, CONNECT_TIMEOUT_MS);
-    }
+    if (role === 'guest') this.armConnectTimer();
   }
 
   /** Hears what happens: arrivals, offers, rule breaks. Returns an unsubscribe. */
@@ -339,7 +333,6 @@ export class OnlineSession {
     if (this.ended) return;
     this.verified = false;
     this.dropHeldTracks();
-    this.clearTimer('connectTimer');
     this.clearTimer('claimTimer');
     this.patch({ canClaimWin: false });
     // The host proves itself with the token too, once it has given one out.
@@ -359,6 +352,8 @@ export class OnlineSession {
     this.dropHeldTracks();
     this.stopPings();
     if (!this.started) {
+      // Dropped before the game was set up: the guest gets a fresh while to find it again.
+      if (this.role === 'guest') this.armConnectTimer();
       this.patch({ status: this.role === 'host' ? 'waiting' : 'connecting' });
       return;
     }
@@ -472,6 +467,7 @@ export class OnlineSession {
     this.patch({ myColor: color, minutes: message.minutes });
     await this.game.startGame(color, message.minutes);
     this.started = true;
+    this.clearTimer('connectTimer');
     this.patch({ status: 'playing', message: null });
     this.emit({ kind: 'joined' });
     this.save();
@@ -589,6 +585,16 @@ export class OnlineSession {
     if (mic === 'on' || cam === 'on') {
       void this.link.send({ t: 'media', mic: mic === 'on', cam: cam === 'on' });
     }
+  }
+
+  /** The guest gives up if no game is set up in time, whether or not a connection was made. */
+  private armConnectTimer(): void {
+    this.clearTimer('connectTimer');
+    this.connectTimer = this.timers.setTimeout(() => {
+      if (!this.started) {
+        this.fail("Couldn't reach the game. Check the link, or ask your friend for a new one.");
+      }
+    }, CONNECT_TIMEOUT_MS);
   }
 
   private dropHeldTracks(): void {

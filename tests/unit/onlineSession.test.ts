@@ -282,6 +282,38 @@ describe('OnlineSession', () => {
     expect(guest.state.get().message).toMatch(/Couldn't reach the game/);
   });
 
+  it('a guest that connects but is never given a game gives up too, never waiting forever', async () => {
+    const b = device();
+    const link = new MemoryLink();
+    const guest = OnlineSession.join({ link, game: b.game, invite, name: 'Ben', timers: b.timers });
+    // Something answers at the other end, but no host ever sets up the game.
+    plug(link, new MemoryLink());
+    await settle();
+    expect(guest.state.get().status).toBe('connecting');
+    b.timers.advance(CONNECT_TIMEOUT_MS);
+    await settle();
+    expect(guest.state.get().status).toBe('failed');
+    expect(guest.state.get().message).toMatch(/Couldn't reach the game/);
+  });
+
+  it('a guest dropped before the game is set up gets a fresh while to find it again', async () => {
+    const b = device();
+    const link = new MemoryLink();
+    const guest = OnlineSession.join({ link, game: b.game, invite, name: 'Ben', timers: b.timers });
+    const other = new MemoryLink();
+    b.timers.advance(CONNECT_TIMEOUT_MS - 1_000);
+    plug(link, other);
+    await settle();
+    unplug(link, other);
+    await settle();
+    b.timers.advance(CONNECT_TIMEOUT_MS - 1_000);
+    await settle();
+    expect(guest.state.get().status).toBe('connecting');
+    b.timers.advance(1_000);
+    await settle();
+    expect(guest.state.get().status).toBe('failed');
+  });
+
   it('forgets the saved game when the session closes', async () => {
     const { b, guest } = await game();
     expect(b.storage.saved).not.toBeNull();
