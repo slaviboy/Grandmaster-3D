@@ -407,4 +407,5 @@ the defaults and nothing is saved.
 - **An online game cannot connect.** Some networks block direct connections between two players.
   Try another network. The link only works while the player who made it keeps the game open.
 - **The board is covered on a small screen.** Fold the Match card's move list or the Coach card, or
-  hide them from the View (Modern) or Windows (Retro) menu.
+  hide them from the View (Modern) or Windows (Retro) menu. On a phone held upright, the Modern
+  cards sit above the board, the players side by side, and the board fits the space below them.

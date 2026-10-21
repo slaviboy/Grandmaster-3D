@@ -2135,6 +2135,105 @@
     }
   }
 
+  /*
+   * Phones held upright: the cards stack under the top bar, the two players side by side with the
+   * opponent on the left, the dock stays at the bottom, and the board is framed in the space
+   * between (ModernShell tells the camera). Keep the query in step with PHONE in ModernShell.ts.
+   */
+  @media (max-width: 760px) and (orientation: portrait) {
+    .m-ui {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      box-sizing: border-box;
+      padding: max(1rem, env(safe-area-inset-top)) 0.8rem max(1.2rem, env(safe-area-inset-bottom));
+    }
+
+    .m-topbar,
+    .m-match,
+    .m-coach,
+    .m-dock {
+      position: relative;
+      inset: auto;
+      width: auto;
+      max-width: none;
+      max-height: none;
+      transform: none;
+      flex: none;
+    }
+
+    .m-topbar {
+      margin: 0 0.2rem;
+    }
+
+    .m-match {
+      order: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .m-match > .m-player.top {
+      grid-column: 1;
+      grid-row: 1;
+      border-radius: var(--m-radius) 0 0 0;
+    }
+
+    .m-match > .m-player.bottom {
+      grid-column: 2;
+      grid-row: 1;
+      border-left: 1px solid var(--m-line);
+      border-radius: 0 var(--m-radius) 0 0;
+    }
+
+    .m-match-moves {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      border-bottom: 0;
+    }
+
+    /* An open move list stays short, so the board keeps most of the screen. */
+    .m-moves {
+      max-height: 10rem;
+    }
+
+    .m-player {
+      grid-template-columns: 3.2rem minmax(0, 1fr) auto;
+      column-gap: 0.5rem;
+      padding: 0.7rem;
+    }
+
+    .m-avatar {
+      width: 3.2rem;
+      height: 3.2rem;
+    }
+
+    .m-avatar-img.person svg {
+      width: 2.4rem;
+      height: 2.4rem;
+    }
+
+    .m-player-name {
+      font-size: 1.3rem;
+    }
+
+    .m-clock {
+      padding: 0.3rem 0.45rem;
+      font-size: 1.45rem;
+    }
+
+    /* An open coach shrinks to the space left rather than pushing the dock off the screen. */
+    .m-coach {
+      order: 2;
+      flex: 0 1 auto;
+      min-height: 0;
+    }
+
+    .m-dock {
+      order: 3;
+      margin-top: auto;
+    }
+  }
+
   /* Phones: a tighter top bar, so all five menus and the switch fit; full screen stays in View. */
   @media (max-width: 560px) {
     .m-topbar {

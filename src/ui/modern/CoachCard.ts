@@ -29,7 +29,8 @@ const IDLE = 'Hints, board aids and commentary';
 
 export class CoachCard {
   readonly element: HTMLElement;
-  private readonly head: HTMLButtonElement;
+  /** The one line the folded card shows; the open card grows below it. */
+  readonly head: HTMLButtonElement;
   private readonly preview: HTMLElement;
   private readonly feed: HTMLElement;
   private readonly legal: HTMLInputElement;

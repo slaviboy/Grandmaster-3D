@@ -773,6 +773,32 @@ test.describe('modern interface', () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
     expect(box.y + box.height).toBeLessThanOrEqual(780);
+
+    // The players sit side by side across the top, the opponent on the left, the coach below.
+    const card = (await page.locator('#match-card').boundingBox())!;
+    const opponent = (await page.locator('#match-card .m-player.top').boundingBox())!;
+    const player = (await page.locator('#match-card .m-player.bottom').boundingBox())!;
+    const coach = (await page.locator('#coach-card .m-coach-head').boundingBox())!;
+    expect(card.width).toBeGreaterThan(350);
+    expect(Math.abs(opponent.y - player.y)).toBeLessThan(1);
+    expect(opponent.x + opponent.width).toBeLessThanOrEqual(player.x + 1);
+    expect(coach.y).toBeGreaterThanOrEqual(card.y + card.height);
+    // The board is framed in the space between the cards and the dock.
+    for (const square of ['a1', 'h1', 'a8', 'h8']) {
+      const p = await page.evaluate(
+        (s) =>
+          (
+            window.__chessDebug as unknown as {
+              squareToScreen(s: string): { x: number; y: number };
+            }
+          ).squareToScreen(s),
+        square,
+      );
+      expect(p.y).toBeGreaterThan(coach.y + coach.height);
+      expect(p.y).toBeLessThan(box.y);
+      expect(p.x).toBeGreaterThan(0);
+      expect(p.x).toBeLessThan(390);
+    }
     await context.close();
   });
 

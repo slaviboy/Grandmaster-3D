@@ -11,7 +11,8 @@
 
 // The modern Match card: the opponent at the top and the player at the bottom, as on the board,
 // each with a portrait, their colour, the pieces they have taken, the material lead and a clock.
-// The move list sits between them with buttons to step back and forth.
+// The move list sits between them with buttons to step back and forth. On an upright phone the two
+// sit side by side, the opponent on the left, with the moves below them.
 
 import { formatClock } from '../../game/Clock.ts';
 import type { GameState } from '../../game/GameController.ts';

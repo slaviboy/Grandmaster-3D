@@ -79,7 +79,7 @@ It keeps the board and its framing, and redraws everything around it as floating
 | Dock | Bottom centre, below the board's near edge: a turn and status chip, then icon buttons with upward tooltips; the top view button stays lit while it is on |
 | Dialogs | Frosted sheets rising in over a lightly blurred board, a round thin-cross close button, switch rows, rounded fields, gold primary actions on the right, a red resign button |
 | New Game | Portrait cards per level (16:10 crops) with "Rated N", a Custom card with the slider, side cards and time chips |
-| Phones | Below 760 px the wordmark text and button labels hide, the move list starts folded and the dock wraps the status onto its own row; below 560 px the top bar tightens and full screen moves to the View menu |
+| Phones | Below 760 px the wordmark text and button labels hide, the move list starts folded and the dock wraps the status onto its own row; below 560 px the top bar tightens and full screen moves to the View menu. Held upright, the cards stack full width under the top bar: the Match card with the two players side by side (opponent left, player right) and the moves below them, then the folded Coach card. The board is framed in the space between them and the dock; an open coach lays over it |
 
 ## Results
 

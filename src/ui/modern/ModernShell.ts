@@ -12,7 +12,9 @@
 // The modern interface: floating dark-glass cards around the board. A top bar with the wordmark,
 // the menus and the main buttons runs along the top. The Coach card stands at the top left, the
 // Match card (players, clocks and moves) at the right, where it keeps the board's framing of the
-// retro layout, and the dock with the status and game buttons at the bottom centre.
+// retro layout, and the dock with the status and game buttons at the bottom centre. On an upright
+// phone the cards stack under the top bar instead, the players side by side, and the board sits
+// between them and the dock.
 
 import type { Color } from '../../game/types.ts';
 import type { MediaView } from '../cardMedia.ts';
@@ -25,6 +27,9 @@ import { CoachCard } from './CoachCard.ts';
 import { iconButton } from './controls.ts';
 import { Dock } from './Dock.ts';
 import { MatchCard } from './MatchCard.ts';
+
+/** An upright phone; the same query as the phone layout in modern.css. */
+const PHONE = '(max-width: 760px) and (orientation: portrait)';
 
 export class ModernShell implements Shell {
   readonly element: HTMLElement;
@@ -74,17 +79,40 @@ export class ModernShell implements Shell {
     // Small screens start with the move list folded so the board stays clear.
     if (window.innerWidth < 760) this.match.setMovesVisible(false);
 
-    // On narrow windows the camera fits the board into the space left of the Match card.
+    // On narrow windows the camera fits the board into the space left of the Match card. On an
+    // upright phone it fits it between the cards at the top and the dock at the bottom; the coach
+    // counts by its head only, so opening it lays it over the board instead of moving the board.
+    const phone = window.matchMedia(PHONE);
     const reserve = () => {
+      const area = app.root.getBoundingClientRect();
+      if (phone.matches) {
+        const cards = [top];
+        if (this.match.visible) cards.push(this.match.element);
+        if (this.coach.visible) cards.push(this.coach.head);
+        const cardsEnd = Math.max(...cards.map((card) => card.getBoundingClientRect().bottom));
+        app.camera.setReserved({
+          top: Math.max(0, cardsEnd - area.top),
+          right: 0,
+          bottom: Math.max(0, area.bottom - this.dock.element.getBoundingClientRect().top),
+        });
+        return;
+      }
       const rect = this.match.element.getBoundingClientRect();
       const covered = this.match.visible && window.innerWidth >= 760;
       app.camera.setReserved({
         top: 0,
-        right: covered ? window.innerWidth - rect.left : 0,
+        right: covered ? area.right - rect.left : 0,
         bottom: 0,
       });
     };
+    // The cards change size as they fold, hide, show a video or wrap their text.
+    const resized = new ResizeObserver(reserve);
+    for (const card of [top, this.match.element, this.coach.element, this.dock.element]) {
+      resized.observe(card);
+    }
+    signal.addEventListener('abort', () => resized.disconnect());
     this.match.onChange(reserve);
+    phone.addEventListener('change', reserve, { signal });
     window.addEventListener('resize', reserve, { signal });
     reserve();
   }
