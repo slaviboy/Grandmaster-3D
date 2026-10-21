@@ -119,9 +119,16 @@ async function measureGrid(browser: Browser, ui: Ui): Promise<Grid> {
   return grid;
 }
 
-async function player(browser: Browser, ui: Ui, url = `/?ui=${ui}&anim=0&engine=off`) {
+/** A player's window; `clockMs` sets its clock that far off the real time, as a drifted device. */
+async function player(browser: Browser, ui: Ui, url = `/?ui=${ui}&anim=0&engine=off`, clockMs = 0) {
   const context = await browser.newContext();
   const page = await context.newPage();
+  if (clockMs) {
+    await page.addInitScript((offset) => {
+      const now = Date.now.bind(Date);
+      Date.now = () => now() + offset;
+    }, clockMs);
+  }
   const errors: string[] = [];
   const logs: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -264,6 +271,20 @@ for (const ui of ['modern', 'retro'] as const) {
     }
   });
 }
+
+test('players whose clocks are wrong still find each other', async ({ browser }) => {
+  // The relays compare the times signals carry. One clock set three hours behind by hand, the
+  // other five minutes fast: both must still meet, on the server's clock.
+  const host = await player(browser, 'modern', undefined, -3 * 3600_000);
+  const link = await createLink(host.page, 'modern');
+  const guest = await player(browser, 'modern', withTestSettings(link, 'modern'), 5 * 60_000);
+  await accept(guest.page, 'Join an Online Game', 'Ben', 'Join Game');
+  await expect(host.page.getByRole('dialog', { name: 'Invite a Friend' })).toHaveCount(0, {
+    timeout: 120_000,
+  });
+  await expect(guest.status).toHaveText('Ana to move.', { timeout: 30_000 });
+  for (const side of [host, guest]) expect(side.errors).toEqual([]);
+});
 
 test.describe('video and voice', () => {
   test('cameras and microphones are off until turned on, and show on the cards', async ({

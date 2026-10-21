@@ -30,6 +30,7 @@ import { OnlineSession, type SavedSession, type SessionGame } from '../net/Onlin
 import { openPeerLink } from '../net/PeerLink.ts';
 import { createInvite, inviteUrl, parseInvite, roomFor, type Invite } from '../net/protocol.ts';
 import { tabStorage } from '../net/savedSession.ts';
+import { syncServerTime } from '../net/serverTime.ts';
 import { isUiStyle, loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
 import { Tweener } from '../scene/animation/tween.ts';
@@ -359,7 +360,9 @@ export class App {
       controller: this.controller,
       startGame: (color, minutes) => this.newGame({ mode: 'online', humanColor: color, minutes }),
     };
-    return { link: openPeerLink(invite, await roomFor(invite)), game, invite, storage: tabStorage };
+    // The relays compare times, so first the clock both players will agree on.
+    const [room] = await Promise.all([roomFor(invite), syncServerTime()]);
+    return { link: openPeerLink(invite, room), game, invite, storage: tabStorage };
   }
 
   private begin(session: OnlineSession): void {

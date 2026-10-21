@@ -10,10 +10,15 @@
  */
 
 import { defineConfig } from 'vitest/config';
+import { trysteroClockSkew } from './scripts/trystero-clock-skew.ts';
 
 export default defineConfig({
   // Relative URLs, so the build serves from a GitHub Pages subpath as well as from a domain root.
   base: './',
+  // Two devices whose clocks disagree must still find each other (see the plugin).
+  plugins: [trysteroClockSkew()],
+  // Served as they are in development, so the plugin sees Trystero's own files.
+  optimizeDeps: { exclude: ['trystero', '@trystero-p2p/nostr'] },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1200,
