@@ -627,6 +627,11 @@ export function shade(hex: string, amount: number, saturate = 0): string {
   );
 }
 
+/** A colour's HSL lightness, 0 (black) to 1 (white). */
+export function lightness(hex: string): number {
+  return rgbToHsl(hexToRgb(hex))[2];
+}
+
 function rgbString(hex: string): string {
   return hexToRgb(hex).join(',');
 }
