@@ -83,8 +83,14 @@ export class CameraController {
   private readonly home: View;
   private drag: Drag | null = null;
   private readonly touches = new Map<number, Vector2>();
-  private gestureStart: { distance: number; angle: number; centre: Vector2; view: View } | null =
-    null;
+  /** A two-finger gesture: where it began, the fingers' last angle and the turn so far. */
+  private gestureStart: {
+    distance: number;
+    angle: number;
+    twist: number;
+    centre: Vector2;
+    view: View;
+  } | null = null;
   private zoneProvider: ZoneProvider = () => null;
   private width = 1;
   private height = 1;
@@ -438,6 +444,7 @@ export class CameraController {
     this.gestureStart = {
       distance: a.distanceTo(b),
       angle: Math.atan2(b.y - a.y, b.x - a.x),
+      twist: 0,
       centre: a.clone().add(b).multiplyScalar(0.5),
       view: { ...this.goal },
     };
@@ -455,7 +462,11 @@ export class CameraController {
       MIN_DISTANCE,
       MAX_DISTANCE,
     );
-    this.goal.azimuth = start.view.azimuth - (angle - start.angle);
+    // Added up step by step, each step the short way round: the line between the fingers crossing
+    // the horizontal must not count as a full turn.
+    start.twist += wrapAngle(angle - start.angle);
+    start.angle = angle;
+    this.goal.azimuth = start.view.azimuth - start.twist;
     this.goal.elevation = clamp(
       start.view.elevation + (centre.y - start.centre.y) * TILT_PER_PIXEL,
       MIN_ELEVATION,
@@ -530,4 +541,9 @@ export class CameraController {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** The same angle within half a turn of zero. */
+function wrapAngle(angle: number): number {
+  return angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
 }
