@@ -310,11 +310,31 @@ export function drawPlain(
 /** The 8x8 playing surface: one canvas, 256 px per square, a1 at the bottom left. */
 export function createSquaresTexture(theme: BoardTheme, seed = 7, size = 2048): CanvasTexture {
   const [canvas, ctx] = makeCanvas(size, size);
-  const rng = createRng(seed);
+  drawSquares(ctx, 0, 0, size, theme, createRng(seed));
+  return toTexture(canvas);
+}
+
+/**
+ * Paints the 64 squares into the `size` x `size` area at (x, y), rank 8 at the top and a1 at the
+ * bottom left. The 3D board's texture and the 2D board both come from here.
+ */
+export function drawSquares(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  theme: BoardTheme,
+  rng: Rng,
+): void {
   const cell = size / 8;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  ctx.rect(0, 0, size, size);
+  ctx.clip();
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
-      // Canvas row 0 is rank 8; a1 (col 0, row 7) is dark.
+      // Row 0 is rank 8; a1 (col 0, row 7) is dark.
       const light = (col + row) % 2 === 0;
       drawSurface(
         ctx,
@@ -329,7 +349,7 @@ export function createSquaresTexture(theme: BoardTheme, seed = 7, size = 2048): 
     }
   }
   if (theme.slabVeins) drawSlabVeins(ctx, size, size, cell, theme.slabVeins, rng);
-  return toTexture(canvas);
+  ctx.restore();
 }
 
 export interface FrameLabels {
