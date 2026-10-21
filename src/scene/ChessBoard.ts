@@ -55,6 +55,8 @@ export class ChessBoard {
   private readonly edgeMaterial: MeshStandardMaterial;
   private readonly surfaceMaterial: MeshStandardMaterial;
   private labels: FrameLabels = { side: 'white', visible: true };
+  /** The frame for each way the coordinates can face, so turning the board never repaints it. */
+  private readonly frames = new Map<string, CanvasTexture>();
   private thickness = BOARD_THICKNESS;
   private theme: BoardTheme = boardTheme('classic');
 
@@ -73,7 +75,7 @@ export class ChessBoard {
     this.surface.receiveShadow = true;
 
     this.frameMaterial = new MeshStandardMaterial({
-      map: this.makeFrameTexture(),
+      map: this.frameTexture(this.labels),
       roughness: 0.5,
       metalness: 0,
     });
@@ -128,6 +130,8 @@ export class ChessBoard {
       this.glass.setLabels(this.labels);
       this.glass.group.visible = true;
       this.woodGroup.visible = false;
+      // The wooden frame is painted afresh when it is shown again.
+      this.clearFrames();
       return;
     }
     if (this.glass) this.glass.group.visible = false;
@@ -152,17 +156,50 @@ export class ChessBoard {
   setLabels(labels: Partial<FrameLabels>): void {
     const next = { ...this.labels, ...labels };
     if (next.side === this.labels.side && next.visible === this.labels.visible) return;
+    const visibility = next.visible !== this.labels.visible;
     this.labels = next;
-    if (this.isGlass) this.glass?.setLabels(next);
-    else this.repaintFrame();
+    if (this.isGlass) {
+      this.glass?.setLabels(next);
+    } else if (visibility) {
+      this.repaintFrame();
+    } else {
+      // A turn of the board: swap in the frame painted for that side (no new shader needed).
+      this.frameMaterial.map = this.frameTexture(next);
+      this.edgeMaterial.map = this.frameMaterial.map;
+    }
+  }
+
+  /**
+   * Paints the frame as seen from `side` ahead of time and returns it, so a turn of the board can
+   * swap it in at once; null while it has nothing to paint.
+   */
+  prepareLabels(side: FrameLabels['side']): Texture | null {
+    const labels = { ...this.labels, side };
+    if (this.isGlass) return this.glass?.prepareLabels(labels) ?? null;
+    return this.frameTexture(labels);
   }
 
   private repaintFrame(): void {
-    this.frameMaterial.map?.dispose();
-    this.frameMaterial.map = this.makeFrameTexture();
+    this.clearFrames();
+    this.frameMaterial.map = this.frameTexture(this.labels);
     this.frameMaterial.needsUpdate = true;
     this.edgeMaterial.map = this.frameMaterial.map;
     this.edgeMaterial.needsUpdate = true;
+  }
+
+  private frameTexture(labels: FrameLabels): CanvasTexture {
+    const key = `${labels.side}|${labels.visible}`;
+    let texture = this.frames.get(key);
+    if (!texture) {
+      texture = this.makeFrameTexture(labels);
+      this.frames.set(key, texture);
+    }
+    return texture;
+  }
+
+  private clearFrames(): void {
+    for (const texture of this.frames.values()) texture.dispose();
+    this.frames.clear();
   }
 
   /** Which drag zone of the frame a world-space point on the frame falls in. */
@@ -173,8 +210,8 @@ export class ChessBoard {
     return nearX && nearZ ? 'corner' : 'edge';
   }
 
-  private makeFrameTexture(): CanvasTexture {
-    const texture = createFrameTexture(FRAME_WIDTH, this.labels, this.theme);
+  private makeFrameTexture(labels: FrameLabels): CanvasTexture {
+    const texture = createFrameTexture(FRAME_WIDTH, labels, this.theme);
     // Extrude caps use shape coordinates (-4.5..4.5) as UVs; map them onto the 0..1 canvas.
     const span = 8 + 2 * FRAME_WIDTH;
     texture.repeat.set(1 / span, 1 / span);
@@ -186,7 +223,7 @@ export class ChessBoard {
     this.glass?.dispose();
     this.woodFrame.geometry.dispose();
     this.surface.geometry.dispose();
-    this.frameMaterial.map?.dispose();
+    this.clearFrames();
     this.frameMaterial.dispose();
     this.edgeMaterial.dispose();
     this.surfaceMaterial.map?.dispose();

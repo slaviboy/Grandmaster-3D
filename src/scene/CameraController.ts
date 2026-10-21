@@ -15,6 +15,7 @@
 // resets the view. Left clicks on squares and pieces are left alone for moves.
 
 import { Plane, Raycaster, Vector2, Vector3, type PerspectiveCamera } from 'three';
+import { easeInOutSine } from './animation/tween.ts';
 import { REFERENCE_VIEW } from './referenceView.ts';
 
 export interface ReferenceView {
@@ -66,6 +67,8 @@ const TILT_PER_PIXEL = 0.25 * DEG;
 const KEY_ROTATE = 5 * DEG;
 const KEY_TILT = 3 * DEG;
 const SMOOTHING = 14;
+/** A half turn round the board (a flip) takes this long, eased in and out. */
+const TURN_SECONDS = 1.2;
 
 function svgCursor(svg: string, x: number, y: number, fallback: string): string {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${x} ${y}, ${fallback}`;
@@ -113,6 +116,11 @@ export class CameraController {
   private hoverZone: DragZone | null = null;
   private reference: ReferenceView = REFERENCE_VIEW;
   private reserved: Insets = { top: 0, right: 0, bottom: 0 };
+  /**
+   * A turn to the other side of the board (a flip, or a new game from the other side): timed and
+   * eased so it stays smooth and readable, where the usual easing would whip round at once.
+   */
+  private turn: { from: number; to: number; elapsed: number; duration: number } | null = null;
   enabled = true;
   /** A two-finger twist turns the board against the fingers, as the camera rather than the board. */
   reverseTwist = false;
@@ -174,6 +182,7 @@ export class CameraController {
     });
     Object.assign(this.goal, this.home, { azimuth: this.goal.azimuth });
     Object.assign(this.current, this.goal);
+    this.turn = null;
     this.apply();
   }
 
@@ -201,7 +210,16 @@ export class CameraController {
   update(delta: number): boolean {
     const k = 1 - Math.exp(-SMOOTHING * delta);
     let moving = false;
+    const turn = this.turn;
+    if (turn) {
+      turn.elapsed += delta;
+      const t = Math.min(1, turn.elapsed / turn.duration);
+      this.current.azimuth = turn.from + (turn.to - turn.from) * easeInOutSine(t);
+      if (t >= 1) this.turn = null;
+      moving = true;
+    }
     for (const key of Object.keys(this.current) as Array<keyof View>) {
+      if (key === 'azimuth' && turn) continue;
       const difference = this.goal[key] - this.current[key];
       if (Math.abs(difference) > 1e-4) {
         this.current[key] += difference * k;
@@ -216,6 +234,7 @@ export class CameraController {
   }
 
   rotateBy(azimuth: number, elevation: number): void {
+    this.stopTurn();
     this.goal.azimuth += azimuth;
     this.goal.elevation = clamp(this.goal.elevation + elevation, MIN_ELEVATION, MAX_ELEVATION);
     this.requestRender();
@@ -270,21 +289,40 @@ export class CameraController {
   setOrientation(side: 'white' | 'black', animate = true): Promise<void> {
     const base = side === 'white' ? 0 : Math.PI;
     const turns = Math.round((this.goal.azimuth - base) / (2 * Math.PI));
-    this.goal.azimuth = base + turns * 2 * Math.PI;
+    const azimuth = base + turns * 2 * Math.PI;
     if (!animate) {
+      this.turn = null;
+      this.goal.azimuth = azimuth;
       Object.assign(this.current, this.goal);
       this.apply();
       return Promise.resolve();
+    }
+    return this.turnTo(azimuth);
+  }
+
+  /** Turns the camera half a circle to the other side of the board. */
+  flip(): Promise<void> {
+    return this.turnTo(this.goal.azimuth + Math.PI);
+  }
+
+  /** Starts a timed turn round the board from wherever the camera is now. */
+  private turnTo(azimuth: number): Promise<void> {
+    this.goal.azimuth = azimuth;
+    const angle = Math.abs(azimuth - this.current.azimuth);
+    if (angle > 1e-4) {
+      // A half turn takes the full time; shorter or longer turns take proportionally less or more.
+      const duration = TURN_SECONDS * Math.min(1.5, Math.max(0.3, angle / Math.PI));
+      this.turn = { from: this.current.azimuth, to: azimuth, elapsed: 0, duration };
     }
     this.requestRender();
     return this.whenSettled();
   }
 
-  /** Turns the camera half a circle to the other side of the board. */
-  flip(): Promise<void> {
-    this.goal.azimuth += Math.PI;
-    this.requestRender();
-    return this.whenSettled();
+  /** The player takes over the camera: a turn stops where it is. */
+  private stopTurn(): void {
+    if (!this.turn) return;
+    this.turn = null;
+    this.goal.azimuth = this.current.azimuth;
   }
 
   /** The player side the camera is currently closer to. */
@@ -469,6 +507,7 @@ export class CameraController {
     const [a, b] = [...this.touches.values()];
     if (!a || !b) return;
     this.drag = { kind: 'gesture' };
+    this.stopTurn();
     this.gestureStart = {
       distance: a.distanceTo(b),
       angle: Math.atan2(b.y - a.y, b.x - a.x),

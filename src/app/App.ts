@@ -85,6 +85,7 @@ export class App {
   private readonly frames = new FrameMonitor();
   /** The automatic fallback turns glass reflections off at most once per session. */
   private glassFallbackUsed = false;
+  private turnPrep: ReturnType<typeof setTimeout> | undefined;
   /** The online game, if one was started on this page; it outlives interface switches. */
   readonly online = new Store<OnlineSession | null>(null);
   /** An invitation from the address bar, waiting for the player to accept the warning. */
@@ -268,6 +269,7 @@ export class App {
       this.camera.reverseTwist = s.reverseTwist;
       this.showBoard(s.boardView);
       this.controller.updateSettings(s);
+      this.prepareTurnSoon();
     });
 
     this.ready = this.start();
@@ -294,13 +296,29 @@ export class App {
 
   /** Turns the view to a side: the camera swings round in 3D, the 2D board turns at once. */
   orient(side: 'white' | 'black'): Promise<void> {
-    return this.camera.setOrientation(side, this.boardView === '3d');
+    const turn = this.boardView === '3d';
+    if (turn) this.scene.prepareTurn(this.camera.side);
+    return this.camera.setOrientation(side, turn);
   }
 
   /** Looks at the board from the other side. */
   flip(): Promise<void> {
-    if (this.boardView === '3d') return this.camera.flip();
-    return this.orient(this.camera.side === 'white' ? 'black' : 'white');
+    if (this.boardView !== '3d')
+      return this.orient(this.camera.side === 'white' ? 'black' : 'white');
+    this.scene.prepareTurn(this.camera.side);
+    return this.camera.flip();
+  }
+
+  /**
+   * Gets the 3D frame for the other side ready in a quiet moment after the look or the labels
+   * change, so a flip never stops to paint it. (A flip before then paints it before turning.)
+   */
+  private prepareTurnSoon(): void {
+    if (this.turnPrep !== undefined) clearTimeout(this.turnPrep);
+    this.turnPrep = setTimeout(() => {
+      this.turnPrep = undefined;
+      this.scene.prepareTurn(this.camera.side);
+    }, 700);
   }
 
   /** The 3D board's top view (the 2D board is always seen from above). */

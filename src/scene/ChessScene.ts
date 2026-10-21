@@ -217,6 +217,16 @@ export class ChessScene {
   }
 
   /**
+   * Paints the frame as seen from the other side and uploads it to the graphics card ahead of
+   * time, so turning the board swaps it in halfway round without a stall. Nothing happens when it
+   * is ready already.
+   */
+  prepareTurn(side: 'white' | 'black'): void {
+    const texture = this.board.prepareLabels(side === 'white' ? 'black' : 'white');
+    if (texture) this.renderer.initTexture(texture);
+  }
+
+  /**
    * Shows or hides the 3D view. Hidden, it draws nothing but keeps calling its updaters every
    * frame: they drive the clocks, the camera and the animations of whichever board is shown.
    */

@@ -48,6 +48,7 @@ export class GlassBoard {
   private readonly squaresMaterial: MeshStandardMaterial;
   private readonly border: Mesh;
   private readonly borderMaterial: MeshStandardMaterial;
+  private readonly borders = new Map<string, CanvasTexture>();
   private reflections = true;
   private labels: FrameLabels = { side: 'white', visible: true };
   private theme: BoardTheme | null = null;
@@ -124,8 +125,14 @@ export class GlassBoard {
   }
 
   setLabels(labels: FrameLabels): void {
+    if (labels.visible !== this.labels.visible) this.clearBorders();
     this.labels = labels;
-    this.paintBorder();
+    this.showBorder();
+  }
+
+  /** Prints the border for these labels ahead of time (before a turn of the board) and returns it. */
+  prepareLabels(labels: FrameLabels): Texture | null {
+    return this.theme ? this.borderTexture(labels) : null;
   }
 
   /** Real reflections in the black squares (costs a second render) or plain glossy black. */
@@ -138,7 +145,8 @@ export class GlassBoard {
 
   private paint(): void {
     this.paintSquares();
-    this.paintBorder();
+    this.clearBorders();
+    this.showBorder();
   }
 
   private paintSquares(): void {
@@ -180,9 +188,32 @@ export class GlassBoard {
     this.squaresMaterial.needsUpdate = true;
   }
 
-  /** The clear border: a double black line around the squares and the coordinates. */
-  private paintBorder(): void {
+  private showBorder(): void {
     if (!this.theme) return;
+    const first = !this.borderMaterial.map;
+    this.borderMaterial.map = this.borderTexture(this.labels);
+    if (first) this.borderMaterial.needsUpdate = true;
+  }
+
+  /** The border for each way the coordinates can face, so turning the board never reprints it. */
+  private borderTexture(labels: FrameLabels): CanvasTexture {
+    const key = `${labels.side}|${labels.visible}`;
+    let texture = this.borders.get(key);
+    if (!texture) {
+      texture = this.printBorder(this.theme!, labels);
+      this.borders.set(key, texture);
+    }
+    return texture;
+  }
+
+  private clearBorders(): void {
+    for (const texture of this.borders.values()) texture.dispose();
+    this.borders.clear();
+    this.borderMaterial.map = null;
+  }
+
+  /** The clear border: a double black line around the squares and the coordinates. */
+  private printBorder(theme: BoardTheme, labels: FrameLabels): CanvasTexture {
     const size = 2048;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -190,7 +221,7 @@ export class GlassBoard {
     const ctx = canvas.getContext('2d')!;
     const unit = size / (8 + 2 * FRAME_WIDTH);
     const strip = FRAME_WIDTH * unit;
-    const ink = this.theme.dark.base;
+    const ink = theme.dark.base;
     // Thick line close to the squares, thin line a little further out.
     ctx.fillStyle = ink;
     const ring = (from: number, width: number) => {
@@ -205,15 +236,15 @@ export class GlassBoard {
     ring(0.04, 0.05);
     ring(0.15, 0.022);
 
-    if (this.labels.visible) {
+    if (labels.visible) {
       const files = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
       const ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
       ctx.font = `500 ${unit * 0.22}px "Trebuchet MS", "DejaVu Sans", Verdana, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = this.theme.labelColour;
+      ctx.fillStyle = theme.labelColour;
       const at = strip * 0.38;
-      const white = this.labels.side === 'white';
+      const white = labels.side === 'white';
       for (let i = 0; i < 8; i++) {
         const fileX = strip + (i + 0.5) * unit;
         const rankY = size - strip - (i + 0.5) * unit;
@@ -233,9 +264,7 @@ export class GlassBoard {
         }
       }
     }
-    this.borderMaterial.map?.dispose();
-    this.borderMaterial.map = toTexture(canvas);
-    this.borderMaterial.needsUpdate = true;
+    return toTexture(canvas);
   }
 
   dispose(): void {
@@ -246,7 +275,7 @@ export class GlassBoard {
     this.squaresMaterial.map?.dispose();
     this.squaresMaterial.dispose();
     this.border.geometry.dispose();
-    this.borderMaterial.map?.dispose();
+    this.clearBorders();
     this.borderMaterial.dispose();
   }
 }

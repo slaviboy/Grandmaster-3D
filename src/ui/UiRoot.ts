@@ -242,7 +242,7 @@ export class UiRoot {
   }
 
   private render(state: GameState): void {
-    this.shownSide = this.app.camera.side === 'black' ? 'b' : 'w';
+    this.shownSide = this.bottomSide();
     this.shell?.render({
       state,
       settings: this.app.settings.get(),
@@ -351,9 +351,19 @@ export class UiRoot {
     });
   }
 
+  /**
+   * The colour whose card is at the bottom. The cards follow the board when it turns (a flip, or
+   * taking Black), except online: there the player's own card, with their camera on it, stays at
+   * the bottom and only the board turns.
+   */
+  private bottomSide(): Color {
+    const state = this.app.controller.state.get();
+    if (state.mode === 'online') return state.humanColor;
+    return this.app.camera.side === 'black' ? 'b' : 'w';
+  }
+
   private renderClocks(): void {
-    // The players' cards follow the board when it turns (a flip, or taking Black) without a move.
-    const side: Color = this.app.camera.side === 'black' ? 'b' : 'w';
+    const side = this.bottomSide();
     if (this.shownSide !== null && side !== this.shownSide) {
       this.render(this.app.controller.state.get());
     }
