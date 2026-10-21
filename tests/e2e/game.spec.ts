@@ -858,3 +858,159 @@ test.describe('modern interface', () => {
     await context.close();
   });
 });
+
+test.describe('2D board', () => {
+  const boardView = (page: Page) =>
+    page.evaluate(() => (window.__chessDebug as unknown as { boardView(): string }).boardView());
+  const rankOf = async (page: Page, square: string) => (await point(page, square)).y;
+
+  test('boots on the 2D board and Stockfish answers a clicked move', async ({ page }) => {
+    const errors = await open(page, '&board=2d&difficulty=beginner');
+    await expect(page.locator('.flat-board')).toBeVisible();
+    await expect(page.locator('.scene-canvas')).toBeHidden();
+    expect(await boardView(page)).toBe('2d');
+    expect(await consistency(page)).toEqual([]);
+    await newGame(page, { mode: 'computer', humanColor: 'w', difficulty: 'beginner', minutes: 0 });
+    await move(page, 'e2', 'e4');
+    await expect.poll(() => history(page), { timeout: 30_000 }).toHaveLength(2);
+    await idle(page);
+    expect((await history(page))[0]).toBe('e4');
+    expect(await consistency(page)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('drags, refuses an illegal move, promotes, castles and takes en passant', async ({
+    page,
+  }) => {
+    await open(page, '&board=2d&engine=off');
+    await newGame(page, { mode: 'local', minutes: 0 });
+    const before = await page.evaluate(() => window.__chessDebug.fen());
+    await move(page, 'e2', 'e5');
+    await idle(page);
+    expect(await page.evaluate(() => window.__chessDebug.fen())).toBe(before);
+    const from = await point(page, 'g1');
+    const to = await point(page, 'f3');
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(() => history(page)).toEqual(['Nf3']);
+    await idle(page);
+    expect(await consistency(page)).toEqual([]);
+
+    await newGame(page, { mode: 'local', minutes: 0 }, '4k3/P7/8/8/8/8/8/4K3 w - - 0 1');
+    await move(page, 'a7', 'a8');
+    await expect(page.getByRole('dialog', { name: 'Promote pawn to' })).toBeVisible();
+    await page.keyboard.press('q');
+    await expect.poll(() => history(page)).toEqual(['a8=Q+']);
+    await idle(page);
+    expect(await consistency(page)).toEqual([]);
+
+    await newGame(
+      page,
+      { mode: 'local', minutes: 0, followPath: true },
+      'r3k2r/pppppppp/8/4P3/8/8/PPPP1PPP/R3K2R b KQkq - 0 1',
+    );
+    for (const [a, b] of [
+      ['d7', 'd5'],
+      ['e5', 'd6'],
+      ['e8', 'c8'],
+      ['e1', 'g1'],
+    ] as const) {
+      await move(page, a, b);
+      await idle(page);
+    }
+    expect(await history(page)).toEqual(['d5', 'exd6', 'O-O-O', 'O-O']);
+    expect(await consistency(page)).toEqual([]);
+  });
+
+  test('turns round with F and when the player takes Black', async ({ page }) => {
+    await open(page, '&board=2d&engine=off');
+    await newGame(page, { mode: 'local', minutes: 0 });
+    expect(await rankOf(page, 'e2')).toBeGreaterThan(await rankOf(page, 'e7'));
+    await page.keyboard.press('f');
+    await expect
+      .poll(async () => (await rankOf(page, 'e2')) < (await rankOf(page, 'e7')))
+      .toBe(true);
+    await move(page, 'e2', 'e4');
+    await expect.poll(() => history(page)).toEqual(['e4']);
+    await page.keyboard.press('f');
+    await expect
+      .poll(async () => (await rankOf(page, 'e2')) > (await rankOf(page, 'e7')))
+      .toBe(true);
+    await newGame(page, { mode: 'computer', humanColor: 'b', minutes: 0 });
+    await expect
+      .poll(async () => (await rankOf(page, 'e2')) < (await rankOf(page, 'e7')))
+      .toBe(true);
+  });
+
+  test('is chosen from the menus of both interfaces and remembered', async ({ page }) => {
+    const errors = await open(page, '&engine=off', 'modern');
+    expect(await boardView(page)).toBe('3d');
+    await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+    await page.locator('.menu-entry', { hasText: '2D Board' }).click();
+    await expect(page.locator('.flat-board')).toBeVisible();
+    await expect(page.locator('.scene-canvas')).toBeHidden();
+    // Top view belongs to the 3D board.
+    await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+    await expect(page.locator('.menu-entry', { hasText: 'Top View' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+
+    await page.reload();
+    await ready(page);
+    expect(await boardView(page)).toBe('2d');
+
+    await page.getByRole('radio', { name: 'Retro' }).click();
+    await page.getByRole('menuitem', { name: 'Preferences' }).click();
+    await page.locator('.menu-entry', { hasText: '3D Board' }).click();
+    await expect(page.locator('.scene-canvas')).toBeVisible();
+    await expect(page.locator('.flat-board')).toBeHidden();
+    await move(page, 'e2', 'e4');
+    await expect.poll(() => history(page)).toEqual(['e4']);
+    await idle(page);
+    expect(await consistency(page)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('switches boards in the middle of a move and both stay right', async ({ page }) => {
+    await open(page, '&engine=off');
+    await newGame(
+      page,
+      { mode: 'local', minutes: 0, animationSpeed: 1.6, followPath: true },
+      'r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1',
+    );
+    await move(page, 'e1', 'g1');
+    await page.evaluate(() => window.__chessDebug.setSettings({ boardView: '2d' }));
+    await idle(page);
+    expect(await history(page)).toEqual(['O-O']);
+    expect(await consistency(page)).toEqual([]);
+
+    await move(page, 'e8', 'c8');
+    await page.evaluate(() => window.__chessDebug.setSettings({ boardView: '3d' }));
+    await idle(page);
+    expect(await history(page)).toEqual(['O-O', 'O-O-O']);
+    expect(await consistency(page)).toEqual([]);
+  });
+
+  test('works on a phone-sized screen with touch', async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await open(page, '&board=2d&engine=off', 'modern');
+    await newGame(page, { mode: 'local', minutes: 0 });
+    const a = await point(page, 'e2');
+    await page.touchscreen.tap(a.x, a.y);
+    const b = await point(page, 'e4');
+    await page.touchscreen.tap(b.x, b.y);
+    await expect.poll(() => history(page)).toEqual(['e4']);
+    await idle(page);
+    expect(await consistency(page)).toEqual([]);
+    await context.close();
+  });
+});
