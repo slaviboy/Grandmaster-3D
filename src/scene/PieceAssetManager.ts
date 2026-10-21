@@ -28,6 +28,16 @@ export const SHAPE_FOLDERS: Record<PieceShape, string> = { staunton: '', bell: '
 
 type GeometrySet = Map<PieceKind, BufferGeometry>;
 
+/**
+ * How a piece stands when it is not moving, as a turn about the vertical axis. The knight models
+ * look along -x (toward the a-file); on the board each knight looks at its opponent instead, White's
+ * toward Black (-z) and Black's toward White (+z). The other pieces look the same from every side.
+ */
+export function restingYaw(color: Color, kind: PieceKind): number {
+  if (kind !== 'n') return 0;
+  return color === 'w' ? -Math.PI / 2 : Math.PI / 2;
+}
+
 export class PieceAssetManager {
   private readonly sets = new Map<PieceShape, GeometrySet>();
   private readonly loading = new Map<PieceShape, Promise<GeometrySet>>();
@@ -154,6 +164,7 @@ export class PieceAssetManager {
     const mesh = new Mesh(this.geometry(kind), this.material(color));
     mesh.receiveShadow = true;
     mesh.name = `${COLOR_NAMES[color]}-${PIECE_NAMES[kind]}`;
+    mesh.userData.restYaw = restingYaw(color, kind);
     this.dressShadow(mesh, color, kind);
     return mesh;
   }

@@ -18,6 +18,11 @@ import { pieceCode, type BoardMap, type Color, type Piece, type PieceKind } from
 import { SQUARES, squareToWorld, type Square } from './coords.ts';
 import type { PieceAssetManager } from './PieceAssetManager.ts';
 
+/** The turn a piece rests at (see restingYaw in PieceAssetManager); 0 when none was given. */
+export function restYaw(mesh: Mesh): number {
+  return typeof mesh.userData.restYaw === 'number' ? mesh.userData.restYaw : 0;
+}
+
 export interface PieceView {
   readonly id: number;
   readonly mesh: Mesh;
@@ -135,11 +140,11 @@ export class PieceManager {
     return out;
   }
 
-  /** Puts a mesh exactly on a square, upright and facing its default direction. */
+  /** Puts a mesh exactly on a square, upright and facing its resting direction. */
   placeMesh(mesh: Mesh, square: Square): void {
     const { x, z } = squareToWorld(square);
     mesh.position.set(x, 0, z);
-    mesh.rotation.set(0, 0, 0);
+    mesh.rotation.set(0, restYaw(mesh), 0);
     mesh.scale.setScalar(1);
   }
 

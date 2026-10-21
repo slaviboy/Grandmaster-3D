@@ -179,6 +179,14 @@ export class ShatterEffect implements CaptureEffect {
     const root = new Group();
     root.position.copy(source.position);
     root.rotation.copy(source.rotation);
+    // The fragments move in the root's own frame, which is turned with the piece (a knight looks
+    // at its opponent), so the attacker's direction is turned into that frame.
+    const cos = Math.cos(root.rotation.y);
+    const sin = Math.sin(root.rotation.y);
+    const away = {
+      x: direction.x * cos - direction.z * sin,
+      z: direction.x * sin + direction.z * cos,
+    };
     const chunks: Chunk[] = [];
     const rng = this.rng;
     for (const template of templates) {
@@ -197,9 +205,9 @@ export class ShatterEffect implements CaptureEffect {
       const push = range(rng, 1.6, 3.2);
       const height = template.offset.y;
       const velocity = new Vector3(
-        direction.x * push + outward.x * range(rng, 0.6, 1.8),
+        away.x * push + outward.x * range(rng, 0.6, 1.8),
         range(rng, 2.2, 4.4) + height * 0.8,
-        direction.z * push + outward.z * range(rng, 0.6, 1.8),
+        away.z * push + outward.z * range(rng, 0.6, 1.8),
       );
       const spin = new Vector3(range(rng, -12, 12), range(rng, -12, 12), range(rng, -12, 12));
       root.add(object);
@@ -244,9 +252,11 @@ export class ShatterEffect implements CaptureEffect {
       o.quaternion.premultiply(this.spinStep);
     }
     // Floor: the board top within the frame, the cloth beyond it (positions are relative to the
-    // captured piece's square, so convert to board coordinates first).
-    const x = o.position.x + root.position.x;
-    const z = o.position.z + root.position.z;
+    // captured piece's square and turned with it, so convert to board coordinates first).
+    const cos = Math.cos(root.rotation.y);
+    const sin = Math.sin(root.rotation.y);
+    const x = root.position.x + o.position.x * cos + o.position.z * sin;
+    const z = root.position.z - o.position.x * sin + o.position.z * cos;
     const floor = Math.abs(x) <= 4.5 && Math.abs(z) <= 4.5 ? 0.015 : this.clothY;
     if (o.position.y - chunk.radius < floor && chunk.velocity.y < 0) {
       o.position.y = floor + chunk.radius;

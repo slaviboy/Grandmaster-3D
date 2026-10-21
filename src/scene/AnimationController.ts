@@ -24,7 +24,7 @@ import { buildPath, type MovePath } from './animation/paths.ts';
 import { easeInOutCubic, easeOutCubic, easeTrapezoid, type Tweener } from './animation/tween.ts';
 import { squareToWorld, type Square } from './coords.ts';
 import type { PieceAssetManager } from './PieceAssetManager.ts';
-import type { PieceManager, PieceView } from './PieceManager.ts';
+import { restYaw, type PieceManager, type PieceView } from './PieceManager.ts';
 
 export interface AnimationSettings {
   readonly followPath: boolean;
@@ -162,12 +162,13 @@ export class AnimationController {
         const p = path.at(t);
         mesh.position.set(p.x, p.y, p.z);
         if (turnToFace) {
-          // The knight model looks along -x; turn it to face each leg of its route and settle
-          // back to its usual facing at the end.
+          // The knight model looks along -x; turn it from its resting direction (toward the
+          // opponent) to face each leg of its route, and settle back at the end.
           const dir = path.heading(t);
           const yaw = Math.atan2(dir.z, -dir.x);
+          const rest = restYaw(mesh);
           const weight = smooth(Math.min(1, t / 0.12)) * (1 - smooth(Math.max(0, (t - 0.8) / 0.2)));
-          mesh.rotation.y = wrapAngle(yaw) * weight;
+          mesh.rotation.y = rest + wrapAngle(yaw - rest) * weight;
         }
         if (!contacted && onContact && t >= triggerAt) {
           contacted = true;

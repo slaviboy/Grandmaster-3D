@@ -17,7 +17,7 @@ import { ChessGame, type MoveRecord } from '../../src/game/ChessGame.ts';
 import { pieceCode, type Color, type PieceKind } from '../../src/game/types.ts';
 import { AnimationController } from '../../src/scene/AnimationController.ts';
 import { Tweener } from '../../src/scene/animation/tween.ts';
-import type { PieceAssetManager } from '../../src/scene/PieceAssetManager.ts';
+import { restingYaw, type PieceAssetManager } from '../../src/scene/PieceAssetManager.ts';
 import { PieceManager } from '../../src/scene/PieceManager.ts';
 import type { Square } from '../../src/scene/coords.ts';
 
@@ -28,6 +28,7 @@ function fakeAssets(): PieceAssetManager {
     create: (color: Color, kind: PieceKind) => {
       const mesh = new Mesh(geometry, new MeshBasicMaterial());
       mesh.name = `${color}${kind}`;
+      mesh.userData.restYaw = restingYaw(color, kind);
       return mesh;
     },
     release: (mesh: Mesh) => (mesh.material as MeshBasicMaterial).dispose(),
@@ -57,6 +58,37 @@ describe('PieceManager', () => {
     expect(pieces.snapshot().e1).toBe('wK');
     expect(pieces.snapshot().d8).toBe('bQ');
     expect(checkConsistency(game.board(), sceneOf(pieces))).toEqual([]);
+  });
+
+  it('stands each knight looking at its opponent, also after a move along its L', async () => {
+    // The model looks along -x; turned by y about the vertical it looks along (-cos y, sin y).
+    const looking = (pieces: PieceManager, square: Square) => {
+      const y = pieces.get(square)!.mesh.rotation.y;
+      return { x: Math.round(-Math.cos(y)) + 0, z: Math.round(Math.sin(y)) + 0 };
+    };
+    const pieces = new PieceManager(fakeAssets());
+    const game = new ChessGame();
+    pieces.sync(game.board());
+    expect(looking(pieces, 'g1')).toEqual({ x: 0, z: -1 });
+    expect(looking(pieces, 'b8')).toEqual({ x: 0, z: 1 });
+    expect(pieces.get('e1')!.mesh.rotation.y).toBe(0);
+
+    const tweener = new Tweener();
+    const animations = new AnimationController(tweener, pieces, fakeAssets(), () => ({
+      followPath: true,
+      demolish: false,
+    }));
+    const done = animations.playMove(game.tryMove({ from: 'g1', to: 'f3' })!);
+    // Along the L it turns to face its way (toward the f-file on the short leg).
+    let turned = 0;
+    while (tweener.running) {
+      tweener.update(0.05);
+      const y = pieces.get('f3')!.mesh.rotation.y;
+      turned = Math.max(turned, Math.abs(y - restingYaw('w', 'n')));
+    }
+    await done;
+    expect(turned).toBeGreaterThan(0.5);
+    expect(looking(pieces, 'f3')).toEqual({ x: 0, z: -1 });
   });
 
   it('restyles every piece in place without disturbing the position', () => {
