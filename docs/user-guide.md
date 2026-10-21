@@ -111,7 +111,10 @@ until you have agreed, and the link disappears from the address bar as soon as t
 game data ends the game in your favour and disconnects the other player.
 
 **If it cannot connect.** Some networks, such as mobile data or office Wi-Fi, block direct
-connections between two computers. Try another network, or ask your friend to.
+connections between two computers. Try another network, or ask your friend to. Your link keeps
+working after a failed attempt, so your friend can simply open it again. If you made the link on a
+phone, come back to the game after sending it: phones pause pages in the background. The clock on
+either device does not matter, even if it is set by hand or wrong by hours.
 
 ## Moving pieces
 

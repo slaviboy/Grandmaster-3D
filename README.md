@@ -271,6 +271,16 @@ web server, and the game removes it from the address bar as soon as the page ope
 keeps the QR code small: 41×41 modules at error correction level Q, which reads past the mark in
 its centre with room to spare.
 
+**Clocks that disagree.** Nostr relays compare the times signals are stamped with: a subscription
+hears only what was stamped after it began, and some relays refuse signals stamped far from their
+own time. So a phone whose clock runs fast, a computer that has drifted, or a clock set by hand
+hours off would never be heard. Before connecting, the page asks the site that served it for the
+time (the `Date` header of a `HEAD` request for the page itself, so nobody new learns anything),
+and Trystero stamps and filters its signals with that clock (`src/net/serverTime.ts`). Time zones
+play no part. A small Vite plugin (`scripts/trystero-clock-skew.ts`) gives Trystero's Nostr strategy
+that clock, and widens its subscriptions by ten minutes in case the site could not be asked. It
+fails the build if a Trystero upgrade changes the code it rewrites.
+
 **Fair play without a referee.** Nobody in between checks the game, so each browser checks
 everything it receives:
 
@@ -303,7 +313,9 @@ game without a server cannot verify it.
 
 **Connections that fail.** Without a relay (TURN) server, roughly one pair of players in ten
 cannot connect directly, for example on some mobile networks or office Wi-Fi; the game then says
-so. A TURN server could be added through Trystero's `rtcConfig`, at the cost of running one.
+so. The host's link stays open after a failed attempt, so the friend can try again, and a guest
+that has not been given a game within 45 seconds stops waiting and says so. A TURN server could be
+added through Trystero's `rtcConfig`, at the cost of running one.
 
 ## Known limitations
 
