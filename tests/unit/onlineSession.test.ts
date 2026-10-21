@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CLAIM_AFTER_MS,
   CONNECT_TIMEOUT_MS,
+  HOST_RETRY_MESSAGE,
   MAX_LAG_ALLOWANCE_MS,
   OnlineSession,
   PING_EVERY_MS,
@@ -312,6 +313,49 @@ describe('OnlineSession', () => {
     b.timers.advance(1_000);
     await settle();
     expect(guest.state.get().status).toBe('failed');
+  });
+
+  it('a host keeps the link open after a failed attempt, and the friend can try again', async () => {
+    const a = device();
+    const b = device();
+    const links = { host: new MemoryLink(), guest: new MemoryLink() };
+    const host = OnlineSession.host({
+      link: links.host,
+      game: a.game,
+      invite,
+      name: 'Ana',
+      color: 'w',
+      minutes: 5,
+      timers: a.timers,
+    });
+    links.host.handlers.error("Couldn't connect directly to your friend.");
+    await settle();
+    expect(host.state.get()).toMatchObject({ status: 'waiting', message: HOST_RETRY_MESSAGE });
+    expect(links.host.closed).toBe(false);
+
+    const guest = OnlineSession.join({
+      link: links.guest,
+      game: b.game,
+      invite,
+      name: 'Ben',
+      timers: b.timers,
+    });
+    plug(links.host, links.guest);
+    await settle();
+    expect(host.state.get()).toMatchObject({ status: 'playing', message: null });
+    expect(guest.state.get().status).toBe('playing');
+  });
+
+  it('a guest whose attempt fails is told why at once', async () => {
+    const b = device();
+    const link = new MemoryLink();
+    const guest = OnlineSession.join({ link, game: b.game, invite, name: 'Ben', timers: b.timers });
+    link.handlers.error("Couldn't connect directly to your friend.");
+    await settle();
+    expect(guest.state.get()).toMatchObject({
+      status: 'failed',
+      message: "Couldn't connect directly to your friend.",
+    });
   });
 
   it('forgets the saved game when the session closes', async () => {

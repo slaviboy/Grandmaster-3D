@@ -183,8 +183,10 @@ export function waitDialog(state: Store<OnlineState>, link: string | null): Prom
           cancel.textContent = 'Close';
           cancel.onclick = () => close('failed');
         } else {
+          // A failed attempt leaves the host waiting, with a note on what happened.
           status.textContent =
-            s.status === 'waiting' ? 'Waiting for your friend to open the link…' : 'Connecting…';
+            s.message ??
+            (s.status === 'waiting' ? 'Waiting for your friend to open the link…' : 'Connecting…');
         }
       });
     },

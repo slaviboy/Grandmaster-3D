@@ -37,6 +37,10 @@ export const CLAIM_AFTER_MS = 120_000;
 export const PING_EVERY_MS = 3_000;
 /** How long a leaving player waits for the goodbye to cross before closing the connection. */
 const LEAVE_GRACE_MS = 250;
+/** What the host is told when the friend's attempt fails; the link stays open. */
+export const HOST_RETRY_MESSAGE =
+  "Your friend couldn't connect. Some networks, such as mobile data or office Wi-Fi, block " +
+  'direct connections. The link still works: they can open it again, maybe on another network.';
 
 export type Role = 'host' | 'guest';
 
@@ -371,6 +375,11 @@ export class OnlineSession {
 
   private onError(text: string): void {
     if (this.ended || this.started) return;
+    // The host keeps the link open, so the friend can simply try again.
+    if (this.role === 'host') {
+      this.patch({ message: HOST_RETRY_MESSAGE });
+      return;
+    }
     this.fail(text);
   }
 
