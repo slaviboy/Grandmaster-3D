@@ -109,7 +109,7 @@ export class RetroShell implements Shell {
     const reserve = () => {
       const open = [this.status.panel, this.captured.panel].some((p) => p.visible && !p.collapsed);
       const width = open && window.innerWidth >= 760 ? right.getBoundingClientRect().width : 0;
-      app.camera.setReservedRight(width);
+      app.camera.setReserved({ top: 0, right: width, bottom: 0 });
     };
     for (const panel of this.panels()) panel.onChange(reserve);
     window.addEventListener('resize', reserve, { signal });

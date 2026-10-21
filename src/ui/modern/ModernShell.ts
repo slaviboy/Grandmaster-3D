@@ -78,7 +78,11 @@ export class ModernShell implements Shell {
     const reserve = () => {
       const rect = this.match.element.getBoundingClientRect();
       const covered = this.match.visible && window.innerWidth >= 760;
-      app.camera.setReservedRight(covered ? window.innerWidth - rect.left : 0);
+      app.camera.setReserved({
+        top: 0,
+        right: covered ? window.innerWidth - rect.left : 0,
+        bottom: 0,
+      });
     };
     this.match.onChange(reserve);
     window.addEventListener('resize', reserve, { signal });

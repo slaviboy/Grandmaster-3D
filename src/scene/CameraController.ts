@@ -28,6 +28,13 @@ export interface ReferenceView {
 
 export type DragZone = 'corner' | 'edge';
 
+/** Pixels along the canvas edges covered by the interface, which the board is framed clear of. */
+export interface Insets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
 /** Tells the controller which camera zone (if any) lies under a client-space point. */
 export type ZoneProvider = (clientX: number, clientY: number) => DragZone | null;
 
@@ -45,6 +52,12 @@ const MIN_ELEVATION = 12 * DEG;
 const MAX_ELEVATION = 89.5 * DEG;
 /** Distance at which the whole board, frame included, fits the reference field of view. */
 const TOP_DISTANCE = 21;
+/** At the reference view the board, frame included, is this many screen heights wide... */
+const BOARD_WIDE = 0.854;
+/** ...and this many tall, up to the tops of the far kings. */
+const BOARD_TALL = 0.625;
+/** The part of the free space the framed board fills. */
+const BOARD_FILL = 0.94;
 const MIN_DISTANCE = 9;
 const MAX_DISTANCE = 42;
 const MAX_PAN = 3.5;
@@ -99,8 +112,7 @@ export class CameraController {
   private readonly settleListeners: Array<() => void> = [];
   private hoverZone: DragZone | null = null;
   private reference: ReferenceView = REFERENCE_VIEW;
-  /** Width in pixels covered by panels along the right edge. */
-  private reservedRight = 0;
+  private reserved: Insets = { top: 0, right: 0, bottom: 0 };
   enabled = true;
   /** A two-finger twist turns the board against the fingers, as the camera rather than the board. */
   reverseTwist = false;
@@ -165,10 +177,17 @@ export class CameraController {
     this.apply();
   }
 
-  /** Tells the camera how much of the right edge the side panels cover. */
-  setReservedRight(pixels: number): void {
-    if (Math.abs(pixels - this.reservedRight) < 0.5) return;
-    this.reservedRight = pixels;
+  /**
+   * Tells the camera how much of each edge the interface covers. Every call gives all three, so an
+   * interface that is swapped out leaves nothing of its own behind.
+   */
+  setReserved(insets: Insets): void {
+    const old = this.reserved;
+    const same = (['top', 'right', 'bottom'] as const).every(
+      (side) => Math.abs(insets[side] - old[side]) < 0.5,
+    );
+    if (same) return;
+    this.reserved = { ...insets };
     this.apply();
   }
 
@@ -308,17 +327,25 @@ export class CameraController {
     // Keep the reference framing: the same vertical field of view while the board still fits, and
     // a wider one on narrow screens so the whole board stays in view.
     // Keep the reference framing when the window is at least as wide as the reference (4:3). On
-    // narrower windows, fit the board (frame included, about 0.85 of the height wide at the
-    // reference view) into the part of the screen not covered by the side panels, and centre it
-    // there.
+    // narrower windows, fit the board into the part of the screen the interface leaves free (left
+    // of the side panels, or between the cards at the top and the dock at the bottom of a phone),
+    // and centre it there.
     const reference = this.reference;
     const halfTan = Math.tan((reference.fov * DEG) / 2);
     let fit = 1;
     let shiftX = -reference.offsetX;
+    let shiftY = -reference.offsetY;
     if (aspect < 1.3) {
-      const available = Math.max(1, this.width - this.reservedRight);
-      fit = Math.max(1, (0.854 * this.height) / (0.94 * available));
-      shiftX = -((available - this.width) / 2) / this.width;
+      const { top, right, bottom } = this.reserved;
+      const wide = Math.max(1, this.width - right);
+      const tall = Math.max(1, this.height - top - bottom);
+      fit = Math.max(
+        1,
+        (BOARD_WIDE * this.height) / (BOARD_FILL * wide),
+        (BOARD_TALL * this.height) / (BOARD_FILL * tall),
+      );
+      shiftX = -((wide - this.width) / 2) / this.width;
+      shiftY -= (top - bottom) / 2 / this.height;
     }
     this.camera.fov = (2 * Math.atan(halfTan * fit)) / DEG;
     const cosE = Math.cos(v.elevation);
@@ -328,7 +355,6 @@ export class CameraController {
       v.targetZ + Math.cos(v.azimuth) * cosE * v.distance,
     );
     this.camera.lookAt(v.targetX, 0, v.targetZ);
-    const shiftY = -reference.offsetY;
     this.camera.setViewOffset(
       this.width,
       this.height,
