@@ -204,6 +204,15 @@
     font: 1.25rem var(--font-ui);
   }
 
+  /* iPhones zoom the whole page into a field with smaller text, and never zoom back out. */
+  @media (pointer: coarse) {
+    .field select,
+    .field input[type='text'],
+    .dialog textarea {
+      font-size: max(16px, 1.25rem);
+    }
+  }
+
   .dialog textarea {
     min-height: 12rem;
     font-family: ui-monospace, Menlo, Consolas, monospace;

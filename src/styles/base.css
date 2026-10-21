@@ -20,6 +20,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Phones keep the sizes set here instead of enlarging text on their own (iOS in landscape). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 #app {
   position: fixed;
   inset: 0;
