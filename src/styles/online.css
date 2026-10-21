@@ -19,7 +19,9 @@
     max-width: min(94vw, 52rem);
   }
 
+  /* One column no wider than the dialog, whatever its contents would like. */
   .online-dialog .dialog-body {
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.2rem;
   }
 

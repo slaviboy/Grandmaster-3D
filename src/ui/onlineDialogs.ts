@@ -137,10 +137,15 @@ export function waitDialog(state: Store<OnlineState>, link: string | null): Prom
         field.type = 'text';
         field.readOnly = true;
         field.value = link;
+        // No width of its own (20 characters by default): the row gives it what is left beside
+        // Copy, so it never pushes past the dialog's edge on a narrow screen.
+        field.size = 1;
         field.setAttribute('aria-label', 'Game link');
-        field.addEventListener('focus', () => field.select());
+        // setSelectionRange, not select(): iPhones ignore select() on a read-only field.
+        const selectAll = () => field.setSelectionRange(0, field.value.length);
+        field.addEventListener('focus', selectAll);
         const copy = button('Copy', () => {
-          field.select();
+          selectAll();
           void navigator.clipboard
             ?.writeText(link)
             .then(() => (copy.textContent = 'Copied'))

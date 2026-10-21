@@ -400,6 +400,55 @@ function blur(data: Uint8ClampedArray, w: number, h: number) {
   return { data: out, width: w, height: h };
 }
 
+test('on a phone the online dialogs wait for a tap and keep the link inside', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 780 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto('/?ui=modern&anim=0&engine=off');
+  const touch = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+  /** No field is focused (no keyboard, no zoom) and every field's text is at least 16px. */
+  const calm = async (title: string) => {
+    const dialog = page.getByRole('dialog', { name: title });
+    await expect(dialog).toBeVisible({ timeout: 60_000 });
+    if (!touch) return;
+    await expect(dialog).toBeFocused();
+    for (const field of await dialog.getByRole('textbox').all()) {
+      const size = await field.evaluate((f) => parseFloat(getComputedStyle(f).fontSize));
+      expect(size).toBeGreaterThanOrEqual(16);
+    }
+  };
+
+  // createLink, with the checks on the way.
+  await expect(page.locator(STATUS.modern)).toHaveText('Your move.', { timeout: 60_000 });
+  for (const name of ['Ana', 'Ana']) {
+    await page.keyboard.press('Control+n');
+    const sheet = page.getByRole('dialog', { name: 'New Game' });
+    await sheet.getByRole('radio', { name: 'A friend online' }).click();
+    await sheet.getByRole('button', { name: 'Create Link' }).click();
+    await calm('Play a Friend Online');
+    await accept(page, 'Play a Friend Online', name, 'Create Link');
+    await calm('Invite a Friend');
+    const invite = page.getByRole('dialog', { name: 'Invite a Friend' });
+    const box = (await invite.boundingBox())!;
+    const row = (await invite.locator('.online-link').boundingBox())!;
+    const field = (await invite.getByRole('textbox', { name: 'Game link' }).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(row.x + row.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(field.x + field.width).toBeLessThanOrEqual(row.x + row.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    await invite.getByRole('button', { name: 'Cancel' }).click();
+  }
+  await context.close();
+});
+
 test('every invitation shows its own QR code, which scans reliably to its own link', async ({
   browser,
 }) => {
