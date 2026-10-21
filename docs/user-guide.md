@@ -84,6 +84,8 @@ type the name your friend will see, tick **I am 18 or older and understand that 
 be visible to the other player**, and press **Create Link**. Copy the link and send it to your
 friend, or let them scan the QR code below it with their phone's camera: it opens the same link.
 Every new game gets its own link and its own code. The window closes by itself when they arrive. Cancel stops waiting.
+The warning and this window stay open when you tap or click beside them; only their buttons (or Esc)
+close them, so a stray tap on a phone never drops the game.
 
 **Joining.** Open the link you were sent. The same warning comes first, with its checkbox unticked;
 tick it and press **Join Game**. You play the side your friend did not choose. Nothing connects

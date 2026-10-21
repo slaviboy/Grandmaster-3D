@@ -9,13 +9,18 @@
  * License, or (at your option) any later version. See the LICENSE file for the full terms.
  */
 
-// A modal dialog in the game's panel style. It traps focus, closes on Escape (resolving with the
-// cancel value) and returns its answer as a promise.
+// A modal dialog in the game's panel style. It traps focus, closes on Escape or a press beside it
+// (resolving with the cancel value) and returns its answer as a promise.
 
 export interface DialogHandle<T> {
   readonly body: HTMLElement;
   readonly root: HTMLElement;
   close(value: T): void;
+}
+
+export interface DialogOptions {
+  /** False for a dialog a stray tap must not end: only its buttons (or Escape) close it. */
+  readonly backdropCloses?: boolean;
 }
 
 let openCount = 0;
@@ -29,6 +34,7 @@ export function openDialog<T>(
   title: string,
   cancelValue: T,
   build: (handle: DialogHandle<T>) => void,
+  options: DialogOptions = {},
 ): Promise<T> {
   return new Promise((resolve) => {
     const backdrop = document.createElement('div');
@@ -88,9 +94,11 @@ export function openDialog<T>(
       }
     };
     closeButton.addEventListener('click', () => close(cancelValue));
-    backdrop.addEventListener('pointerdown', (event) => {
-      if (event.target === backdrop) close(cancelValue);
-    });
+    if (options.backdropCloses !== false) {
+      backdrop.addEventListener('pointerdown', (event) => {
+        if (event.target === backdrop) close(cancelValue);
+      });
+    }
     document.addEventListener('keydown', onKey, true);
     openCount++;
     build({ body, root, close });

@@ -462,7 +462,7 @@ function blur(data: Uint8ClampedArray, w: number, h: number) {
   return { data: out, width: w, height: h };
 }
 
-test('on a phone the online dialogs wait for a tap and keep the link inside', async ({
+test('on a phone the online dialogs wait for a tap, stay open on a tap beside them and keep the link inside', async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -473,16 +473,22 @@ test('on a phone the online dialogs wait for a tap and keep the link inside', as
   const page = await context.newPage();
   await page.goto('/?ui=modern&anim=0&engine=off');
   const touch = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
-  /** No field is focused (no keyboard, no zoom) and every field's text is at least 16px. */
+  /**
+   * No field is focused (no keyboard, no zoom), every field's text is at least 16px, and a stray
+   * tap beside the dialog leaves it open.
+   */
   const calm = async (title: string) => {
     const dialog = page.getByRole('dialog', { name: title });
     await expect(dialog).toBeVisible({ timeout: 60_000 });
-    if (!touch) return;
-    await expect(dialog).toBeFocused();
-    for (const field of await dialog.getByRole('textbox').all()) {
-      const size = await field.evaluate((f) => parseFloat(getComputedStyle(f).fontSize));
-      expect(size).toBeGreaterThanOrEqual(16);
+    if (touch) {
+      await expect(dialog).toBeFocused();
+      for (const field of await dialog.getByRole('textbox').all()) {
+        const size = await field.evaluate((f) => parseFloat(getComputedStyle(f).fontSize));
+        expect(size).toBeGreaterThanOrEqual(16);
+      }
     }
+    await page.touchscreen.tap(8, 8);
+    await expect(dialog).toBeVisible();
   };
 
   // createLink, with the checks on the way.

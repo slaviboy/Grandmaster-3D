@@ -53,67 +53,73 @@ function button(label: string, onClick: () => void, className = 'btn'): HTMLButt
  * The warning before any online game: the other player can find this computer's IP address, links
  * are for people the player trusts, and online play is for adults only. The 18+ box starts
  * unticked every time and nothing is remembered; Continue stays off until it is ticked. Resolves
- * with the player's name, or null if they back out. Nothing connects before this resolves.
+ * with the player's name, or null if they back out (Cancel, X or Escape; a tap beside the dialog
+ * would drop the invitation, so it does nothing). Nothing connects before this resolves.
  */
 export function consentDialog(kind: ConsentKind, name: string): Promise<{ name: string } | null> {
-  return openDialog<{ name: string } | null>(TITLE[kind], null, ({ body, root, close }) => {
-    root.classList.add('online-dialog');
-    const intro = el('p', 'online-intro', INTRO[kind]);
+  return openDialog<{ name: string } | null>(
+    TITLE[kind],
+    null,
+    ({ body, root, close }) => {
+      root.classList.add('online-dialog');
+      const intro = el('p', 'online-intro', INTRO[kind]);
 
-    const nameField = el('label', 'field');
-    const nameInput = el('input');
-    nameInput.type = 'text';
-    nameInput.maxLength = MAX_NAME_LENGTH;
-    nameInput.autocomplete = 'off';
-    nameInput.spellcheck = false;
-    nameInput.value = name;
-    nameField.append(el('span', '', 'Your name (the other player sees it)'), nameInput);
+      const nameField = el('label', 'field');
+      const nameInput = el('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = MAX_NAME_LENGTH;
+      nameInput.autocomplete = 'off';
+      nameInput.spellcheck = false;
+      nameInput.value = name;
+      nameField.append(el('span', '', 'Your name (the other player sees it)'), nameInput);
 
-    const warning = el('div', 'online-warning');
-    warning.setAttribute('role', 'note');
-    const points = el('ul');
-    const point = (strong: string, rest: string) => {
-      const item = el('li');
-      item.append(el('strong', '', strong), document.createTextNode(` ${rest}`));
-      points.append(item);
-    };
-    point(
-      'The other player will be able to find your IP address',
-      '(your approximate location and internet provider): online play connects your computer ' +
-        'directly to theirs. Share game links only with people you know and trust.',
-    );
-    point(
-      'Video and voice chat',
-      'show your camera and microphone to the other player, but only after you turn them on.',
-    );
-    point('Online play is for adults only.', 'Not for children.');
-    warning.append(el('div', 'online-warning-title', 'Before you play online'), points);
+      const warning = el('div', 'online-warning');
+      warning.setAttribute('role', 'note');
+      const points = el('ul');
+      const point = (strong: string, rest: string) => {
+        const item = el('li');
+        item.append(el('strong', '', strong), document.createTextNode(` ${rest}`));
+        points.append(item);
+      };
+      point(
+        'The other player will be able to find your IP address',
+        '(your approximate location and internet provider): online play connects your computer ' +
+          'directly to theirs. Share game links only with people you know and trust.',
+      );
+      point(
+        'Video and voice chat',
+        'show your camera and microphone to the other player, but only after you turn them on.',
+      );
+      point('Online play is for adults only.', 'Not for children.');
+      warning.append(el('div', 'online-warning-title', 'Before you play online'), points);
 
-    const consent = el('label', 'online-consent');
-    const box = el('input');
-    box.type = 'checkbox';
-    box.checked = false;
-    box.required = true;
-    consent.append(
-      box,
-      el(
-        'span',
-        '',
-        'I am 18 or older and understand that my IP address will be visible to the other player.',
-      ),
-    );
+      const consent = el('label', 'online-consent');
+      const box = el('input');
+      box.type = 'checkbox';
+      box.checked = false;
+      box.required = true;
+      consent.append(
+        box,
+        el(
+          'span',
+          '',
+          'I am 18 or older and understand that my IP address will be visible to the other player.',
+        ),
+      );
 
-    const go = button(CONTINUE[kind], () => {
-      if (!box.checked) return;
-      close({ name: cleanName(nameInput.value, 'Player') });
-    });
-    go.disabled = true;
-    box.addEventListener('change', () => (go.disabled = !box.checked));
-    const cancel = button('Cancel', () => close(null), 'btn btn-quiet');
-    const actions = el('div', 'dialog-actions');
-    actions.append(go, cancel);
-    body.append(intro, nameField, warning, consent, actions);
-  });
+      const go = button(CONTINUE[kind], () => {
+        if (!box.checked) return;
+        close({ name: cleanName(nameInput.value, 'Player') });
+      });
+      go.disabled = true;
+      box.addEventListener('change', () => (go.disabled = !box.checked));
+      const cancel = button('Cancel', () => close(null), 'btn btn-quiet');
+      const actions = el('div', 'dialog-actions');
+      actions.append(go, cancel);
+      body.append(intro, nameField, warning, consent, actions);
+    },
+    { backdropCloses: false },
+  );
 }
 
 export type WaitResult = 'playing' | 'cancelled' | 'failed';
@@ -121,7 +127,8 @@ export type WaitResult = 'playing' | 'cancelled' | 'failed';
 /**
  * Waits for the other player: for the host it shows the invitation link with a Copy button and as
  * a QR code to scan, for the guest only the progress. Closes by itself when the game starts. Cancel (or Escape) resolves
- * 'cancelled'; a connection that fails shows why and resolves 'failed' when dismissed.
+ * 'cancelled'; a connection that fails shows why and resolves 'failed' when dismissed. A tap
+ * beside it does nothing: closing ends the game the friend may be opening.
  */
 export function waitDialog(state: Store<OnlineState>, link: string | null): Promise<WaitResult> {
   let unsubscribe = () => {};
@@ -195,6 +202,7 @@ export function waitDialog(state: Store<OnlineState>, link: string | null): Prom
         }
       });
     },
+    { backdropCloses: false },
   );
   return done.finally(() => unsubscribe());
 }
