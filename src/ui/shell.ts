@@ -68,6 +68,8 @@ export interface MenuCatalog {
   readonly hint: () => MenuItem[];
   readonly moveNow: () => MenuItem[];
   readonly takeBack: () => MenuItem[];
+  /** 3D Board / 2D Board. */
+  readonly boardView: () => MenuItem[];
   /** Flip, top view and reset view. */
   readonly camera: () => MenuItem[];
   /** Legal-move and last-move marks. */

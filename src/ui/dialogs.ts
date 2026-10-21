@@ -13,7 +13,12 @@
 
 import { CUSTOM_RATING, DIFFICULTIES, type DifficultyId } from '../engine/difficulty.ts';
 import type { LoadResult } from '../game/ChessGame.ts';
-import { TIME_CONTROLS, type Settings } from '../game/Settings.ts';
+import {
+  TIME_CONTROLS,
+  isBoardViewKind,
+  type BoardViewKind,
+  type Settings,
+} from '../game/Settings.ts';
 import { el, openDialog } from './Dialog.ts';
 
 function field(label: string, control: HTMLElement): HTMLElement {
@@ -209,6 +214,13 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
       'Glass reflections (turn off if glass looks are slow)',
       current.glassReflections,
     );
+    const view = select<BoardViewKind>(
+      [
+        ['3d', '3D'],
+        ['2d', '2D, seen from above'],
+      ],
+      current.boardView,
+    );
     const [legalRow, legal] = checkbox('Show legal moves', current.showLegalMoves);
     const [lastRow, last] = checkbox('Show last move', current.showLastMove);
     const [coordsRow, coords] = checkbox('Show board coordinates', current.showCoordinates);
@@ -231,6 +243,7 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
             showLastMove: last.checked,
             showCoordinates: coords.checked,
             reverseTwist: twist.checked,
+            boardView: isBoardViewKind(view.value) ? view.value : current.boardView,
           }),
         true,
       ),
@@ -244,7 +257,14 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
       demolishRow,
     );
     const board = el('div', 'settings-group');
-    board.append(el('div', 'coach-heading', 'Board'), legalRow, lastRow, coordsRow, glassRow);
+    board.append(
+      el('div', 'coach-heading', 'Board'),
+      field('Board', view),
+      legalRow,
+      lastRow,
+      coordsRow,
+      glassRow,
+    );
     board.append(button('Board, pieces and table colours…', () => close('themes')));
     const touch = el('div', 'settings-group');
     touch.append(el('div', 'coach-heading', 'Touch'), twistRow);
@@ -354,13 +374,13 @@ export function shortcutsDialog(): Promise<void> {
     const rows: Array<[string, string]> = [
       ['Click a piece, then a square', 'Move'],
       ['Drag a piece', 'Move'],
-      ['Drag a board corner', 'Rotate and tilt the board'],
-      ['Drag a board edge', 'Pan the board'],
-      ['Right-drag anywhere', 'Rotate and tilt'],
-      ['Mouse wheel, PgUp / PgDn', 'Zoom'],
-      ['← →', 'Rotate the board'],
-      ['↑ ↓', 'Tilt the board'],
-      ['Home', 'Reset the view'],
+      ['Drag a board corner', 'Rotate and tilt the board (3D)'],
+      ['Drag a board edge', 'Pan the board (3D)'],
+      ['Right-drag anywhere', 'Rotate and tilt (3D)'],
+      ['Mouse wheel, PgUp / PgDn', 'Zoom (3D)'],
+      ['← →', 'Rotate the board (3D)'],
+      ['↑ ↓', 'Tilt the board (3D)'],
+      ['Home', 'Reset the view (3D)'],
       ['Shift + arrows, Enter', 'Move with the keyboard'],
       ['Esc', 'Cancel the selection'],
       ['Ctrl+Z / Ctrl+Y', 'Take back / replay'],
@@ -368,7 +388,7 @@ export function shortcutsDialog(): Promise<void> {
       ['H', 'Hint'],
       ['M', 'Make the computer move now'],
       ['F', 'Flip the board'],
-      ['Two fingers', 'Twist to rotate, pinch to zoom, drag to pan'],
+      ['Two fingers', 'Twist to rotate, pinch to zoom, drag to pan (3D)'],
     ];
     const table = el('table', 'shortcuts');
     for (const [keys, action] of rows) {

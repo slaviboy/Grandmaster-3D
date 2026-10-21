@@ -71,7 +71,7 @@ export class ModernShell implements Shell {
       app.settings.get().showLegalMoves,
     );
 
-    this.dock = new Dock(commands, () => app.camera.isTopView);
+    this.dock = new Dock(commands, () => (app.boardView === '3d' ? app.camera.isTopView : null));
 
     this.element.append(top, this.coach.element, this.match.element, this.dock.element);
     app.root.append(this.element);
@@ -180,6 +180,8 @@ export class ModernShell implements Shell {
       {
         label: '&View',
         items: () => [
+          ...m.boardView(),
+          sep,
           ...m.camera(),
           sep,
           ...m.coordinates(),

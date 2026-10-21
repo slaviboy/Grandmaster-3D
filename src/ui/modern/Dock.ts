@@ -31,7 +31,8 @@ export class Dock {
 
   constructor(
     commands: Commands,
-    private readonly isTopView: () => boolean,
+    /** Whether the camera looks straight down; null when there is no top view (the 2D board). */
+    private readonly isTopView: () => boolean | null,
   ) {
     this.element = el('div', 'm-dock');
     this.element.setAttribute('role', 'toolbar');
@@ -88,6 +89,8 @@ export class Dock {
 
   /** The top view can also change from the keyboard; the shell calls this a few times a second. */
   syncTopView(): void {
-    this.topView.setAttribute('aria-pressed', String(this.isTopView()));
+    const top = this.isTopView();
+    this.topView.disabled = top === null;
+    this.topView.setAttribute('aria-pressed', String(top === true));
   }
 }

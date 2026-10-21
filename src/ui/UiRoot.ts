@@ -719,6 +719,8 @@ export class UiRoot {
     const st = () => app.controller.state.get();
     const toggle = (key: keyof Settings) => () =>
       app.settings.update({ [key]: !s()[key] } as Partial<Settings>);
+    // Camera views, shattering and real glass belong to the 3D board only.
+    const in3d = () => app.boardView === '3d';
     const sep: MenuItem = { separator: true };
     return {
       file: () => [
@@ -861,15 +863,27 @@ export class UiRoot {
           action: () => void app.controller.undo(),
         },
       ],
+      boardView: () =>
+        (
+          [
+            ['3d', '&3D Board'],
+            ['2d', '&2D Board'],
+          ] as const
+        ).map(([kind, label]) => ({
+          label,
+          checked: () => s().boardView === kind,
+          action: () => app.settings.update({ boardView: kind }),
+        })),
       camera: () => [
         { label: '&Flip Board', shortcut: 'F', action: () => void app.flip() },
         {
           label: 'T&op View',
           shortcut: 'T',
-          checked: () => app.camera.isTopView,
+          checked: () => in3d() && app.camera.isTopView,
+          enabled: in3d,
           action: () => app.topView(),
         },
-        { label: 'Reset &View', shortcut: 'Home', action: () => app.resetView() },
+        { label: 'Reset &View', shortcut: 'Home', enabled: in3d, action: () => app.resetView() },
       ],
       marks: () => [
         {
@@ -907,10 +921,16 @@ export class UiRoot {
           checked: () => s().followPath,
           action: toggle('followPath'),
         },
-        { label: '&Demolish Captures', checked: () => s().demolish, action: toggle('demolish') },
+        {
+          label: '&Demolish Captures',
+          checked: () => s().demolish,
+          enabled: in3d,
+          action: toggle('demolish'),
+        },
         {
           label: 'Glass &Reflections',
           checked: () => s().glassReflections,
+          enabled: in3d,
           action: toggle('glassReflections'),
         },
       ],

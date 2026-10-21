@@ -208,6 +208,8 @@ export class RetroShell implements Shell {
         label: '&Preferences',
         items: () => [
           ...m.effects(),
+          sep,
+          ...m.boardView(),
           ...m.coordinates(),
           sep,
           ...m.appearance(),
