@@ -62,6 +62,8 @@ export function openDialog<T>(
       document.removeEventListener('keydown', onKey, true);
       backdrop.remove();
       previous?.focus?.();
+      // The page never scrolls; an offset left over is a phone keyboard's, so put it back.
+      if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
       resolve(value);
     };
     const onKey = (event: KeyboardEvent) => {
@@ -93,6 +95,14 @@ export function openDialog<T>(
     openCount++;
     build({ body, root, close });
     document.body.append(backdrop);
+    // On a touch screen a focused field opens the keyboard (and an iPhone zooms) before the player
+    // has touched anything, while the sheet is still sliding in, so there the dialog itself takes
+    // the focus and fields wait to be tapped.
+    if (window.matchMedia?.('(pointer: coarse)').matches) {
+      root.tabIndex = -1;
+      root.focus({ preventScroll: true });
+      return;
+    }
     (
       root.querySelector<HTMLElement>('[autofocus], .choice, .btn, select, input, textarea') ??
       closeButton

@@ -31,6 +31,11 @@ html {
   inset: 0;
 }
 
+/* A dialog holds the focus itself on touch screens (see Dialog.ts); it needs no ring for that. */
+.dialog:focus {
+  outline: none;
+}
+
 .scene-canvas {
   position: absolute;
   inset: 0;
