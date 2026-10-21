@@ -52,10 +52,16 @@ npm run audit:dist   # the built site: no source maps, local addresses or privat
   validated like player moves.
 - **Generations, not hope.** Every position change bumps the controller's generation. Async work
   (searches, animations, thinking pauses) checks it before touching anything.
-- **The piece map leads, meshes follow.** `PieceManager` records the logical position first.
-  Animations only move meshes, and `finishAll()` + `sync()` must always restore a correct board.
+- **The piece map leads, meshes follow.** `PieceManager` (and `FlatPieces` on the 2D board) records
+  the logical position first. Animations only move meshes or figures, and finishing + `sync()` must
+  always restore a correct board. Callers of the controller's `interrupt()` sync the view after it.
+- **Two boards, one game.** The controller plays through `ViewSwitch` (`src/app/`): the shown board
+  animates and takes input, the hidden one is synced to the same position on every move. The 2D
+  board (`src/flat/`) draws nothing while hidden; the hidden 3D scene skips rendering but its
+  updaters keep running (they drive the clocks).
 - **One coordinate convention.** Defined in `src/scene/coords.ts`: 1 unit = 1 square, White at +z.
-  Flipping turns the camera, never the board.
+  The 2D board uses the same coordinates seen from above. Flipping turns the camera (or the 2D
+  board's view), never the board; the camera's side is the single source of orientation for both.
 - **Online, each side referees what it receives.** Everything from the other player passes
   `PeerGuard` (size, rate, shape), `OnlineSession` (who may say what, when) and the controller
   (`applyRemoteMove`, the rules of chess). Never trust their times, results or media state; time

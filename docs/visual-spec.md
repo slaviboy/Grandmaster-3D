@@ -16,9 +16,9 @@ by measured comparison.
 | Coordinates | A–H along the near edge and 1–8 along the left edge, engraved in pale cream (lighter than the frame), in a clean sans-serif |
 | Squares | Light maple `#F4C38D` and tan `#B78249`, low contrast, with fine straight grain. The playing area sits slightly below the frame top |
 | Pieces | Classic Staunton in turned wood, semi-gloss. Growth rings show on the tops (seen clearly from overhead), and grain runs along each piece. White is pale boxwood cream; black is a mid-to-dark rosewood brown with visible grain (not ebony black) |
-| Piece sizes | Measured heights in squares: king 1.745, queen 1.63, bishop 1.36, knight 1.30, rook 0.93, pawn 0.83. Bases are about 0.5 (pawn) to 0.6 (king) of a square across. Knights face the a-file side, and bishop slits face right as seen from White |
+| Piece sizes | Measured heights in squares: king 1.745, queen 1.63, bishop 1.36, knight 1.30, rook 0.93, pawn 0.83. Bases are about 0.5 (pawn) to 0.6 (king) of a square across. The knight models are carved facing the a-file; on the board each knight is turned to look at its opponent (White's toward Black, Black's toward White). Bishop slits face right as seen from White |
 | Piece forms | King: crown with a cross finial. Queen: coronet with points and a ball. Bishop: miter with a slit and a small ball. Knight: carved horse head with mane. Rook: tower with crenellations. Pawn: ball on a collar. All are tall and slim with wide bases |
-| Camera | Default view fitted to the reference within 0.8 px: from White's side at 49.7° elevation, vertical field of view 30.5°, 22 squares away, with the principal point shifted 4% left so the board sits beside the right-hand panel. Drag a corner to rotate and tilt, drag the edge to pan, use the wheel or PgUp/PgDn to zoom, and the arrow keys to rotate and tilt |
+| Camera | Default view fitted to the reference within 0.8 px: from White's side at 49.7° elevation, vertical field of view 30.5°, 22 squares away, with the principal point shifted 4% left so the board sits beside the right-hand panel. Drag a corner to rotate and tilt, drag the edge to pan, use the wheel or PgUp/PgDn to zoom, and the arrow keys to rotate and tilt. Flip Board turns half a circle in 1.2 s, eased in and out |
 | Light | Key light from the front right and above, casting soft shadows toward the back left; soft fill light; mild highlights on the pieces |
 | Last move | Thin white rings on the from- and to-squares |
 | Selection | The selected square is tinted a light blue (≈`#5BA9C8`) |
@@ -33,6 +33,20 @@ references:
 | Console Mahogany | Mahogany board with pale and reddish-brown squares, Boxwood & Rosewood pieces, dark blue stone table |
 | Marble Edition | A thin board (0.2 of a square) of cool blue-grey marble: light squares `#B7D0DC`, dark `#88A5B0`, crossed by long, light veins that run straight across squares with sharp kinks. Large grey-blue coordinates (0.4 of a square). Red Lacquer & Silver pieces in the Bell shape: wide bell bases about 0.7 across, thin stems and a double collar; king 1.75, queen 1.58, bishop 1.44, knight 1.19, rook 1.05, pawn 0.90. Both sides are polished, mottled and mirror the board. Blue stone table |
 | Glass Studio | A clear glass sheet 0.12 of a square thick with a green-tinted edge, printed with frosted-white and glossy black squares and a double black line on a clear border. The pieces mirror in the black squares. Clear glass pieces against mirror-black glass pieces; clear glass casts only a soft contact shadow. A neutral light grey studio sweep with a white backdrop |
+
+## 2D board
+
+An optional flat board seen straight from above (View or Preferences ▸ 2D Board), in `src/flat/`,
+drawn on one canvas. It follows the chosen looks rather than a look of its own.
+
+| Element | Specification |
+|---|---|
+| Board | The 3D board's squares, frame (0.5 of a square, mitred grain) and engraved coordinates, painted flat from the chosen board look by the same painters. Seen from Black, the board is turned half a circle and the coordinates are engraved for that side, so they read upright |
+| Around it | The chosen table's pattern, one tile per 12 squares as under the 3D board, with a soft vignette and a drop shadow under the board |
+| Pieces | Original flat Staunton figures in a 100-unit box, drawn back to front as outlined parts so collars and joints show, plus detail lines: the bishop's slit, the knight's mane, eye and mouth. The body takes the piece set's colour lit from the upper left; the outline is a fixed dark; details are dark on light pieces and light on dark ones; a soft halo (light on dark pieces) keeps them visible on any square. The art box is 1.06 squares, and knights face left as in classic diagrams |
+| Marks | The same marks as the 3D board, from the same painter: white last-move rings, a red check glow, green hint rings, the light-blue selection, legal-move dots and capture rings, the coach's tints, spots and rings |
+| Motion | Moves glide (or follow their route) with the 3D board's timings; a piece in the air is drawn a little larger and raised over its shadow. Flipping turns the board at once |
+| Layout | The largest board, frame included, that fits between the interface's bars and cards, at 96% of the free space; on a narrow window the side cards float over it |
 
 ## Retro interface
 
@@ -73,10 +87,10 @@ It keeps the board and its framing, and redraws everything around it as floating
 | Element | Specification |
 |---|---|
 | Top bar | Floating along the top: a gold king mark and the serif wordmark, the Game · View · Look · Options · Help menus, then the Modern / Retro switch, a gold New game button and full screen |
-| Menus | Frosted popovers with hover pills, gold check marks, key caps for shortcuts and chevrons for submenus; access keys still work but are not underlined |
+| Menus | Frosted popovers with hover pills, gold check marks, key caps for shortcuts and chevrons for submenus; access keys still work but are not underlined. Hover pills show only where there is real hover; a touch shows no browser tap flash, only the menu's own open state |
 | Coach card | Top left, 18.4rem wide so it stays clear of the a-file. Folded to one line with the latest remark; open, it holds switches, segmented choices, Suggest a move and the commentary, the latest remark in gold |
 | Match card | Top right, 21.2rem wide, as close to the board as the retro panels. Opponent at the top and player at the bottom; each row has a portrait, a colour disc, the rating, captured pieces (black ones in graphite) and the lead, and a clock that turns gold while running and red in the last 30 seconds. The move list between them marks the latest move with a gold pill |
-| Dock | Bottom centre, below the board's near edge: a turn and status chip, then icon buttons with upward tooltips; the top view button stays lit while it is on |
+| Dock | Bottom centre, below the board's near edge: a turn and status chip, then icon buttons with upward tooltips; the top view button stays lit while it is on, and is greyed out on the 2D board |
 | Dialogs | Frosted sheets rising in over a lightly blurred board, a round thin-cross close button, switch rows, rounded fields, gold primary actions on the right, a red resign button |
 | New Game | Portrait cards per level (16:10 crops) with "Rated N", a Custom card with the slider, side cards and time chips |
 | Phones | Below 760 px the wordmark text and button labels hide, the move list starts folded and the dock wraps the status onto its own row; below 560 px the top bar tightens and full screen moves to the View menu. Held upright, the cards stack full width under the top bar: the Match card with the two players side by side (opponent left, player right) and the moves below them, then the folded Coach card. The board is framed in the space between them and the dock; an open coach lays over it |

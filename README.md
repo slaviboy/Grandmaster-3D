@@ -3,15 +3,16 @@
 A 3D chess game for the browser: a wooden board on a blue cloth, Staunton pieces turned in Blender,
 and Stockfish as your opponent at six difficulty levels or any rating you choose. Play it in a
 modern dark-glass interface, or switch to a retro one in the style of the classic early-2000s
-desktop chess games.
+desktop chess games. Prefer a classic diagram? Switch the board to **2D** and play on a flat board
+seen from above.
 
 **New here? The [user guide](docs/user-guide.md) explains every menu, card, button and setting.**
 
 ## Two interfaces
 
-The 3D board is the same in both. The **Modern | Retro** switch in the top bar changes everything
+The board is the same in both. The **Modern | Retro** switch in the top bar changes everything
 around it at once, mid-game. The game, the clocks and the coach carry over, and your choice is
-remembered. New players start in Modern.
+remembered. New players start in Modern, on the 3D board.
 
 ### Modern
 
@@ -45,15 +46,37 @@ The look of a 2000s desktop chess game:
 | --- | --- |
 | ![Coach](docs/screenshots/coach.jpg) | ![Rotated](docs/screenshots/rotated.jpg) |
 
+## 3D or 2D
+
+The 3D board is the default. **View ▸ 2D Board** (Modern), **Preferences ▸ 2D Board** (Retro) or
+the Settings dialog swaps it for a flat board seen from above, in the style of a classic desktop
+chess program, and **3D Board** brings the 3D one back. You can switch at any moment, even in the
+middle of a move, and the choice is remembered.
+
+| 2D board, Classic look | 2D board, Marble Edition look, retro interface |
+| --- | --- |
+| ![2D board](docs/screenshots/flat.jpg) | ![2D board, retro](docs/screenshots/flat-retro.jpg) |
+
+The 2D board follows your looks: its squares, frame and engraved coordinates are painted from the
+chosen board, the table's pattern fills the space around it, and its flat pieces, drawn for this
+game with detail lines in a contrasting colour, take the chosen piece set's colours. Everything else
+works as on the 3D board: clicking or dragging moves, the keyboard, the move marks, the coach's aids,
+hints, the clocks, online play and Flip Board (F). It fits itself between the panels, and needs no
+3D graphics while it is shown. Camera views, Demolish Captures and Glass Reflections belong to the
+3D board and are greyed out in 2D.
+
 ## Features
 
 - **A real 3D board.** Drag a corner of the board to rotate and tilt it, drag an edge to pan, and
   use the wheel or PgUp/PgDn to zoom. The arrow keys also rotate and tilt, as in the classic games.
   You can also right-drag anywhere, use two fingers on a touch screen, and press Home to reset.
-  Top View (T, or the dock's grid button) looks straight down on the board.
+  Top View (T, or the dock's grid button) looks straight down on the board, and Flip Board (F)
+  turns smoothly round to the other side.
+- **Or a flat 2D board**, seen from above (see [3D or 2D](#3d-or-2d)).
 - **Pieces modelled in Blender**, from profiles measured on reference screenshots. The knight is
-  carved from a side silhouette into a horse head with ears, eyes, nostrils and a grooved mane. A
-  shader gives the wood growth rings and grain, under a lacquer coat.
+  carved from a side silhouette into a horse head with ears, eyes, nostrils and a grooved mane, and
+  each knight looks across the board at its opponent. A shader gives the wood growth rings and
+  grain, under a lacquer coat.
 - **Stockfish 19** runs in a Web Worker at six levels (Beginner, Easy, Medium, Hard, Expert and
   Maximum Strength) or at a custom rating from 400 to 3000, chosen with a slider.
 - **An opponent who looks the part**: the computer's portrait grows with its strength, from a boy
@@ -144,6 +167,7 @@ For development and tests, the page accepts these URL parameters:
 | `engine=off` | No engine |
 | `difficulty=` | Difficulty level |
 | `ui=modern`, `ui=retro` | Interface style |
+| `board=3d`, `board=2d` | The 3D or the 2D board |
 | `seed=` | Seed for the random generator |
 | `debug=1` | Adds `window.__chessDebug` (removed during an online game) |
 
@@ -218,19 +242,22 @@ src/game/     rules (ChessGame over chess.js), controller state machine, clock, 
 src/engine/   UCI parsing, Stockfish adapter, Web Worker transport, difficulty presets, move policy
 src/scene/    three.js scene, board, camera controls, piece loading and placement, highlights,
               input, move animations and paths, shatter effect
+src/flat/     the 2D board: its geometry, piece map and animations, flat piece art, drawing and
+              input on one canvas
 src/ui/       interface core (UiRoot: commands, menus, coach), the retro shell and its panels,
               the modern shell and its cards (src/ui/modern/), dialogs, icons
 src/net/      online play: the protocol, the guard on incoming data, the session between two
               players, and PeerLink (the only file that touches Trystero and WebRTC)
-src/app/      wires everything together
+src/app/      wires everything together, and switches the game between the 3D and 2D boards
 blender/      modelling scripts, source .blend, renders
 tests/        unit, architecture and end-to-end tests
 ```
 
 chess.js is the authority: no move reaches the board unless it is legal, and engine moves are
 checked like anyone else's. Every change of position bumps a generation number, and late engine
-replies or interrupted animations are dropped. In development a consistency checker compares the 3D
-board with the rules after every move.
+replies or interrupted animations are dropped. The board that is shown animates each move; the
+hidden one is kept on the same position, so either can be shown at any moment. In development a
+consistency checker compares both boards with the rules after every move.
 
 ## Deployment
 
@@ -299,7 +326,8 @@ browser asks for a device only when its switch is turned on, and turning it off 
 itself (its light goes out). Nothing the other player sends can turn on a camera or microphone. The
 other player's picture and sound are shown from what actually arrives, never from what their app
 claims, and only one picture and one sound are taken from them. Their sound can be muted on your
-side. The picture is a small 320×240 at 15 frames a second, sent directly between the players. A modified
+side. The picture is a small 320×240 at 15 frames a second, sent directly between the players.
+Flipping the board turns only the view: your own card and camera stay at the bottom. A modified
 browser can change only what its own screen shows. Undo, redo and hints are off online. No one can
 stop a player from consulting an engine in another window.
 

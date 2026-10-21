@@ -7,6 +7,7 @@ How to play, what every menu, card, button and setting does, in both interfaces.
 - [Playing a friend online](#playing-a-friend-online)
 - [Moving pieces](#moving-pieces)
 - [Looking around the board](#looking-around-the-board)
+- [The 2D board](#the-2d-board)
 - [The modern interface](#the-modern-interface)
 - [The retro interface](#the-retro-interface)
 - [Menus](#menus)
@@ -21,7 +22,8 @@ How to play, what every menu, card, button and setting does, in both interfaces.
 
 ## The two interfaces
 
-The 3D board is the same in both interfaces. They differ in everything around it:
+The board is the same in both interfaces: the 3D board, or the flat [2D board](#the-2d-board) if you
+choose it. They differ in everything around it:
 
 | | Modern | Retro |
 | --- | --- | --- |
@@ -100,7 +102,8 @@ until you have agreed, and the link disappears from the address bar as soon as t
   them for you only, and a crossed-out microphone shows when no sound comes from them. In Modern a
   card with video opens up to show it; in Retro it fills the portrait frame. When you both switch
   on at once, the two of you take turns, so one picture can take about a second longer to appear;
-  after a dropped connection both come back by themselves.
+  after a dropped connection both come back by themselves. Flipping the board turns only the view:
+  your own card and camera stay at the bottom.
 - **Offer Draw** (Game menu) offers a draw; the game is drawn when both of you agree.
 - **Resign**, or **Leave Online Game**, ends the game as a loss. Starting any other game asks first,
   since it means leaving.
@@ -128,7 +131,8 @@ either device does not matter, even if it is set by hand or wrong by hours.
 - **Promotion:** a pawn reaching the last rank asks for a queen, rook, bishop or knight. Click one,
   or press Q, R, B or N.
 
-Castling and en passant are made like any other move: move the king two squares to castle.
+Castling and en passant are made like any other move: move the king two squares to castle. All of
+this works the same on the 3D and the 2D board.
 
 ## Looking around the board
 
@@ -143,6 +147,41 @@ Castling and en passant are made like any other move: move the king two squares 
 
 On a touch screen, twist two fingers to rotate (the board turns with your fingers; Settings ▸
 Reverse two-finger rotation turns it the other way), pinch to zoom and drag two fingers to pan.
+
+Flip Board swings the camera smoothly round to the other side in a little over a second. Dragging
+or twisting the board during the turn takes over from wherever the camera is.
+
+The 2D board is always seen straight from above and fits itself to the window, so only Flip Board
+applies to it: it turns the board round at once.
+
+## The 2D board
+
+![The 2D board](screenshots/flat.jpg)
+
+Besides the 3D board, the game has a flat board seen from above, like a chess diagram or a classic
+desktop chess program. The 3D board is the default.
+
+**Switching.** Choose **View ▸ 2D Board** in Modern or **Preferences ▸ 2D Board** in Retro, or set
+**Board** in the Settings dialog. **3D Board** brings the 3D one back. You can switch at any moment,
+even while a piece is moving; the game, the clocks, the marks and the coach's aids carry over, and
+the choice is remembered.
+
+**What it shows.**
+
+- The squares, the frame and the engraved coordinates are painted from the board you chose under
+  Looks, and the table's pattern fills the space around the board.
+- The pieces are flat figures drawn for this game, in the colours of the chosen piece set, with
+  detail lines in a contrasting colour and a soft edge that keeps dark pieces visible on dark
+  squares.
+- The last move, check, hints, legal moves and every Chess Coach aid are marked as on the 3D board.
+- The board fits itself between the bars and cards (on a narrow screen the cards may lie over it).
+
+**Playing.** Click a piece and then a square, drag it, or use Shift+arrows and Enter, as on the 3D
+board. Flip Board (F) turns it round, with Black at the bottom.
+
+**3D only.** Top View, Reset View, the camera controls, Demolish Captures and Glass Reflections
+belong to the 3D board. They are greyed out while the 2D board is shown and come back with the 3D
+board. Follow Move Path works on both: the knight still takes its L.
 
 ## The modern interface
 
@@ -176,7 +215,7 @@ round as the board.
 | ↷ Replay | Redo a move that was taken back. Ctrl+Y |
 | Light bulb | Hint: the coach suggests a move. H |
 | Circular arrows | Flip the board. F |
-| Grid | Top view, lit while it is on. T |
+| Grid | Top view, lit while it is on. T (3D board only) |
 | Flag | Resign, after asking |
 | Sun | Settings |
 
@@ -228,7 +267,7 @@ Both interfaces offer the same commands; only the grouping differs. Ticks show o
 | Menu | Entries |
 | --- | --- |
 | **Game** | New Game… (Ctrl+N) · Open Game or Position… · Save Game (PGN) · Copy FEN · Copy PGN · Play as White · Play as Black · Two Players · Difficulty ▸ · Time Control ▸ · Undo Move (Ctrl+Z) · Redo Move (Ctrl+Y) · Move Now (M) · Suggest a Move (H) · Resign |
-| **View** | Flip Board (F) · Top View (T) · Reset View (Home) · Board Coordinates · Show Legal Moves · Show Last Move · Coach · Match Card · Move List · Full Screen |
+| **View** | 3D Board · 2D Board · Flip Board (F) · Top View (T) · Reset View (Home) · Board Coordinates · Show Legal Moves · Show Last Move · Coach · Match Card · Move List · Full Screen |
 | **Look** | Looks ▸ · Board and Pieces… · Board ▸ · Piece Set ▸ · Table ▸ · Interface ▸ Modern / Retro |
 | **Options** | Sound · Animation Speed ▸ · Follow Move Path · Demolish Captures · Glass Reflections · Settings… |
 | **Help** | Keyboard and Mouse… · About Grandmaster 3D… |
@@ -242,7 +281,7 @@ Both interfaces offer the same commands; only the grouping differs. Ticks show o
 | **Game** | Play as White · Play as Black · Two Players · Difficulty ▸ · Time Control ▸ · Resign |
 | **Actions** | Hint (H) · Move Now (M) · Take Back (Ctrl+Z) · Flip Board (F) · Top View (T) · Reset View (Home) |
 | **Mentor** | Show Legal Moves · Show Last Move · Chess Coach · Suggest a Move (H) |
-| **Preferences** | Sound · Animation Speed ▸ · Follow Move Path · Demolish Captures · Glass Reflections · Board Coordinates · Looks ▸ · Board and Pieces… · Board ▸ · Piece Set ▸ · Table ▸ · Interface ▸ Modern / Retro · Settings… |
+| **Preferences** | Sound · Animation Speed ▸ · Follow Move Path · Demolish Captures · Glass Reflections · 3D Board · 2D Board · Board Coordinates · Looks ▸ · Board and Pieces… · Board ▸ · Piece Set ▸ · Table ▸ · Interface ▸ Modern / Retro · Settings… |
 | **Windows** | Chess Coach · Game Status · Captured Pieces · Move List · Full Screen |
 | **Help** | Keyboard and Mouse… · About Grandmaster 3D… |
 
@@ -262,7 +301,8 @@ Both interfaces offer the same commands; only the grouping differs. Ticks show o
 | Move Now | Makes the computer play the best move it has found so far |
 | Hint, Suggest a Move | Rings the suggested move's squares in green and names it in the coach |
 | Resign | Gives up the game: you, or in a two-player game the side to move |
-| Flip Board, Top View, Reset View | Turns the board round, looks straight down, goes back to the start view |
+| 3D Board, 2D Board | Plays on the 3D board or on the flat [2D board](#the-2d-board) |
+| Flip Board, Top View, Reset View | Turns the board round, looks straight down, goes back to the start view (the last two on the 3D board only) |
 | Board Coordinates | Shows the letters and numbers around the board |
 | Show Legal Moves | Shows dots where the picked-up piece can go |
 | Show Last Move | Rings the last move's two squares in white |
@@ -274,9 +314,13 @@ Both interfaces offer the same commands; only the grouping differs. Ticks show o
 | Keyboard and Mouse… | Lists the controls |
 | About Grandmaster 3D… | Version, license and the open-source projects it is built on |
 
+Entries that do not apply right now are greyed out: Top View, Reset View, Demolish Captures and
+Glass Reflections on the 2D board, for example.
+
 Menus work from the keyboard too. Alt plus the menu's letter opens it (Alt+G for Game, Alt+V for
 View), the arrow keys move through entries and submenus, Enter chooses and Esc closes. While a menu
-is open, the board's one-key shortcuts (H, M, F, T) are held back.
+is open, the board's one-key shortcuts (H, M, F, T) are held back. On a touch screen, tap a menu to
+open it, tap another to switch to it, and tap an entry with ▸ to open its submenu.
 
 ## The Chess Coach
 
@@ -355,7 +399,8 @@ The **Settings** dialog (sun button, Options or Preferences ▸ Settings…) col
 | Animation | Speed | Instant, Fast, Normal or Slow piece moves |
 | | Follow move path | Pieces travel their real route: the knight goes two squares, turns and lifts over pieces in its way |
 | | Demolish captures | A captured piece shatters into wooden chunks, or glass shards with a tinkle for glass pieces |
-| Board | Show legal moves, Show last move, Show board coordinates | As in the menus |
+| Board | Board | 3D, or 2D seen from above; see [The 2D board](#the-2d-board) |
+| | Show legal moves, Show last move, Show board coordinates | As in the menus |
 | | Glass reflections | Real mirroring and see-through glass; off uses cheaper look-alikes |
 | | Board, pieces and table colours… | Opens Board and Pieces |
 | Touch | Reverse two-finger rotation | A two-finger twist turns the board against your fingers instead of with them |
@@ -370,10 +415,10 @@ The **Settings** dialog (sun button, Options or Preferences ▸ Settings…) col
 | H | Hint |
 | M | Make the computer move now |
 | F | Flip the board |
-| T | Top view on and off |
-| Home | Reset the view |
-| ← → / ↑ ↓ | Rotate / tilt the board |
-| PgUp / PgDn, mouse wheel | Zoom |
+| T | Top view on and off (3D board) |
+| Home | Reset the view (3D board) |
+| ← → / ↑ ↓ | Rotate / tilt the board (3D board) |
+| PgUp / PgDn, mouse wheel | Zoom (3D board) |
 | Shift+arrows, Enter | Move with the keyboard |
 | Esc | Cancel the selection, close a menu or dialog |
 | Alt+letter | Open a menu |
@@ -386,6 +431,7 @@ On macOS, Cmd works in place of Ctrl.
 The browser keeps your preferences for the next visit:
 
 - the interface (Modern or Retro), and whether New Game shows the opponents as a slider or a grid;
+- the board (3D or 2D);
 - the side, opponent, difficulty, custom rating and time control;
 - sound, animation speed, move path, demolish and glass reflections;
 - the direction of the two-finger rotation;
@@ -403,6 +449,8 @@ the defaults and nothing is saved.
 - **Glass looks are slow.** If a glass look animates below 40 frames a second, the game turns Glass
   Reflections off by itself and says so in the coach. You can turn it back on in Options or
   Preferences.
+- **The 3D board is slow on this device.** Switch to the 2D board (View or Preferences ▸ 2D Board).
+  It draws no 3D scene at all while it is shown.
 - **The engine had a problem.** Stockfish restarts by itself; the coach mentions it.
 - **The camera or microphone is blocked.** The coach says so. Allow it in the browser's site
   settings (the icon next to the address), then turn the switch on again.
