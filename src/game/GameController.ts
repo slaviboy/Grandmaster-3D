@@ -306,6 +306,7 @@ export class GameController {
     if (this.settings.mode !== 'online' || this.game.isOver()) return;
     await this.interrupt();
     this.game.timeout(opposite(this.settings.humanColor));
+    this.options.view.sync(this.game.board());
     this.settle();
   }
 
@@ -394,6 +395,7 @@ export class GameController {
     await this.interrupt();
     this.game.setResult({ kind: 'resigned', winner: opposite(loser) });
     if (this.online) this.emit({ kind: 'resign' });
+    this.options.view.sync(this.game.board());
     this.settle();
   }
 
@@ -478,6 +480,7 @@ export class GameController {
     if (!this.online || this.game.isOver()) return;
     await this.interrupt();
     this.game.setResult(result);
+    this.options.view.sync(this.game.board());
     this.settle();
   }
 
@@ -495,7 +498,10 @@ export class GameController {
     );
   }
 
-  /** Cancels whatever is in flight and finishes animations, leaving the board on the logical state. */
+  /**
+   * Cancels whatever is in flight and finishes animations. Callers then sync the view: a move cut
+   * short may not have reached its castling rook or its promotion yet.
+   */
   private async interrupt(): Promise<void> {
     this.generation++;
     this.thinking = null;
@@ -642,6 +648,7 @@ export class GameController {
     await this.interrupt();
     this.game.timeout(color);
     if (this.online && color === this.settings.humanColor) this.emit({ kind: 'flag' });
+    this.options.view.sync(this.game.board());
     this.settle();
   }
 

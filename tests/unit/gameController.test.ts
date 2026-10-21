@@ -210,6 +210,23 @@ describe('GameController', () => {
     expect(controller.state.get().status).toEqual({ kind: 'timeout', winner: 'w' });
   });
 
+  it('puts the board right when the player resigns in the middle of castling', async () => {
+    const { controller, view } = setup({ mode: 'local' });
+    await controller.newGame('r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1');
+    view.holdAnimations = true;
+    expect(await controller.playerMove({ from: 'e1', to: 'g1' })).toBe(true);
+    await flush();
+    expect(controller.currentPhase).toBe('animating');
+    const synced = view.synced.length;
+    await controller.resign();
+    expect(controller.currentPhase).toBe('gameOver');
+    expect(view.finished).toBeGreaterThan(0);
+    // The animation was cut short before the rook moved: the board is shown afresh.
+    expect(view.synced).toHaveLength(synced + 1);
+    expect(view.synced.at(-1)).toEqual(controller.game.board());
+    expect(view.synced.at(-1)?.f1).toEqual({ color: 'w', kind: 'r' });
+  });
+
   it('cancels a hint search when the player moves', async () => {
     const { controller, engine } = setup();
     await controller.newGame();

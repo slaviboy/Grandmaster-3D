@@ -14,7 +14,7 @@ import { START_FEN } from '../../src/game/ChessGame.ts';
 import { describeResult } from '../../src/game/coach.ts';
 import { GameController, type LocalAction } from '../../src/game/GameController.ts';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/game/Settings.ts';
-import { FakeEngine, FakeSound, FakeUi, FakeView } from '../support/fakes.ts';
+import { FakeEngine, FakeSound, FakeUi, FakeView, flush } from '../support/fakes.ts';
 
 /** One player's side of an online game: White unless told otherwise, five minutes each. */
 function side(overrides: Partial<Settings> = {}) {
@@ -190,6 +190,31 @@ describe('GameController online', () => {
     await local.controller.whenIdle();
     expect(local.controller.state.get().status).toEqual({ kind: 'timeout', winner: 'w' });
     expect(local.actions).toEqual([{ kind: 'flag' }]);
+  });
+
+  it('shows the board afresh when the game ends while a move is still animating', async () => {
+    const ends = {
+      resigned: (s: Awaited<ReturnType<typeof started>>) => s.controller.remoteResigned(),
+      'reported flag': (s: Awaited<ReturnType<typeof started>>) => s.controller.remoteFlagged(),
+      'flag fall': async (s: Awaited<ReturnType<typeof started>>) => {
+        s.advance(5 * 60_000 + 1);
+        s.controller.tick();
+        await flush();
+      },
+    };
+    for (const [name, end] of Object.entries(ends)) {
+      const s = await started();
+      s.view.holdAnimations = true;
+      expect(await s.controller.playerMove({ from: 'e2', to: 'e4' })).toBe(true);
+      await flush();
+      expect(s.controller.currentPhase, name).toBe('animating');
+      const synced = s.view.synced.length;
+      await end(s);
+      expect(s.controller.currentPhase, name).toBe('gameOver');
+      expect(s.view.finished, name).toBeGreaterThan(0);
+      expect(s.view.synced, name).toHaveLength(synced + 1);
+      expect(s.view.synced.at(-1), name).toEqual(s.controller.game.board());
+    }
   });
 
   it('a flag the other side reports is theirs', async () => {
