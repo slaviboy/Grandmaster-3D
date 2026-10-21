@@ -288,10 +288,18 @@
     text-decoration: none;
   }
 
-  .menubar-item:hover,
   .menubar-item:focus-visible {
     background: var(--m-hover);
     color: var(--m-text);
+  }
+
+  /* Only where there is a real hover: a touch screen keeps :hover on the last item tapped, which
+     would leave a closed menu lit beside the open one. */
+  @media (hover: hover) {
+    .menubar-item:hover {
+      background: var(--m-hover);
+      color: var(--m-text);
+    }
   }
 
   .menubar-item.open {

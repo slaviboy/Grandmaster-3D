@@ -216,6 +216,44 @@ test('the menus work with the keyboard', async ({ page }) => {
   expect(await page.evaluate(() => window.__chessDebug.state().difficulty)).toBe('expert');
 });
 
+test('the menus work with taps on a tablet', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await open(page, '&engine=off', 'modern');
+  const tap = async (target: ReturnType<Page['locator']>) => {
+    const box = (await target.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  };
+  const menu = (name: string) => page.getByRole('menuitem', { name, exact: true });
+
+  // One menu open, a tap on another switches to it (it used to close both).
+  await tap(menu('Help'));
+  await expect(page.getByRole('menu')).toContainText('About Grandmaster 3D');
+  await tap(menu('Look'));
+  await expect(page.getByRole('menu').first()).toContainText('Piece Set');
+  await expect(menu('Look')).toHaveAttribute('aria-expanded', 'true');
+
+  // A submenu opens on the tap and stays put (it used to be torn down and built again).
+  await tap(page.locator('.menu-entry .menu-label', { hasText: /^Board$/ }));
+  const sub = page.locator('.submenu');
+  await expect(sub).toHaveCount(1);
+  await sub.evaluate((node) => node.setAttribute('data-first', ''));
+  await page.waitForTimeout(300);
+  await expect(page.locator('.submenu[data-first]')).toHaveCount(1);
+  await tap(sub.locator('.menu-entry', { hasText: 'Mahogany' }));
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => (window.__chessDebug as unknown as { theme(): { board: string } }).theme().board,
+    ),
+  ).toBe('mahogany');
+  await context.close();
+});
+
 test('exports a game as PGN and loads it back', async ({ page }) => {
   await open(page);
   await newGame(page, { mode: 'local', minutes: 0 });

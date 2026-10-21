@@ -170,11 +170,18 @@
     text-decoration: none;
   }
 
-  .menubar-item:hover,
   .menubar-item.open,
   .menubar-item:focus-visible {
     color: #fff;
     outline: none;
+  }
+
+  /* Only where there is a real hover: a touch screen keeps :hover on the last item tapped. */
+  @media (hover: hover) {
+    .menubar-item:hover {
+      color: #fff;
+      outline: none;
+    }
   }
 
   .menu {

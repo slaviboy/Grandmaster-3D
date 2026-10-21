@@ -20,10 +20,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Phones keep the sizes set here instead of enlarging text on their own (iOS in landscape). */
+/* Phones keep the sizes set here instead of enlarging text on their own (iOS in landscape). The
+   menus and buttons draw their own pressed and open states in their own rounded shapes, so the
+   browser's rectangular tap flash (inherited by everything) is turned off. */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #app {

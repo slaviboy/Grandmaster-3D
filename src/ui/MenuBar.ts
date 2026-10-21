@@ -10,8 +10,9 @@
  */
 
 // A desktop-style menu bar built from data. Click a menu to open it; while one is open, hovering
-// another switches to it. Alt+letter opens a menu, the arrow keys move through items and submenus,
-// Enter chooses and Escape closes. Labels mark their access key with "&" ("&File").
+// another switches to it (on a touch screen, tapping it does). Alt+letter opens a menu, the arrow
+// keys move through items and submenus, Enter chooses and Escape closes. Labels mark their access
+// key with "&" ("&File").
 
 import { LINE_ICONS } from './icons.ts';
 
@@ -58,7 +59,13 @@ function escapeHtml(text: string): string {
 export class MenuBar {
   readonly element: HTMLElement;
   private readonly buttons: HTMLButtonElement[] = [];
-  private open: { index: number; list: HTMLElement; sub?: HTMLElement } | null = null;
+  private open: {
+    index: number;
+    list: HTMLElement;
+    sub?: HTMLElement;
+    /** The entry the submenu belongs to. */
+    subEntry?: HTMLElement;
+  } | null = null;
   private readonly modern: boolean;
 
   constructor(
@@ -82,7 +89,10 @@ export class MenuBar {
       button.addEventListener('click', () =>
         this.open?.index === index ? this.close() : this.show(index),
       );
-      button.addEventListener('pointerenter', () => {
+      // Hovering switches menus with a mouse. A tap enters and clicks at once, so on a touch
+      // screen the click alone decides (or the menu it just opened would close again).
+      button.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'touch') return;
         if (this.open && this.open.index !== index) this.show(index);
       });
       button.addEventListener('keydown', (event) => this.onBarKey(event, index));
@@ -178,7 +188,8 @@ export class MenuBar {
         item.action?.();
       };
       entry.addEventListener('click', activate);
-      entry.addEventListener('pointerenter', () => {
+      entry.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'touch') return;
         entry.focus();
         if (item.submenu && enabled) this.openSub(entry, item.submenu());
         else if (!list.classList.contains('submenu')) this.closeSub();
@@ -193,6 +204,8 @@ export class MenuBar {
 
   private openSub(entry: HTMLElement, items: MenuItem[]): void {
     if (!this.open) return;
+    // Already open from this entry (hovered, then clicked): keep it rather than build it again.
+    if (this.open.sub && this.open.subEntry === entry) return;
     this.closeSub();
     const sub = this.buildList(items, () => this.close());
     sub.classList.add('submenu');
@@ -201,12 +214,16 @@ export class MenuBar {
     sub.style.top = `${rect.top - 3}px`;
     document.body.append(sub);
     this.open.sub = sub;
+    this.open.subEntry = entry;
     sub.addEventListener('pointerdown', (event) => event.stopPropagation());
   }
 
   private closeSub(): void {
     this.open?.sub?.remove();
-    if (this.open) this.open.sub = undefined;
+    if (this.open) {
+      this.open.sub = undefined;
+      this.open.subEntry = undefined;
+    }
   }
 
   private onBarKey(event: KeyboardEvent, index: number): void {
