@@ -68,6 +68,8 @@ export interface Settings {
   readonly showLegalMoves: boolean;
   readonly showCoordinates: boolean;
   readonly showLastMove: boolean;
+  /** Twisting two fingers turns the board against the fingers instead of with them. */
+  readonly reverseTwist: boolean;
   /** Board, piece set and table looks (preset ids or "custom"). */
   readonly boardTheme: string;
   readonly pieceTheme: string;
@@ -92,6 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showLegalMoves: true,
   showCoordinates: true,
   showLastMove: true,
+  reverseTwist: false,
   boardTheme: DEFAULT_BOARD,
   pieceTheme: DEFAULT_PIECES,
   tableTheme: DEFAULT_TABLE,

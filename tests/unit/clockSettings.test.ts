@@ -110,6 +110,13 @@ describe('Settings', () => {
     expect(sanitize({}).uiStyle).toBe(DEFAULT_SETTINGS.uiStyle);
   });
 
+  it('turns the board with a two-finger twist by default, and remembers the reverse', () => {
+    expect(DEFAULT_SETTINGS.reverseTwist).toBe(false);
+    expect(sanitize({ reverseTwist: true }).reverseTwist).toBe(true);
+    expect(sanitize({ reverseTwist: 'yes' }).reverseTwist).toBe(false);
+    expect(sanitize({}).reverseTwist).toBe(false);
+  });
+
   it('shows the opponents as a slider by default, and remembers the compact grid', () => {
     expect(DEFAULT_SETTINGS.levelView).toBe('slider');
     expect(sanitize({ levelView: 'compact' }).levelView).toBe('compact');

@@ -775,4 +775,60 @@ test.describe('modern interface', () => {
     expect(box.y + box.height).toBeLessThanOrEqual(780);
     await context.close();
   });
+
+  test('a two-finger twist turns the board with the fingers, or against them if set', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await open(page, '&engine=off', 'modern');
+    const touch = await context.newCDPSession(page);
+    const x = async () => (await page.evaluate(() => window.__chessDebug.cameraPosition()))[0]!;
+    // Two fingers side by side on the empty middle of the board, the second one on the left, so
+    // the line between them starts at half a turn and the twist crosses the jump in atan2.
+    const centre = await page.evaluate(() =>
+      (
+        window.__chessDebug as unknown as {
+          worldToScreen(x: number, y: number, z: number): { x: number; y: number };
+        }
+      ).worldToScreen(0, 0.01, 0),
+    );
+    const fingers = (turn: number) => {
+      const dx = 40 * Math.cos(turn);
+      const dy = 40 * Math.sin(turn);
+      return [
+        { x: centre.x + dx, y: centre.y + dy, id: 0 },
+        { x: centre.x - dx, y: centre.y - dy, id: 1 },
+      ];
+    };
+    /** Turns the fingers clockwise on the screen (y points down) by `degrees`. */
+    const twist = async (degrees: number) => {
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: fingers(0) });
+      for (let step = 1; step <= 8; step++) {
+        const turn = ((degrees * Math.PI) / 180) * (step / 8);
+        await touch.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: fingers(turn),
+        });
+      }
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+
+    expect(Math.abs(await x())).toBeLessThan(0.02);
+    // A clockwise twist turns the board clockwise: the camera swings round to White's right.
+    await twist(40);
+    await expect.poll(x).toBeGreaterThan(5);
+
+    await page.evaluate(() => window.__chessDebug.setSettings({ reverseTwist: true }));
+    await page.keyboard.press('Home');
+    await expect.poll(async () => Math.abs(await x())).toBeLessThan(0.02);
+    await twist(40);
+    await expect.poll(x).toBeLessThan(-5);
+    expect(await history(page)).toEqual([]);
+    await context.close();
+  });
 });

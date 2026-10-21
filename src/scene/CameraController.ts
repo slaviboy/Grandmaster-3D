@@ -102,6 +102,8 @@ export class CameraController {
   /** Width in pixels covered by panels along the right edge. */
   private reservedRight = 0;
   enabled = true;
+  /** A two-finger twist turns the board against the fingers, as the camera rather than the board. */
+  reverseTwist = false;
 
   constructor(
     private readonly camera: PerspectiveCamera,
@@ -466,7 +468,8 @@ export class CameraController {
     // the horizontal must not count as a full turn.
     start.twist += wrapAngle(angle - start.angle);
     start.angle = angle;
-    this.goal.azimuth = start.view.azimuth - start.twist;
+    // A larger azimuth turns the board clockwise on screen, the way a clockwise twist goes.
+    this.goal.azimuth = start.view.azimuth + (this.reverseTwist ? -start.twist : start.twist);
     this.goal.elevation = clamp(
       start.view.elevation + (centre.y - start.centre.y) * TILT_PER_PIXEL,
       MIN_ELEVATION,

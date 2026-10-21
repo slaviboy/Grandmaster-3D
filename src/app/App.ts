@@ -218,6 +218,7 @@ export class App {
         showLastMove: s.showLastMove,
       });
       this.scene.board.setLabels({ visible: s.showCoordinates });
+      this.camera.reverseTwist = s.reverseTwist;
       this.controller.updateSettings(s);
     });
 

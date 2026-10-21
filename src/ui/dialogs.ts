@@ -212,6 +212,10 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
     const [legalRow, legal] = checkbox('Show legal moves', current.showLegalMoves);
     const [lastRow, last] = checkbox('Show last move', current.showLastMove);
     const [coordsRow, coords] = checkbox('Show board coordinates', current.showCoordinates);
+    const [twistRow, twist] = checkbox(
+      'Reverse two-finger rotation (the board turns against your fingers)',
+      current.reverseTwist,
+    );
     const actions = el('div', 'dialog-actions');
     actions.append(
       button(
@@ -226,6 +230,7 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
             showLegalMoves: legal.checked,
             showLastMove: last.checked,
             showCoordinates: coords.checked,
+            reverseTwist: twist.checked,
           }),
         true,
       ),
@@ -241,9 +246,11 @@ export function settingsDialog(current: Settings): Promise<Partial<Settings> | n
     const board = el('div', 'settings-group');
     board.append(el('div', 'coach-heading', 'Board'), legalRow, lastRow, coordsRow, glassRow);
     board.append(button('Board, pieces and table colours…', () => close('themes')));
+    const touch = el('div', 'settings-group');
+    touch.append(el('div', 'coach-heading', 'Touch'), twistRow);
     const audio = el('div', 'settings-group');
     audio.append(el('div', 'coach-heading', 'Sound'), soundRow);
-    body.append(animations, board, audio, actions);
+    body.append(animations, board, touch, audio, actions);
   });
 }
 

@@ -139,7 +139,8 @@ Castling and en passant are made like any other move: move the king two squares 
 | Turn to the other side | Flip button | F |
 | Go back to the start view | | Home |
 
-On a touch screen, twist two fingers to rotate, pinch to zoom and drag two fingers to pan.
+On a touch screen, twist two fingers to rotate (the board turns with your fingers; Settings ▸
+Reverse two-finger rotation turns it the other way), pinch to zoom and drag two fingers to pan.
 
 ## The modern interface
 
@@ -355,6 +356,7 @@ The **Settings** dialog (sun button, Options or Preferences ▸ Settings…) col
 | Board | Show legal moves, Show last move, Show board coordinates | As in the menus |
 | | Glass reflections | Real mirroring and see-through glass; off uses cheaper look-alikes |
 | | Board, pieces and table colours… | Opens Board and Pieces |
+| Touch | Reverse two-finger rotation | A two-finger twist turns the board against your fingers instead of with them |
 | Sound | Sound effects | Sounds for moves, castling, captures, promotion, check, an illegal move, shattering pieces and the end of the game |
 
 ## Keyboard and mouse
@@ -384,6 +386,7 @@ The browser keeps your preferences for the next visit:
 - the interface (Modern or Retro), and whether New Game shows the opponents as a slider or a grid;
 - the side, opponent, difficulty, custom rating and time control;
 - sound, animation speed, move path, demolish and glass reflections;
+- the direction of the two-finger rotation;
 - legal-move, last-move and coordinate marks;
 - the looks and your custom colours.
 
