@@ -36,7 +36,9 @@ html {
   outline: none;
 }
 
-.scene-canvas {
+/* The 3D scene and the flat 2D board fill the window; only one is shown at a time. */
+.scene-canvas,
+.flat-board {
   position: absolute;
   inset: 0;
   width: 100%;

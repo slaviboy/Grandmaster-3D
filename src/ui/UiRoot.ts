@@ -94,8 +94,8 @@ export class UiRoot {
     moveNow: () => void this.app.controller.moveNow(),
     resign: () => void this.resign(),
     hint: () => this.hint(),
-    flip: () => void this.app.camera.flip(),
-    topView: () => this.app.camera.topView(),
+    flip: () => void this.app.flip(),
+    topView: () => this.app.topView(),
     settings: () => void this.settings(),
     toggleFullscreen: () => this.toggleFullscreen(),
     toggleMic: () => void this.session?.media.toggleMic(),
@@ -343,7 +343,7 @@ export class UiRoot {
     const state = this.app.controller.state.get();
     const side: Color = state.mode === 'local' ? state.turn : state.humanColor;
     const marks = coachMarks(this.app.controller.game, { ...this.coachOptions, side });
-    this.app.highlights.set({
+    this.app.setCoachMarks({
       spots: marks.spots,
       zones: marks.zones,
       zoneColour: marks.zoneColour,
@@ -707,8 +707,8 @@ export class UiRoot {
     } else if (!mod && !event.altKey && !event.shiftKey) {
       if (key === 'h') this.hint();
       else if (key === 'm') void this.app.controller.moveNow();
-      else if (key === 'f') void this.app.camera.flip();
-      else if (key === 't') this.app.camera.topView();
+      else if (key === 'f') void this.app.flip();
+      else if (key === 't') this.app.topView();
     }
   }
 
@@ -862,14 +862,14 @@ export class UiRoot {
         },
       ],
       camera: () => [
-        { label: '&Flip Board', shortcut: 'F', action: () => void app.camera.flip() },
+        { label: '&Flip Board', shortcut: 'F', action: () => void app.flip() },
         {
           label: 'T&op View',
           shortcut: 'T',
           checked: () => app.camera.isTopView,
-          action: () => app.camera.topView(),
+          action: () => app.topView(),
         },
-        { label: 'Reset &View', shortcut: 'Home', action: () => app.camera.reset() },
+        { label: 'Reset &View', shortcut: 'Home', action: () => app.resetView() },
       ],
       marks: () => [
         {

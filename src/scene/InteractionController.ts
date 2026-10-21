@@ -51,6 +51,7 @@ interface Press {
 
 export class InteractionController {
   private enabled = false;
+  private suspended = false;
   private selected: Square | null = null;
   private press: Press | null = null;
   private cursor: Square | null = null;
@@ -74,6 +75,19 @@ export class InteractionController {
     dom.addEventListener('pointerup', this.onPointerUp);
     dom.addEventListener('pointercancel', this.onPointerCancel);
     window.addEventListener('keydown', this.onKeyDown);
+  }
+
+  /**
+   * While the 3D board is hidden it lets go of any selection and ignores the keyboard (the canvas
+   * gets no pointer events while hidden).
+   */
+  setSuspended(suspended: boolean): void {
+    this.suspended = suspended;
+    if (suspended) {
+      this.cancelDrag();
+      this.select(null);
+      this.setCursor(null);
+    }
   }
 
   /** Whether the player may pick pieces right now; turning it off clears any selection. */
@@ -277,6 +291,7 @@ export class InteractionController {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (this.suspended) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select, [role="menu"], dialog')) return;
     if (event.key === 'Escape') {

@@ -124,6 +124,15 @@ describe('Settings', () => {
     expect(sanitize({}).levelView).toBe('slider');
   });
 
+  it('plays on the 3D board by default, and remembers the 2D board', () => {
+    expect(DEFAULT_SETTINGS.boardView).toBe('3d');
+    expect(sanitize({ boardView: '2d' }).boardView).toBe('2d');
+    expect(sanitize({ boardView: '4d' }).boardView).toBe('3d');
+    expect(sanitize({ boardView: 2 }).boardView).toBe('3d');
+    // Settings saved before the 2D board existed get the 3D board.
+    expect(sanitize({ uiStyle: 'retro' }).boardView).toBe('3d');
+  });
+
   it('round-trips through storage and survives broken storage', () => {
     const data = new Map<string, string>();
     const storage = {

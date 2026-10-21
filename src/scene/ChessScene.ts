@@ -62,6 +62,7 @@ export class ChessScene {
   private readonly resizeListeners = new Set<(width: number, height: number) => void>();
   private readonly timer = new Timer();
   private dirty = true;
+  private visible = true;
   private readonly resizeObserver: ResizeObserver;
 
   constructor(private readonly container: HTMLElement) {
@@ -215,6 +216,16 @@ export class ChessScene {
     this.dirty = true;
   }
 
+  /**
+   * Shows or hides the 3D view. Hidden, it draws nothing but keeps calling its updaters every
+   * frame: they drive the clocks, the camera and the animations of whichever board is shown.
+   */
+  setVisible(visible: boolean): void {
+    this.visible = visible;
+    this.renderer.domElement.style.display = visible ? '' : 'none';
+    if (visible) this.requestRender();
+  }
+
   get width(): number {
     return Math.max(1, this.container.clientWidth);
   }
@@ -242,7 +253,7 @@ export class ChessScene {
     for (const update of this.updaters) {
       if (update(delta)) active = true;
     }
-    if (active || this.dirty) this.renderNow();
+    if (this.visible && (active || this.dirty)) this.renderNow();
   }
 
   dispose(): void {

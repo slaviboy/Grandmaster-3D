@@ -41,6 +41,13 @@ export function isUiStyle(value: unknown): value is UiStyle {
   return value === 'modern' || value === 'retro';
 }
 
+/** The board itself: the 3D scene, or a flat 2D board seen from above. */
+export type BoardViewKind = '3d' | '2d';
+
+export function isBoardViewKind(value: unknown): value is BoardViewKind {
+  return value === '3d' || value === '2d';
+}
+
 /** How the modern New Game sheet shows the opponents: a slider of big cards, or a compact grid. */
 export type LevelView = 'slider' | 'compact';
 
@@ -78,6 +85,7 @@ export interface Settings {
   readonly custom: CustomColours;
   readonly uiStyle: UiStyle;
   readonly levelView: LevelView;
+  readonly boardView: BoardViewKind;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -101,6 +109,7 @@ export const DEFAULT_SETTINGS: Settings = {
   custom: DEFAULT_CUSTOM,
   uiStyle: 'modern',
   levelView: 'slider',
+  boardView: '3d',
 };
 
 export const TIME_CONTROLS: readonly number[] = [0, 5, 10, 15, 30];
@@ -133,6 +142,7 @@ export function sanitize(raw: unknown): Settings {
     custom: sanitizeCustom(s.custom),
     uiStyle: isUiStyle(s.uiStyle) ? s.uiStyle : DEFAULT_SETTINGS.uiStyle,
     levelView: isLevelView(s.levelView) ? s.levelView : DEFAULT_SETTINGS.levelView,
+    boardView: isBoardViewKind(s.boardView) ? s.boardView : DEFAULT_SETTINGS.boardView,
   };
 }
 

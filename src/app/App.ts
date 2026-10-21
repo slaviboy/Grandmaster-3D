@@ -10,11 +10,11 @@
  */
 
 // Builds the game: the scene and camera, the Blender pieces, the board marks and animations, the
-// engine, the controller and the interface, and wires them together. URL parameters for testing:
-// ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no computer, ?seed=<n>,
-// ?difficulty=<id>, ?ui=modern|retro interface, ?debug=1 installs window.__chessDebug (never
-// during an online game). An invitation arrives as #g=<secret>; it is read once and
-// taken out of the address bar at once.
+// flat 2D board, the engine, the controller and the interface, and wires them together. URL
+// parameters for testing: ?fen=<FEN> start position, ?anim=0 instant animations, ?engine=off no
+// computer, ?seed=<n>, ?difficulty=<id>, ?ui=modern|retro interface, ?board=3d|2d board,
+// ?debug=1 installs window.__chessDebug (never during an online game). An invitation arrives as
+// #g=<secret>; it is read once and taken out of the address bar at once.
 
 import { Raycaster, Vector3 } from 'three';
 import { SoundManager } from '../audio/SoundManager.ts';
@@ -24,14 +24,24 @@ import { checkConsistency } from '../dev/ConsistencyChecker.ts';
 import { WorkerTransport } from '../engine/EngineTransport.ts';
 import { isDifficultyId } from '../engine/difficulty.ts';
 import { StockfishAdapter } from '../engine/StockfishAdapter.ts';
+import { FlatBoard, type CoachMarks } from '../flat/FlatBoard.ts';
+import type { Edges } from '../flat/flatGeometry.ts';
+import { START_FEN, type MoveInput } from '../game/ChessGame.ts';
 import { GameController } from '../game/GameController.ts';
-import type { Color } from '../game/types.ts';
+import { boardFromFen, type Color } from '../game/types.ts';
 import { OnlineSession, type SavedSession, type SessionGame } from '../net/OnlineSession.ts';
 import { openPeerLink } from '../net/PeerLink.ts';
 import { createInvite, inviteUrl, parseInvite, roomFor, type Invite } from '../net/protocol.ts';
 import { tabStorage } from '../net/savedSession.ts';
 import { syncServerTime } from '../net/serverTime.ts';
-import { isUiStyle, loadSettings, saveSettings, type Settings } from '../game/Settings.ts';
+import {
+  isBoardViewKind,
+  isUiStyle,
+  loadSettings,
+  saveSettings,
+  type BoardViewKind,
+  type Settings,
+} from '../game/Settings.ts';
 import { AnimationController } from '../scene/AnimationController.ts';
 import { Tweener } from '../scene/animation/tween.ts';
 import { FragmentLibrary, ShatterEffect } from '../scene/effects/ShatterEffect.ts';
@@ -40,12 +50,13 @@ import { CameraController } from '../scene/CameraController.ts';
 import { ChessScene } from '../scene/ChessScene.ts';
 import { isSquare, squareToWorld, type Square } from '../scene/coords.ts';
 import { Highlights } from '../scene/Highlights.ts';
-import { InteractionController } from '../scene/InteractionController.ts';
+import { InteractionController, type InteractionRules } from '../scene/InteractionController.ts';
 import { PieceAssetManager } from '../scene/PieceAssetManager.ts';
 import { PieceManager } from '../scene/PieceManager.ts';
 import { setPieceEnvironment } from '../scene/pieceMaterial.ts';
 import { boardTheme, pieceTheme, tableTheme } from '../scene/themes.ts';
 import { askPromotion } from '../ui/PromotionDialog.ts';
+import { ViewSwitch } from './ViewSwitch.ts';
 
 export class App {
   readonly settings: Store<Settings>;
@@ -57,6 +68,10 @@ export class App {
   readonly highlights: Highlights;
   readonly animations: AnimationController;
   readonly view: BoardView;
+  /** The flat 2D board, shown instead of the 3D scene when the player picks it. */
+  readonly flat: FlatBoard;
+  /** The board the controller plays on: whichever of the two is shown. */
+  readonly boards: ViewSwitch<BoardViewKind>;
   readonly fragments = new FragmentLibrary();
   readonly shatter: ShatterEffect;
   readonly interaction: InteractionController;
@@ -88,6 +103,8 @@ export class App {
     }
     const uiParam = this.params.get('ui');
     if (isUiStyle(uiParam)) initial = { ...initial, uiStyle: uiParam };
+    const boardParam = this.params.get('board');
+    if (isBoardViewKind(boardParam)) initial = { ...initial, boardView: boardParam };
     this.settings = new Store<Settings>(initial);
 
     this.scene = new ChessScene(root);
@@ -122,9 +139,27 @@ export class App {
     this.sound = new SoundManager(this.settings.get().sound);
     const seed = Number(this.params.get('seed') ?? Date.now());
 
+    // Both boards take moves under the same rules.
+    const rules: InteractionRules = {
+      canPick: (square) => this.controller.canPick(square),
+      legalTargets: (square) => this.controller.legalTargets(square),
+      isCapture: (from, to) =>
+        this.controller.game.legalMoves(from).some((m) => m.to === to && m.capture),
+      move: (input: MoveInput, dropped?: Vector3) => {
+        if (dropped) this.view.noteDrop(input.from, input.to, dropped);
+        return this.controller.playerMove(input);
+      },
+    };
+    this.flat = new FlatBoard(root, this.tweener, () => this.settings.get(), rules);
+    // The flat board needs no models, so it shows the pieces while the 3D ones load.
+    this.flat.sync(boardFromFen(START_FEN));
+    this.boards = new ViewSwitch({ '3d': this.view, '2d': this.flat }, initial.boardView, () =>
+      this.controller.game.board(),
+    );
+
     this.controller = new GameController({
       engine: this.engine,
-      view: this.view,
+      view: this.boards,
       ui: { askPromotion },
       sound: this.sound,
       settings: this.settings.get(),
@@ -138,16 +173,7 @@ export class App {
       this.pieces,
       this.highlights,
       this.tweener,
-      {
-        canPick: (square) => this.controller.canPick(square),
-        legalTargets: (square) => this.controller.legalTargets(square),
-        isCapture: (from, to) =>
-          this.controller.game.legalMoves(from).some((m) => m.to === to && m.capture),
-        move: (input, dropped) => {
-          if (dropped) this.view.noteDrop(input.from, input.to, dropped);
-          return this.controller.playerMove(input);
-        },
-      },
+      rules,
       requestRender,
     );
     this.view.interaction = this.interaction;
@@ -161,16 +187,21 @@ export class App {
       return hit ? this.scene.board.frameZone(hit.point) : null;
     });
 
+    // The camera holds the side the board is seen from, for both boards. The 3D frame's labels
+    // are only repainted while it is shown.
     let labelSide = this.camera.side;
     this.scene.addUpdater((delta) => {
       const moving = this.camera.update(delta);
-      if (this.camera.side !== labelSide) {
-        labelSide = this.camera.side;
+      const side = this.camera.side;
+      this.flat.setSide(side);
+      if (side !== labelSide && this.boards.current === '3d') {
+        labelSide = side;
         this.scene.board.setLabels({ side: labelSide });
       }
       const animating = this.tweener.update(delta);
       const shattering = this.shatter.update(delta);
       this.controller.tick();
+      this.flat.frame();
       const active = moving || animating || shattering;
       this.watchGlassSpeed(delta, active);
       return active;
@@ -208,6 +239,17 @@ export class App {
           this.scene.requestRender();
         });
       }
+      if (
+        next.board !== looks.board ||
+        next.pieces !== looks.pieces ||
+        next.table !== looks.table
+      ) {
+        this.flat.setLooks(
+          boardTheme(s.boardTheme, s.custom),
+          pieceTheme(s.pieceTheme, s.custom),
+          tableTheme(s.tableTheme, s.custom),
+        );
+      }
       looks = next;
       this.scene.requestRender();
       saveSettings(s);
@@ -218,12 +260,68 @@ export class App {
         showLastMove: s.showLastMove,
       });
       this.scene.board.setLabels({ visible: s.showCoordinates });
+      this.flat.setOptions({
+        showLegalMoves: s.showLegalMoves,
+        showLastMove: s.showLastMove,
+        showCoordinates: s.showCoordinates,
+      });
       this.camera.reverseTwist = s.reverseTwist;
+      this.showBoard(s.boardView);
       this.controller.updateSettings(s);
     });
 
     this.ready = this.start();
     if (import.meta.env.DEV || this.params.has('debug')) this.installDebugHook();
+  }
+
+  /** The board on screen: the 3D scene or the flat 2D board. */
+  get boardView(): BoardViewKind {
+    return this.boards.current;
+  }
+
+  /**
+   * Shows the chosen board. The other one stops at once and stays on the same position; the
+   * hidden 3D scene draws nothing, its camera ignores input and its pieces can't be picked.
+   */
+  private showBoard(kind: BoardViewKind): void {
+    const flat = kind === '2d';
+    this.boards.show(kind);
+    this.flat.show(flat);
+    this.scene.setVisible(!flat);
+    this.camera.enabled = !flat;
+    this.interaction.setSuspended(flat);
+  }
+
+  /** Turns the view to a side: the camera swings round in 3D, the 2D board turns at once. */
+  orient(side: 'white' | 'black'): Promise<void> {
+    return this.camera.setOrientation(side, this.boardView === '3d');
+  }
+
+  /** Looks at the board from the other side. */
+  flip(): Promise<void> {
+    if (this.boardView === '3d') return this.camera.flip();
+    return this.orient(this.camera.side === 'white' ? 'black' : 'white');
+  }
+
+  /** The 3D board's top view (the 2D board is always seen from above). */
+  topView(): void {
+    if (this.boardView === '3d') this.camera.topView();
+  }
+
+  /** Back to the 3D board's usual view. */
+  resetView(): void {
+    if (this.boardView === '3d') this.camera.reset();
+  }
+
+  /** The Chess Coach's aids, on both boards. */
+  setCoachMarks(marks: CoachMarks): void {
+    this.highlights.set(marks);
+    this.flat.setAids(marks);
+  }
+
+  /** How much of each window edge the interface covers, so the 2D board fits between. */
+  setCovered(edges: Edges): void {
+    this.flat.setCovered(edges);
   }
 
   /** Short messages for the player (shown in the Chess Coach panel). */
@@ -245,7 +343,8 @@ export class App {
     const board = this.scene.board.currentTheme.construction === 'glass';
     const theme = this.assets.currentTheme;
     const pieces = theme.w.finish === 'glass' || theme.b.finish === 'glass';
-    if (this.glassFallbackUsed || !s.glassReflections || !(board || pieces)) {
+    const hidden = this.boardView !== '3d';
+    if (this.glassFallbackUsed || !s.glassReflections || !(board || pieces) || hidden) {
       this.frames.reset();
       return;
     }
@@ -293,7 +392,7 @@ export class App {
     if (next.mode !== 'online') await this.leaveOnline();
     this.settings.set(next);
     const side = next.mode !== 'local' && next.humanColor === 'b' ? 'black' : 'white';
-    void this.camera.setOrientation(side);
+    void this.orient(side);
     await this.controller.newGame(fen);
   }
 
@@ -399,6 +498,7 @@ export class App {
       },
       squareToScreen: (square: string) => {
         if (!isSquare(square)) throw new Error(`bad square ${square}`);
+        if (this.boardView === '2d') return this.flat.clientPoint(square);
         const { x, z } = squareToWorld(square);
         return this.camera.projectToClient(new Vector3(x, 0.05, z));
       },
@@ -407,6 +507,11 @@ export class App {
       /** A screen point that picks the given square: on its piece, or on the open square. */
       clickPoint: (square: string) => {
         if (!isSquare(square)) throw new Error(`bad square ${square}`);
+        if (this.boardView === '2d') {
+          // The middle of the square, unless a panel lies over it.
+          const p = this.flat.clientPoint(square);
+          return document.elementFromPoint(p.x, p.y) === this.flat.canvas ? p : null;
+        }
         const { x, z } = squareToWorld(square);
         const view = this.pieces.get(square);
         const tries: Array<[number, number, number]> = [];
@@ -431,15 +536,23 @@ export class App {
         }
         return null;
       },
-      consistency: () =>
-        checkConsistency(this.controller.game.board(), scene(), {
+      /** Both boards against the rules; the 2D board's problems start with "2D:". */
+      consistency: () => {
+        const board = this.controller.game.board();
+        const options = {
           humanColor:
             this.settings.get().mode === 'computer' ? this.settings.get().humanColor : undefined,
           moves: this.controller.moveAudit(),
-        }),
+        };
+        return [
+          ...checkConsistency(board, scene(), options),
+          ...checkConsistency(board, this.flat.snapshot()).map((error) => `2D: ${error}`),
+        ];
+      },
+      boardView: () => this.boardView,
       newGame: (patch: Partial<Settings>, fen?: string) => this.newGame(patch, fen),
       setSettings: (patch: Partial<Settings>) => this.settings.update(patch),
-      render: () => this.scene.renderNow(),
+      render: () => (this.boardView === '2d' ? this.flat.drawNow() : this.scene.renderNow()),
       theme: () => ({
         board: this.scene.board.currentTheme.id,
         pieces: this.assets.currentTheme.id,
