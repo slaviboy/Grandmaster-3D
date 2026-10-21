@@ -98,7 +98,9 @@ until you have agreed, and the link disappears from the address bar as soon as t
   your card. Turning a switch off stops the device (the camera light goes out). Your friend's
   picture and sound appear on their card when they turn theirs on; the speaker switch there mutes
   them for you only, and a crossed-out microphone shows when no sound comes from them. In Modern a
-  card with video opens up to show it; in Retro it fills the portrait frame.
+  card with video opens up to show it; in Retro it fills the portrait frame. When you both switch
+  on at once, the two of you take turns, so one picture can take about a second longer to appear;
+  after a dropped connection both come back by themselves.
 - **Offer Draw** (Game menu) offers a draw; the game is drawn when both of you agree.
 - **Resign**, or **Leave Online Game**, ends the game as a loss. Starting any other game asks first,
   since it means leaving.

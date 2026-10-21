@@ -52,6 +52,8 @@ test.describe.configure({ timeout: 180_000 });
 async function countNetwork(page: Page) {
   await page.addInitScript(() => {
     const counts = { peers: 0, sockets: 0, devices: 0 };
+    const connections: RTCPeerConnection[] = [];
+    (window as unknown as { __testPeers: typeof connections }).__testPeers = connections;
     const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
     if (ask) {
       navigator.mediaDevices.getUserMedia = (constraints) => {
@@ -65,6 +67,7 @@ async function countNetwork(page: Page) {
       constructor(...args: ConstructorParameters<typeof RTCPeerConnection>) {
         super(...args);
         counts.peers++;
+        connections.push(this);
       }
     };
     const Socket = window.WebSocket;
@@ -351,6 +354,65 @@ test.describe('video and voice', () => {
     // Ben never turned anything on, so nothing of his was ever asked for.
     expect(await deviceRequests(guest.page)).toBe(0);
     for (const side of [host, guest]) expect(side.errors).toEqual([]);
+  });
+
+  test('both players on camera and microphone stay connected', async ({ browser }) => {
+    const host = await player(browser, 'modern');
+    const link = await createLink(host.page, 'modern');
+    const guest = await player(browser, 'modern', withTestSettings(link, 'modern'));
+    await accept(guest.page, 'Join an Online Game', 'Ben', 'Join Game');
+    await expect(host.page.getByRole('dialog', { name: 'Invite a Friend' })).toHaveCount(0, {
+      timeout: 120_000,
+    });
+    const card = (p: Page, row: 'top' | 'bottom') => p.locator(`#match-card .m-player.${row}`);
+    const playing = (video: ReturnType<Page['locator']>) =>
+      expect
+        .poll(() => video.evaluate((v: HTMLVideoElement) => v.videoWidth), { timeout: 30_000 })
+        .toBeGreaterThan(0);
+    const away = (p: Page) => p.locator('#match-card .m-note', { hasText: 'Disconnected' });
+
+    /** Neither side shows the other as gone, every second for a while. */
+    const holds = async (seconds: number) => {
+      for (let second = 0; second < seconds; second++) {
+        for (const { page } of [host, guest]) await expect(away(page)).toHaveCount(0);
+        await host.page.waitForTimeout(1000);
+      }
+    };
+
+    // Both turn their camera and microphone on at the same moment: their renegotiations must not
+    // collide, or a picture never arrives (or the connection drops).
+    await Promise.all(
+      [host, guest].map(async ({ page }) => {
+        await card(page, 'bottom').getByRole('button', { name: 'Turn your camera on' }).click();
+        await card(page, 'bottom').getByRole('button', { name: 'Turn your microphone on' }).click();
+      }),
+    );
+    for (const { page } of [host, guest]) {
+      await playing(card(page, 'bottom').locator('video.m-avatar-video'));
+      await playing(card(page, 'top').locator('video.m-avatar-video'));
+    }
+    await holds(10);
+
+    // Ana's connection drops. On the new one both send their camera and microphone again at once,
+    // and both pictures must come back.
+    await host.page.evaluate(() =>
+      (window as unknown as { __testPeers: RTCPeerConnection[] }).__testPeers.forEach((p) =>
+        p.close(),
+      ),
+    );
+    await expect(away(guest.page)).toHaveCount(1, { timeout: 30_000 });
+    for (const { page } of [host, guest]) {
+      await expect(away(page)).toHaveCount(0, { timeout: 90_000 });
+    }
+    for (const { page } of [host, guest]) {
+      await playing(card(page, 'top').locator('video.m-avatar-video'));
+    }
+    await holds(20);
+
+    for (const side of [host, guest]) {
+      expect(side.logs.filter((l) => /disconnecting peer|peer error/i.test(l))).toEqual([]);
+      expect(side.errors).toEqual([]);
+    }
   });
 });
 

@@ -18,13 +18,18 @@
 // handshake, and messages from anyone but the partner are ignored. The room and its peer
 // connections stay private to this module: nothing here is put on window or logged.
 
-import { joinRoom, type JsonValue, type MessageAction, type Room } from 'trystero/nostr';
+import { joinRoom, selfId, type JsonValue, type MessageAction, type Room } from 'trystero/nostr';
 import type { LinkHandlers, LinkPort } from './LinkPort.ts';
 import { MAX_MESSAGE_BYTES, type Invite, type Message } from './protocol.ts';
 
 const APP_ID = 'grandmaster-3d';
 /** Trystero's own ceiling for anything a peer sends, well above our largest message. */
 const MAX_RECEIVE_BYTES = 16 * 1024;
+/**
+ * How long the side that does not lead lets the connection be quiet before changing its media:
+ * long enough for an offer the leader made at the same moment to arrive first.
+ */
+const SETTLE_MS = 1000;
 
 const NO_HANDLERS: LinkHandlers = {
   message: () => undefined,
@@ -47,6 +52,13 @@ class PeerLink implements LinkPort {
   private readonly refused = new Set<string>();
   /** The local camera and microphone tracks being sent, to send again after a reconnect. */
   private readonly tracks = new Map<MediaStreamTrack, MediaStream>();
+  /** Changes not yet made on the connection: a track to send with its stream, or null to stop. */
+  private readonly changes = new Map<MediaStreamTrack, MediaStream | null>();
+  private changeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the negotiation last changed state, or this side last asked to change its media. */
+  private quietSince = 0;
+  /** Detaches the listener from the current connection. */
+  private watching: AbortController | null = null;
   private closed = false;
 
   constructor(invite: Invite, room: string) {
@@ -76,12 +88,17 @@ class PeerLink implements LinkPort {
         return;
       }
       this.partner = peerId;
-      for (const [track, stream] of this.tracks) this.sendTrack(track, stream);
+      this.watch(peerId);
+      // A new connection carries nothing yet: everything being sent goes again.
+      this.changes.clear();
+      for (const [track, stream] of this.tracks) this.changes.set(track, stream);
+      this.applyChanges();
       this.handlers.join();
     };
     this.room.onPeerLeave = (peerId) => {
       if (peerId !== this.partner) return;
       this.partner = null;
+      this.unwatch();
       this.handlers.leave();
     };
     this.room.onPeerTrack = (track, stream, peerId) => {
@@ -111,12 +128,18 @@ class PeerLink implements LinkPort {
 
   addTrack(track: MediaStreamTrack, stream: MediaStream): void {
     this.tracks.set(track, stream);
-    this.sendTrack(track, stream);
+    this.changes.set(track, stream);
+    this.quietSince = performance.now();
+    this.applyChanges();
   }
 
   removeTrack(track: MediaStreamTrack): void {
     this.tracks.delete(track);
-    if (this.partner && !this.closed) this.room.removeTrack(track, { target: this.partner });
+    // A track still waiting to be sent is simply never sent.
+    if (this.changes.get(track)) this.changes.delete(track);
+    else this.changes.set(track, null);
+    this.quietSince = performance.now();
+    this.applyChanges();
   }
 
   kick(): void {
@@ -124,6 +147,7 @@ class PeerLink implements LinkPort {
     if (!partner) return;
     this.refused.add(partner);
     this.partner = null;
+    this.unwatch();
     this.disconnect(partner);
   }
 
@@ -131,13 +155,61 @@ class PeerLink implements LinkPort {
     if (this.closed) return;
     this.closed = true;
     this.partner = null;
+    this.unwatch();
     this.handlers = NO_HANDLERS;
     await this.room.leave();
   }
 
-  private sendTrack(track: MediaStreamTrack, stream: MediaStream): void {
-    if (!this.partner || this.closed) return;
-    void Promise.allSettled(this.room.addTrack(track, stream, { target: this.partner }));
+  /** Follows the connection's negotiation, to know when it is settled. */
+  private watch(peerId: string): void {
+    this.unwatch();
+    const watching = new AbortController();
+    this.watching = watching;
+    this.quietSince = performance.now();
+    this.room.getPeers()[peerId]?.addEventListener(
+      'signalingstatechange',
+      () => {
+        this.quietSince = performance.now();
+        this.applyChanges();
+      },
+      { signal: watching.signal },
+    );
+  }
+
+  private unwatch(): void {
+    this.watching?.abort();
+    this.watching = null;
+    if (this.changeTimer !== null) clearTimeout(this.changeTimer);
+    this.changeTimer = null;
+  }
+
+  /**
+   * Makes the waiting camera and microphone changes. Each one makes this side renegotiate the
+   * connection, and if both sides do so at once (both cameras turned on together, or both sending
+   * theirs again after a reconnect) their offers collide. The way out of that, one side taking its
+   * offer back, can leave that side's picture of the other muted for good, or fail and drop the
+   * connection, which then happens again on every reconnect. So changes wait until the negotiation
+   * is settled, and the side that does not lead (Trystero's own order: the lower id leads, and
+   * keeps its offer in a collision) waits until it has been quiet a while, so the leader goes first.
+   */
+  private applyChanges(): void {
+    if (this.changeTimer !== null) clearTimeout(this.changeTimer);
+    this.changeTimer = null;
+    const partner = this.partner;
+    if (!partner || this.closed || this.changes.size === 0) return;
+    const connection = this.room.getPeers()[partner];
+    // The next change of state tries again.
+    if (!connection || connection.signalingState !== 'stable') return;
+    const wait = selfId < partner ? 0 : this.quietSince + SETTLE_MS - performance.now();
+    if (wait > 0) {
+      this.changeTimer = setTimeout(() => this.applyChanges(), wait);
+      return;
+    }
+    for (const [track, stream] of this.changes) {
+      if (stream) void Promise.allSettled(this.room.addTrack(track, stream, { target: partner }));
+      else this.room.removeTrack(track, { target: partner });
+    }
+    this.changes.clear();
   }
 
   private disconnect(peerId: string): void {
