@@ -21,7 +21,7 @@ import { CoachPanel } from './CoachPanel.ts';
 import { GameStatusPanel } from './GameStatusPanel.ts';
 import { MenuBar, type Menu, type MenuItem } from './MenuBar.ts';
 import type { Panel } from './Panel.ts';
-import type { Shell, ShellContext, ShellView } from './shell.ts';
+import { sideReach, type Shell, type ShellContext, type ShellView } from './shell.ts';
 import { uiStyleSwitch } from './UiStyleSwitch.ts';
 
 export class RetroShell implements Shell {
@@ -105,11 +105,21 @@ export class RetroShell implements Shell {
       this.captured.panel.setCollapsed(true);
     }
 
-    // Keep the board clear of the right-hand panels on narrower windows.
+    // Keep the 3D board clear of the right-hand panels on narrower windows. The 2D board always
+    // keeps clear of the title bar and the status line, and of the windows and buttons beside it.
     const reserve = () => {
       const open = [this.status.panel, this.captured.panel].some((p) => p.visible && !p.collapsed);
-      const width = open && window.innerWidth >= 760 ? right.getBoundingClientRect().width : 0;
+      const wide = window.innerWidth >= 760;
+      const width = open && wide ? right.getBoundingClientRect().width : 0;
       app.camera.setReserved({ top: 0, right: width, bottom: 0 });
+      const area = app.root.getBoundingClientRect();
+      app.setCovered({
+        top: Math.max(0, titleBar.getBoundingClientRect().bottom - area.top),
+        bottom: Math.max(0, area.bottom - this.bottom.status.getBoundingClientRect().top),
+        ...(wide
+          ? sideReach(area, [this.coach.panel.element, right, ...this.bottom.corners])
+          : { left: 0, right: 0 }),
+      });
     };
     for (const panel of this.panels()) panel.onChange(reserve);
     window.addEventListener('resize', reserve, { signal });

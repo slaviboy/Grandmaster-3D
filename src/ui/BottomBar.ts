@@ -41,6 +41,8 @@ function roundButton(glyph: string, title: string, onClick: () => void): HTMLBut
 export class BottomBar {
   readonly element: HTMLElement;
   readonly status: HTMLElement;
+  /** The buttons in the bottom corners, above the status line. */
+  readonly corners: readonly HTMLElement[];
   private readonly turn: HTMLElement;
   private readonly tray: HTMLElement;
   private readonly undoButton: HTMLButtonElement;
@@ -100,6 +102,7 @@ export class BottomBar {
     this.status.setAttribute('role', 'status');
 
     this.element.append(left, slide, main, this.tray, right, this.status);
+    this.corners = [left, slide, main, right];
   }
 
   render(turn: Color, over: boolean, canUndo: boolean, canRedo: boolean, status: string): void {

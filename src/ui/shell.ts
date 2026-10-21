@@ -111,3 +111,23 @@ export interface Shell {
   /** Removes the shell's elements; its listeners go with the context's signal. */
   dispose(): void;
 }
+
+/**
+ * How far the given elements reach in from the left and right edges of `area`, for fitting the 2D
+ * board between them: each counts toward the side its middle is on, and hidden ones not at all.
+ */
+export function sideReach(
+  area: DOMRect,
+  elements: readonly Element[],
+): { left: number; right: number } {
+  let left = 0;
+  let right = 0;
+  const middle = area.left + area.width / 2;
+  for (const element of elements) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    if (box.left + box.width / 2 < middle) left = Math.max(left, box.right - area.left);
+    else right = Math.max(right, area.right - box.left);
+  }
+  return { left, right };
+}

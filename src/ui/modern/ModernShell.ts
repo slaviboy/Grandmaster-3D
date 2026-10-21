@@ -21,7 +21,7 @@ import type { MediaView } from '../cardMedia.ts';
 import { el } from '../Dialog.ts';
 import { LINE_ICONS, pieceSvg } from '../icons.ts';
 import { MenuBar, type Menu, type MenuItem } from '../MenuBar.ts';
-import type { Shell, ShellContext, ShellView } from '../shell.ts';
+import { sideReach, type Shell, type ShellContext, type ShellView } from '../shell.ts';
 import { uiStyleSwitch } from '../UiStyleSwitch.ts';
 import { CoachCard } from './CoachCard.ts';
 import { iconButton } from './controls.ts';
@@ -82,27 +82,35 @@ export class ModernShell implements Shell {
     // On narrow windows the camera fits the board into the space left of the Match card. On an
     // upright phone it fits it between the cards at the top and the dock at the bottom; the coach
     // counts by its head only, so opening it lays it over the board instead of moving the board.
+    // The 2D board always keeps clear of the top bar and the dock, and of the cards beside it.
     const phone = window.matchMedia(PHONE);
     const reserve = () => {
       const area = app.root.getBoundingClientRect();
+      const bottom = Math.max(0, area.bottom - this.dock.element.getBoundingClientRect().top);
       if (phone.matches) {
         const cards = [top];
         if (this.match.visible) cards.push(this.match.element);
         if (this.coach.visible) cards.push(this.coach.head);
         const cardsEnd = Math.max(...cards.map((card) => card.getBoundingClientRect().bottom));
-        app.camera.setReserved({
-          top: Math.max(0, cardsEnd - area.top),
-          right: 0,
-          bottom: Math.max(0, area.bottom - this.dock.element.getBoundingClientRect().top),
-        });
+        const edges = { top: Math.max(0, cardsEnd - area.top), right: 0, bottom };
+        app.camera.setReserved(edges);
+        app.setCovered({ ...edges, left: 0 });
         return;
       }
       const rect = this.match.element.getBoundingClientRect();
-      const covered = this.match.visible && window.innerWidth >= 760;
+      const wide = window.innerWidth >= 760;
+      const covered = this.match.visible && wide;
       app.camera.setReserved({
         top: 0,
         right: covered ? area.right - rect.left : 0,
         bottom: 0,
+      });
+      app.setCovered({
+        top: Math.max(0, top.getBoundingClientRect().bottom - area.top),
+        bottom,
+        ...(wide
+          ? sideReach(area, [this.coach.element, this.match.element])
+          : { left: 0, right: 0 }),
       });
     };
     // The cards change size as they fold, hide, show a video or wrap their text.
